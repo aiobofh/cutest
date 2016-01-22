@@ -7,7 +7,7 @@
  * CUTest - The C Unit Test framework
  * ==================================
  *
- * Author: Joakim Ekblad
+ * Author: AiO (AiO Secure Teletronics)
  * Project site: https://github.com/aiobofh/cutest
  *
  * Thank you for downloading the CUTest framework! I hope it will make your
