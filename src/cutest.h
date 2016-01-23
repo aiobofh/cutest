@@ -191,16 +191,20 @@ extern struct tm *localtime_r(const time_t *timep, struct tm *result);
  * The assert_eq() macro
  * ---------------------
  *
- * This macro makes it easy to understand the test-case flow.
+ * This macro makes it easy to understand the test-case flow, it is a
+ * variadic macro that takes two or three arguments. Use the form you
+ * feel most comfortable with.
  *
  * Example::
  *
  *   ...
  *   assert_eq(1, 1, "1 should be eqial to 1");
  *   ...
+ *   assert_eq(1, 1);
+ *   ...
  *
  */
-#define assert_eq(EXP, REF, STR)                                   \
+#define assert_eq_3(EXP, REF, STR)                                 \
   if ((EXP) != (REF)) {                                            \
     sprintf(cutest_stats.error_output,                             \
             "%s %s:%d assert_eq(" #EXP ", " #REF ", " STR ") "     \
@@ -208,6 +212,28 @@ extern struct tm *localtime_r(const time_t *timep, struct tm *result);
             __FILE__, __LINE__);                                   \
     cutest_assert_fail_cnt++;                                      \
   }
+
+#define assert_eq_2(EXP, REF) \
+  assert_eq_3(EXP, REF, "assert_eq(" #EXP ", " #REF ")")
+
+#define assert_eq_1(EXP)                                           \
+  if (!(EXP)) {                                                    \
+    sprintf(cutest_stats.error_output,                             \
+            "%s %s:%d assert_eq(" #EXP ") "                        \
+            "failed\n", cutest_stats.error_output,                 \
+            __FILE__, __LINE__);                                   \
+    cutest_assert_fail_cnt++;                                      \
+  }
+
+#define assert_eq_select(X, A1, A2, A3, MACRO, ...) MACRO
+
+#define assert_eq_chooser(...)                  \
+  assert_eq_select(,##__VA_ARGS__,              \
+                   assert_eq_3,                 \
+                   assert_eq_2,                 \
+                   assert_eq_1,)
+
+#define assert_eq(...) assert_eq_chooser(__VA_ARGS__)(__VA_ARGS__)
 
 static int cutest_assert_fail_cnt = 0;
 static struct {
