@@ -811,20 +811,41 @@ static void print_ctl(const char* function_name)
   }
 }
 
+static void print_pre_processor_directives(const char* filename) {
+  char buf[1024];
+
+  FILE* f = fopen(filename, "r");
+
+  if (NULL == f) {
+    fprintf(stderr, "ERROR: Unable to open '%s'\n", filename);
+    return;
+  }
+
+  while (fgets(buf, sizeof(buf), f)) {
+    if ('#' != buf[0]) {
+      continue;
+    }
+    printf("%s", buf);
+  }
+  fclose(f);
+  printf("\n");
+}
+
 static void print_forward_declaration(cutest_mock_t* mock)
 {
   int i;
   for (i = 0; i < mock->arg_cnt; i++) {
+    char buf[128];
+    memset(buf, 0, sizeof(buf));
     if (mock->arg[i].type.is_struct) {
-      char buf[128];
-      memset(buf, 0, sizeof(buf));
+      printf("struct ");
       for (int j = 0; j < (int)strlen(mock->arg[i].type.name); j++) {
         if (mock->arg[i].type.name[j] == '*') {
           break;
         }
         buf[j] = mock->arg[i].type.name[j];
       }
-      printf("struct %s;\n", buf);
+      printf("%s;\n", buf);
     }
   }
 }
@@ -981,6 +1002,8 @@ int main(int argc, char* argv[])
     print_forward_declarations(called_functions[i]);
   }
   printf("\n");
+
+  print_pre_processor_directives(argv[1]);
 
   /* Mock function declarations */
 
