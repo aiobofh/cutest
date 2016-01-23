@@ -918,7 +918,7 @@ int main(int argc, char* argv[])
   printf("#define call(FUNCTION) cutest_mock_##FUNCTION\n");
 
   printf("struct {\n\n");
-
+  printf("   int keep_the_struct_with_contents_if_no_mocks_generated;\n");
   for (i = 0; i < called_functions_cnt; i++) {
     print_ctl(called_functions[i]);
   }
