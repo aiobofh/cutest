@@ -214,7 +214,13 @@ extern struct tm *localtime_r(const time_t *timep, struct tm *result);
   }
 
 #define assert_eq_2(EXP, REF) \
-  assert_eq_3(EXP, REF, "assert_eq(" #EXP ", " #REF ")")
+  if ((EXP) != (REF)) {                                            \
+    sprintf(cutest_stats.error_output,                             \
+            "%s %s:%d assert_eq(" #EXP ", " #REF ") "              \
+            "failed\n", cutest_stats.error_output,                 \
+            __FILE__, __LINE__);                                   \
+    cutest_assert_fail_cnt++;                                      \
+  }
 
 #define assert_eq_1(EXP)                                           \
   if (!(EXP)) {                                                    \
@@ -239,6 +245,7 @@ static int cutest_assert_fail_cnt = 0;
 static struct {
   int verbose;
   int junit;
+  int no_linefeed;
 } cutest_opts;
 static int cutest_exit_code = EXIT_SUCCESS;
 
@@ -274,6 +281,9 @@ static void cutest_startup(int argc, char* argv[], const char* suite_name)
     }
     if ((0 == strcmp(argv[i], "-j")) || (0 == strcmp(argv[i], "--junit"))) {
       cutest_opts.junit = 1;
+    }
+    if ((0 == strcmp(argv[i], "-n")) || (0 == strcmp(argv[i], "--no-linefeed"))) {
+      cutest_opts.no_linefeed = 1;
     }
   }
   memset(cutest_junit_report, 0, sizeof(cutest_junit_report));
@@ -321,6 +331,7 @@ static void cutest_execute_test(void (*func)(), const char *name) {
     else {
       printf("F");
     }
+    fflush(stdout);
   }
 
   if (cutest_assert_fail_cnt != 0) {
@@ -368,7 +379,10 @@ static void cutest_shutdown(const char* filename)
 
   if (0 == cutest_opts.verbose) {
     /* Add an enter if not running in verbose, to line break after the ... */
-    printf("\n");
+    if ((0 == cutest_opts.no_linefeed) ||
+        (0 != strlen(cutest_stats.error_output))) {
+      printf("\n");
+    }
     printf("%s", cutest_stats.error_output);
   }
   else {

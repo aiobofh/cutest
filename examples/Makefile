@@ -5,6 +5,8 @@ Q=@
 # Reuse the Q variable for making cutest test running verbose too.
 ifneq (${Q},@)
 	V=-v
+else
+	V=-n
 endif
 
 # Some nice flags for compiling cutest-tests with good quality
@@ -58,7 +60,7 @@ cutest_help: cutest_help.rst
 	$(Q)less $<
 
 check: $(subst .c,,$(wildcard *_test.c))
-	$(Q)R=true; for i in $<; do ./$$i $V -j || (rm $$i || R=false); done; `$$R`
+	$(Q)R=true; for i in $^; do ./$$i $V -j || (rm $$i || R=false); done; echo ""; `$$R`
 clean:
 	$(Q)$(RM) -f cutest_* \
 	*_test_run.c \
