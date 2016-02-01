@@ -24,10 +24,11 @@
  * Features
  * --------
  *
- * * Automated C-function controllable mocks (with some code footprint
- *   in the form of the inclusion of call.h and usage of the call() macro)
+ * * Automated generation of controllable mocks for all C-functions, with
+ *   code footprint in the form of the inclusion of call.h and usage of the
+ *   call() macro)
  * * C-Function stubbing
- * * Generic asserts
+ * * Generic asserts in 1, 2 and 3 argument flavors.
  * * JUnit XML reports for Jenkins integration
  * * Very few dependencies to other tools (`echo`, `gcc`, `make` and `cproto`)
  * * In-line documentation to ReSTructured Text or HTML
@@ -43,10 +44,10 @@
  *
  *   # Print the CUTest manual
  *   cutest_help.rst: cutest.h
- *       $(Q)grep -e '^ * ' cutest.h | \
- *       grep -v '/' | \
+ *       $(Q)grep -e '^ * ' $< |                 \
+ *       grep -v '/' |                                 \
  *       grep -v -e '^  ' | \
- *       sed -e 's/^ \* //g;s/^ \*+//g;s/ \*$//g' > $@
+ *       sed -e 's/^ \* //g;s/^ \*$//g' > $@
  *
  * ... or if you prefer HTML you can add this too::
  *
@@ -64,8 +65,8 @@
  * However, this is the tested way to structure your design under test and
  * your test suites::
  *
- *   src/cutest.h
- *   src/call.h
+ *   src/cutest.h    <- May be symlink to your local installation of cutest.h
+ *   src/call.h      <- May be symlink to your local installation of call.h
  *   :
  *   src/dut.c       <- your program (design under test) (can #include call.h)
  *   src/dut_test.c  <- test suite for dut.c (should #include cutest.h)
@@ -110,27 +111,29 @@
  *   .PRECIOUS: %_mocks.h
  *   # Generate mocks from the call()-macro in a source-file.
  *   %_mocks.h: %.c cutest.h cutest_mock
- *         $(Q)./cutest_mock $< > $@
+ *       $(Q)./cutest_mock $< > $@
  *
  *   .PRECIOUS: %_test_run.c
  *   # Generate a test-runner program code from a test-source-file
  *   %_test_run.c: %_test.c %_mocks.h cutest.h cutest_run
- *         $(Q)./cutest_run $(filter-out cutest.h,$^) > $@
+ *       $(Q)./cutest_run $(filter-out cutest.h,$^) > $@
  *
  *   # Compile a test-runner from the generate test-runner program code
  *   %_test: %_test_run.c
- *         $(Q)$(CC) $^ -Wall -pedantic -std=c11 -o $@
+ *       $(Q)$(CC) $^ $(CUTEST_CFLAGS) -DNDEBUG -o $@
  *
  *   check: $(subst .c,,$(wildcard *_test.c))
- *         $(Q)R=true; \
- *         for i in $<; do \
- *            ./$$i -v -j || (rm $$i || R=false); \
- *         done; `$$R
+ *       $(Q)R=true; for i in $^; do           \
+ *         ./$$i $V -j || (rm $$i || R=false);  \
+ *       done; echo ""; `$$R`
  *
  * Command line::
  *
  *   $ make foo_test
  *   $ ./foo_test
+ *   ...
+ *
+ *   $ make check
  *   ...
  *
  * It's a lot of rules and targets for one simple test case, but it scales
