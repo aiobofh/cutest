@@ -49,18 +49,24 @@ cutest_mock: cutest_mock.c
 
 # Print the CUTest manual
 cutest_help.rst: cutest.h
-	$(Q)grep -e '^ * ' $< | grep -v '*/' | grep -v -e '^  ' | sed -e 's/^ \* //g;s/^ \*//g' > $@
+	$(Q)grep -e '^ * ' $< | \
+	grep -v '*/' | \
+	grep -v -e '^  ' | \
+	sed -e 's/^ \* //g;s/^ \*//g' > $@
 
 # Output the CUTest manual as HTML
-cutest_help.html: cutest.h
-	$(Q)grep -e '^ * ' $< | grep -v '*/' | grep -v -e '^  ' | sed -e 's/^ \* //g;s/^ \*//g' | rst2html > $@
+cutest_help.html: cutest_help.rst
+	$(Q)rst2html $< > $@
 
 # Show the CUTest manual
 cutest_help: cutest_help.rst
 	$(Q)less $<
 
 check: $(subst .c,,$(wildcard *_test.c))
-	$(Q)R=true; for i in $^; do ./$$i $V -j || (rm $$i || R=false); done; echo ""; `$$R`
+	$(Q)R=true; for i in $^; do \
+	  ./$$i $V -j || (rm $$i || R=false); \
+	done; echo ""; `$$R`
+
 clean:
 	$(Q)$(RM) -f cutest_* \
 	*_test_run.c \
