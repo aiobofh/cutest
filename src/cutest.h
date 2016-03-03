@@ -952,6 +952,18 @@ static void print_mock(cutest_mock_t* mock)
     printf("  }\n");
     printf("  return cutest_mock.%s.retval;\n", mock->name);
   }
+  else {
+    printf("  if (NULL != cutest_mock.%s.func) {\n", mock->name);
+    printf("    cutest_mock.%s.func(", mock->name);
+    for (i = 0; i < mock->arg_cnt; i++) {
+      printf("%s", mock->arg[i].name);
+      if (i < mock->arg_cnt - 1) {
+        printf(", ");
+      }
+    }
+    printf(");\n");
+    printf("  }\n");
+  }
   printf("}\n");
   printf("\n");
 }
