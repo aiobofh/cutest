@@ -639,6 +639,11 @@ static int get_return_type(cutest_mock_return_type_t* return_type,
   if ('*' == buf[pos]) {
     return_type->name[dst_pos] = '*';
     pos++;
+    if ('*' == buf[pos]) {
+      dst_pos++;
+      return_type->name[dst_pos] = '*';
+      pos++;
+    }
   }
   pos += skip_white_spaces(&buf[pos]);
   return pos;
@@ -690,6 +695,11 @@ static int get_function_args(cutest_mock_t* mock, const char* buf) {
     if ('*' == buf[pos]) {
       mock->arg[mock->arg_cnt].type.name[dst_pos] = '*';
       pos++;
+      if ('*' == buf[pos]) {
+        dst_pos++;
+        mock->arg[mock->arg_cnt].type.name[dst_pos] = '*';
+        pos++;
+      }
     }
     while (',' != buf[pos] && ')' != buf[pos]) {
       mock->arg[mock->arg_cnt].name[dst_pos] = buf[pos];
