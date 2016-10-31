@@ -469,7 +469,9 @@ static void cutest_shutdown(const char* filename)
  *
  *   # Build a tool to generate a test runner program.
  *   cutest_mock: cutest_mock.c
- *       $(Q)$(CC) $< $(CUTEST_CFLAGS) -DCUTEST_MOCK_MAIN -o $@
+ *       $(Q)which cproto >/dev/null || \
+ *       (echo "ERROR: cproto is not installed in your path"; false) && \
+ *       $(CC) $< $(CUTEST_CFLAGS) -DCUTEST_MOCK_MAIN -o $@
  *
  * Usage
  * -----
