@@ -1,3 +1,5 @@
+#include <stdio.h>
+
 #include "call.h"
 
 static int bar(int argument) {
