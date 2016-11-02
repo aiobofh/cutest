@@ -25,49 +25,41 @@ Features
 * C-Function stubbing
 * Generic asserts in 1, 2 and 3 argument flavors.
 * JUnit XML reports for Jenkins integration
-* Very few dependencies to other tools (`echo`, `gcc`, `make` and `cproto`)
+* Very few dependencies to other tools (`echo`, `gcc`, `make`, `which`,
+  `grep`, `sed`, `rst2html`, `less` and `cproto`)
 * In-line documentation to ReSTructured Text or HTML
   (requires additional tools: `grep`, `sed` and `rst2html`)
 
-In-line documentation to ReSTructured Text and/or HTML
-------------------------------------------------------
+Organize your directories
+-------------------------
 
-You can always read the cutest.h file, since it's the only one around :D.
+The CUTest framework make some expecations but should be fairly flexible
+by default the paths are set to support a flat structure with test-case
+source files and design under test source files in the same folder.
 
-... or you can generate a ReSTructured Text-style output using by adding
-another target to your Makefile::
+However you MUST name your test-case source file as the corresponding
+design under test source file.
 
-  # Print the CUTest manual
-  cutest_help.rst: cutest.h
-      $(Q)grep -e '^ * ' $< |                 \
-      grep -v '/' |                                 \
-      grep -v -e '^  ' | \
-      sed -e 's/^ \* //g;s/^ \*$//g' > $@
+So... If you have a file dut.c you need a dut_test.c file to test the
+functions in the dut.c file.
 
-... or if you prefer HTML you can add this too::
+Here is a flat example::
 
-  # Print the CUTest manuial as HTML
-  cutest_help.html: cutest_help.rst
-      rst2html $< > $@
-
-Flat directory ''structure''
-----------------------------
-
-The CUTest framework expects you to work with your design and tests in
-the same folder, however this is not mandatory. You can tweak the example
-Makefile snippets here to change that behaviour.
-
-However, this is the tested way to structure your design under test and
-your test suites::
-
-  src/cutest.h    <- May be symlink to your local installation of cutest.h
-  src/call.h      <- May be symlink to your local installation of call.h
-  :
   src/dut.c       <- your program (design under test) (can #include call.h)
   src/dut_test.c  <- test suite for dut.c (should #include cutest.h)
   src/Makefile
 
 ... So keep your clean:-target clean ;).
+
+Here is a more complex example::
+
+  my_project/src/dut.c
+  my_project/src/Makefile
+  my_project/test/dut_test.c
+  my_project/test/Makefile
+
+In this case you need to set the CUTEST_SRC_DIR=../src in the test
+Makefile in my_project/test/Makefile.
 
 Example
 -------
@@ -103,24 +95,18 @@ foo.c::
 
 Makefile::
 
-  .PRECIOUS: %_mocks.h
-  # Generate mocks from the call()-macro in a source-file.
-  %_mocks.h: %.c cutest.h cutest_mock
-      $(Q)./cutest_mock $< > $@
+  CUTEST_SRC_DIR=./
+  include /path/to/cutest/src/cutest.mk
 
-  .PRECIOUS: %_test_run.c
-  # Generate a test-runner program code from a test-source-file
-  %_test_run.c: %_test.c %_mocks.h cutest.h cutest_run
-      $(Q)./cutest_run $(filter-out cutest.h,$^) > $@
+  OR... If you want to automatically download cutest in your own Makefile
+  just add the target:
 
-  # Compile a test-runner from the generate test-runner program code
-  %_test: %_test_run.c
-      $(Q)$(CC) $^ $(CUTEST_CFLAGS) -DNDEBUG -o $@
-
-  check: $(subst .c,,$(wildcard *_test.c))
-      $(Q)R=true; for i in $^; do           \
-        ./$$i $V -j || (rm $$i || R=false);  \
-      done; echo ""; `$$R`
+  CUTEST_SRC_DIR=./
+  include cutest/src/cutest.mk
+  cutest:
+     git clone https://github.com/aiobofh/cutest.git
+  clean::
+     rm -rf cutest
 
 Command line::
 
@@ -131,8 +117,17 @@ Command line::
   $ make check
   ...
 
-It's a lot of rules and targets for one simple test case, but it scales
-very well for rerunning only needed tests.
+In-line documentation to ReSTructured Text and/or HTML
+------------------------------------------------------
+
+You can always read the cutest.h file, since it's the only one around :D.
+
+When you have inclued the cutest.mk makefile in your own Makefile you
+can build the documentation using:
+
+  $ make cutest_help       # Will print out the manual to console
+  $ make cutest_help.html  # Generate a HTML document
+  $ make cutest_help.rst   # Generate a RST document
 
 To compile the test runner you should never ever have `CUTEST_RUN_MAIN`
 nor `CUTEST_MOCK_MAIN` defined to the compiler. They are used to compile
@@ -223,22 +218,20 @@ into mock-ups this tool make use of the ``cproto`` tool.
 How to compile the tool
 -----------------------
 
-Makefile::
+Just include the cutest.mk makefile in your own Makefile in your folder
+containing the source code for the *_test.c files.
 
-  # Generate a very strange C-program including cutest.h for int main().
-  cutest_mock.c: cutest.h
-      echo "#include \"cutest.h\"" > $@
+The tool is automatically compiled when making the check target. But if
+you want to make the tool explicitly just call:
 
-  # Build a tool to generate a test runner program.
-  cutest_mock: cutest_mock.c
-      $(Q)$(CC) $< $(CUTEST_CFLAGS) -DCUTEST_MOCK_MAIN -o $@
+  $ make cutest_mock
 
 Usage
 -----
 
 If you *need* to run the tool manually this is how::
 
-  $ ./cutest_mock design_under_test.c
+  $ ./cutest_mock design_under_test.c /path/to/cutest/src
 
 And it will scan the source-code for uses of the `call()` macro and
 output a header file-style text, containing everything needed to test
@@ -291,13 +284,13 @@ How to build the tool
 
 Makefile::
 
-  # Generate a very strange C-program including cutest.h for int main().
-  cutest_run.c: cutest.h Makefile
-    $(Q)echo "#include \"cutest.h\"" > $@
+Just include the cutest.mk makefile in your own Makefile in your folder
+containing the source code for the *_test.c files.
 
-  # Build a tool to generate a test suite runner.
-  cutest_run: cutest_run.c
-    $(Q)$(CC) $< $(CUTEST_CFLAGS) -DCUTEST_RUN_MAIN -o $@
+The tool is automatically compiled when making the check target. But if
+you want to make the tool explicitly just call:
+
+  $ make cutest_run
 
 Usage
 -----
