@@ -134,7 +134,7 @@
  * You can always read the cutest.h file, since it's the only one around.
  *
  * When you have inclued the cutest.mk makefile in your own Makefile you
- * can build the documentation using:
+ * can build the documentation using::
  *
  *   $ make cutest_help       # Will print out the manual to console
  *   $ make cutest_help.html  # Generate a HTML document
