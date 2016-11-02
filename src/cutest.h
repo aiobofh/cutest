@@ -470,7 +470,7 @@ static void cutest_shutdown(const char* filename)
  * containing the source code for the *_test.c files.
  *
  * The tool is automatically compiled when making the check target. But if
- * you want to make the tool explicitly just call:
+ * you want to make the tool explicitly just call::
  *
  *   $ make cutest_mock
  *
@@ -1109,7 +1109,7 @@ int main(int argc, char* argv[])
  * containing the source code for the *_test.c files.
  *
  * The tool is automatically compiled when making the check target. But if
- * you want to make the tool explicitly just call:
+ * you want to make the tool explicitly just call::
  *
  *   $ make cutest_run
  *

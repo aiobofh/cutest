@@ -1,4 +1,3 @@
-make: Går till katalogen "/home/aio/src/cutest/examples"
 
 CUTest - The C Unit Test framework
 ==================================
@@ -233,7 +232,7 @@ Just include the cutest.mk makefile in your own Makefile in your folder
 containing the source code for the *_test.c files.
 
 The tool is automatically compiled when making the check target. But if
-you want to make the tool explicitly just call:
+you want to make the tool explicitly just call::
 
   $ make cutest_mock
 
@@ -299,7 +298,7 @@ Just include the cutest.mk makefile in your own Makefile in your folder
 containing the source code for the *_test.c files.
 
 The tool is automatically compiled when making the check target. But if
-you want to make the tool explicitly just call:
+you want to make the tool explicitly just call::
 
   $ make cutest_run
 
@@ -325,4 +324,3 @@ specified suite and run them in the order that they appear in the suite.
 
 The first thing that happens is the Startup process, then all tests are
 run in isolation, followed by the Shutdown process.
-make: Lämnar katalogen "/home/aio/src/cutest/examples"
