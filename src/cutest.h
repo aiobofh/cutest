@@ -67,6 +67,15 @@
  * In this case you need to set the CUTEST_SRC_DIR=../src in the test
  * Makefile in my_project/test/Makefile.
  *
+ * Include paths
+ * -------------
+ *
+ * If you have many -I../path/to/somewhere passed to the build of your
+ * project collect all -I-flags into the CUTEST_IFLAGS variable before
+ * inclusion of cutest.mk and the include paths will be passed on to
+ * cproto and the test-runner build automatically. Hopefully easing your
+ * integration a bit.
+ *
  * Example
  * -------
  *
@@ -721,13 +730,31 @@ static int get_function_args(cutest_mock_t* mock, const char* buf) {
   return pos;
 }
 
-static void cproto(const char* filename, const char* cutest_path)
+static void cproto(const int argc, const char* argv[])
 {
   char buf[1024];
+  char cproto[256];
   char command[1024];
+  char iflags[1024];
+
   FILE* pd;
 
-  sprintf(command, "cproto -i -s -x -I\"%s\" \"%s\"\n", cutest_path, filename);
+  const char* filename = argv[1];
+  const char* cutest_path = argv[2];
+
+  sprintf(cproto, "cproto -i -s -x -I\"%s\"", cutest_path);
+  strcpy(iflags, "");
+  for (int i = 3; i < argc; i++) {
+    if (('-'  == argv[i][0]) && ('I' != argv[i][1])) {
+      fprintf(stderr,
+              "ERROR: You can only pass -I-flags with arguments "
+              "as optional argumetns to cutest_mock. Not '%s'!",
+              argv[i]);
+      exit(EXIT_FAILURE);
+    }
+    strcat(iflags, argv[i]);
+  }
+  sprintf(command, "%s %s \"%s\"\n", cproto, iflags, filename);
 
   pd = popen(command, "r");
 
@@ -991,7 +1018,7 @@ static void print_mocks(const char* function_name)
   }
 }
 
-int main(int argc, char* argv[])
+int main(const int argc, const char* argv[])
 {
   char* file;
   char called_functions[1024][128];
@@ -1000,15 +1027,15 @@ int main(int argc, char* argv[])
   FILE *fd;
   int i;
 
-  if (argc != 3) {
+  if (argc < 3) {
     fprintf(stderr, "ERROR: Missing argument\n");
-    printf("USAGE: cutest_mock <c-source-file> <cutest-path>\n");
+    printf("USAGE: cutest_mock <c-source-file> <cutest-path> [-I flags]\n");
     exit(EXIT_FAILURE);
   }
 
   memset(&mocks, 0, sizeof(mocks));
 
-  cproto(argv[1], argv[2]);
+  cproto(argc, argv);
 
   fd = fopen(argv[1], "r");
   const long file_size = get_file_size(fd);

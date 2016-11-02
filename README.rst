@@ -62,6 +62,15 @@ Here is a more complex example::
 In this case you need to set the CUTEST_SRC_DIR=../src in the test
 Makefile in my_project/test/Makefile.
 
+Include paths
+-------------
+
+If you have many -I../path/to/somewhere passed to the build of your
+project collect all -I-flags into the CUTEST_IFLAGS variable before
+inclusion of cutest.mk and the include paths will be passed on to
+cproto and the test-runner build automatically. Hopefully easing your
+integration a bit.
+
 Example
 -------
 
