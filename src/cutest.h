@@ -1,8 +1,8 @@
-/***************************************************************************
-   ------------------    ____ ____ _____ ____ ____ _____ ------------------
-   ------------------   / __// / //_  _// __// __//_  _/ ------------------
-   ------------------  / /_ / / /  / / / __//_  /  / /   ------------------
-   ------------------ /___//___/  /_/ /___//___/  /_/    ------------------
+/*********************************************************************
+   ---------------    ____ ____ _____ ____ ____ _____ ---------------
+   ---------------   / __// / //_  _// __// __//_  _/ ---------------
+   ---------------  / /_ / / /  / / / __//_  /  / /   ---------------
+   --------------- /___//___/  /_/ /___//___/  /_/    ---------------
  *
  * CUTest - The C Unit Test framework
  * ==================================
@@ -11,48 +11,49 @@
  *
  * Project site: https://github.com/aiobofh/cutest
  *
- * Thank you for downloading the CUTest framework! I hope it will make your
- * software development, using test-driven design an easier task.
+ * Thank you for downloading the CUTest framework! I hope it will make
+ * your software development, using test-driven design an easier task.
  *
  * CUTest is a C testing framework written in pure C. The idea behind
  * CUTest is to provide a platform independent C Unit Test framework,
  * but I guess it will only work in Linux for GCC anyway :). It's the
  * thought that counts. Please join me and port it to other enviroments.
  *
- * The CUTest framework is tightly bound to a very specific build system
- * layout too. So let's admit that GNU Make is also needed.
+ * The CUTest framework is tightly bound to a very specific build
+ * system layout too. So let's admit that GNU Make is also needed.
  *
  * Features
  * --------
  *
- * * Automated generation of controllable mocks for all C-functions, with
- *   code footprint in the form of the inclusion of call.h and usage of the
- *   call() macro)
+ * * Automated generation of controllable mocks for all C-functions,
+ *   with code footprint in the form of the inclusion of call.h and
+ *   usage of the call() macro)
  * * C-Function stubbing
  * * Generic asserts in 1, 2 and 3 argument flavors.
  * * JUnit XML reports for Jenkins integration
- * * Very few dependencies to other tools (`echo`, `gcc`, `make`, `which`,
- *   `grep`, `sed`, `rst2html`, `less` and `cproto`)
+ * * Very few dependencies to other tools (`echo`, `gcc`, `make`,
+ *   `which`, `grep`, `sed`, `rst2html`, `less` and `cproto`)
  * * In-line documentation to ReSTructured Text or HTML
  *   (requires additional tools: `grep`, `sed` and `rst2html`)
  *
  * Organize your directories
  * -------------------------
  *
- * The CUTest framework make some expecations but should be fairly flexible
- * by default the paths are set to support a flat structure with test-case
- * source files and design under test source files in the same folder.
+ * The CUTest framework make some expecations but should be fairly
+ * flexible by default the paths are set to support a flat structure
+ * with test-case source files and design under test source files in
+ * the same folder.
  *
- * However you MUST name your test-case source file as the corresponding
- * design under test source file.
+ * However you MUST name your test-case source file as the
+ * corresponding design under test source file.
  *
- * So... If you have a file dut.c you need a dut_test.c file to test the
- * functions in the dut.c file.
+ * So... If you have a file dut.c you need a dut_test.c file to test
+ * the functions in the dut.c file.
  *
  * Here is a flat example::
  *
  *   src/dut.c       <- your program (design under test)
- *   src/dut_test.c  <- test suite for dut.c (should #include cutest.h)
+ *   src/dut_test.c  <- test suite for dut.c (must #include cutest.h)
  *   src/Makefile
  *
  * ... So keep your clean:-target clean ;).
@@ -73,8 +74,8 @@
  * If you have many -I../path/to/somewhere passed to the build of your
  * project collect all -I-flags into the CUTEST_IFLAGS variable before
  * inclusion of cutest.mk and the include paths will be passed on to
- * cproto and the test-runner build automatically. Hopefully easing your
- * integration a bit.
+ * cproto and the test-runner build automatically. Hopefully easing
+ * your integration a bit.
  *
  * Example
  * -------
@@ -88,17 +89,22 @@
  *     assert_eq(6, adder(3, 3), "adder shall return 6 = 3 + 3");
  *   }
  *
- *   test(foo_shall_call_the_adder_function_once_with_correct_arguments) {
- *     // When calling foo() the call(adder(i, j))-macro will call a mock.
+ *   test(foo_shall_call_the_adder_function_once_with_correct_args) {
+ *     // When calling foo() the call(adder(i, j))-macro will call a
+ *     // mock.
  *     foo(1, 2);
- *     assert_eq(1, cutest_mock.adder.call_count, "adder shall be called once");
- *     assert_eq(1, cutest_mock.adder.args.arg0, "first argument shall be 1");
- *     assert_eq(2, cutest_mock.adder.args.arg1, "second argument shall be 2");
+ *     assert_eq(1, cutest_mock.adder.call_count,
+ *               "adder shall be called once");
+ *     assert_eq(1, cutest_mock.adder.args.arg0,
+ *               "first argument shall be 1");
+ *     assert_eq(2, cutest_mock.adder.args.arg1,
+ *               "second argument shall be 2");
  *   }
  *
  *   test(foo_shall_return_the_adder_functions_result_unmodified) {
  *     cutest_mock.adder.retval = 123456;
- *     assert_eq(123456, foo(1, 2), "foo shall return adder's return value");
+ *     assert_eq(123456, foo(1, 2),
+ *               "foo shall return adder's return value");
  *   }
  *
  * foo.c::
@@ -140,10 +146,11 @@
  * In-line documentation to ReSTructured Text and/or HTML
  * ------------------------------------------------------
  *
- * You can always read the cutest.h file, since it's the only one around.
+ * You can always read the cutest.h file, since it's the only one
+ * around.
  *
- * When you have inclued the cutest.mk makefile in your own Makefile you
- * can build the documentation using::
+ * When you have inclued the cutest.mk makefile in your own Makefile
+ * you can build the documentation using::
  *
  *   $ make cutest_help       # Will print out the manual to console
  *   $ make cutest_help.html  # Generate a HTML document
@@ -154,10 +161,10 @@
 #define _CUTEST_H_
 
 /*
- * To compile the test runner you should never ever have `CUTEST_RUN_MAIN`
- * nor `CUTEST_MOCK_MAIN` defined to the compiler. They are used to compile
- * the *CUTest test runner generator* and the *CUTest mock generator*
- * respectively.
+ * To compile the test runner you should never ever have
+ * `CUTEST_RUN_MAIN` nor `CUTEST_MOCK_MAIN` defined to the compiler.
+ * They are used to compile the *CUTest test runner generator* and
+ * the *CUTest mock generator* respectively.
  *
  */
 #ifndef CUTEST_RUN_MAIN
@@ -172,9 +179,9 @@ extern struct tm *localtime_r(const time_t *timep, struct tm *result);
  * The call() macro
  * ----------------
  *
- * By default this is defined in the call.h header generated by cutest.mk.
- * This must be used to  call _any_ function that is to be possible to
- * replace with a mock using the CUTest-framework.
+ * By default this is defined in the call.h header generated by
+ * cutest mk. This must be used to  call _any_ function that is to be
+ * possible to replace with a mock using the CUTest-framework.
  *
  * You can either pass -D'call(args)' to your compilation of the design
  * under test. Or let cutest.mk generate a local call.h header file
@@ -283,24 +290,28 @@ static char cutest_junit_report[CUTEST_MAX_JUNIT_BUFFER_SIZE + 1];
  * Test initialization
  * -------------------
  *
- * In between every test() macro the CUTest framework will clear all the
- * mock controls and test framwork state so that every test is run in
- * isolation.
+ * In between every test() macro the CUTest framework will clear all
+ * the mock controls and test framwork state so that every test is
+ * run in isolation.
  *
  */
-static void cutest_startup(int argc, char* argv[], const char* suite_name)
+static void cutest_startup(int argc, char* argv[],
+                           const char* suite_name)
 {
   int i;
   cutest_opts.verbose = 0;
   cutest_opts.junit = 0;
   for (i = 1; i < argc; i++) {
-    if ((0 == strcmp(argv[i], "-v")) || (0 == strcmp(argv[i], "--verbose"))) {
+    if ((0 == strcmp(argv[i], "-v")) ||
+        (0 == strcmp(argv[i], "--verbose"))) {
       cutest_opts.verbose = 1;
     }
-    if ((0 == strcmp(argv[i], "-j")) || (0 == strcmp(argv[i], "--junit"))) {
+    if ((0 == strcmp(argv[i], "-j")) ||
+        (0 == strcmp(argv[i], "--junit"))) {
       cutest_opts.junit = 1;
     }
-    if ((0 == strcmp(argv[i], "-n")) || (0 == strcmp(argv[i], "--no-linefeed"))) {
+    if ((0 == strcmp(argv[i], "-n")) ||
+        (0 == strcmp(argv[i], "--no-linefeed"))) {
       cutest_opts.no_linefeed = 1;
     }
   }
@@ -314,16 +325,17 @@ static void cutest_startup(int argc, char* argv[], const char* suite_name)
  * Test execution
  * --------------
  *
- * When executing tests the elapsed time for execution is sampled and used
- * in the JUnit report. Depending on command line options an output is printed
- * to the console, either as a short version with '.' for successful test run
- * and 'F' for failed test run, but if set to verbose '-v' '[PASS]' and
- * '[FAIL]' output is produced. What triggers a failure is if an assert_eq()
- * is not fulfilled.
+ * When executing tests the elapsed time for execution is sampled and
+ * used in the JUnit report. Depending on command line options an
+ * output is printed to the console, either as a short version with
+ * '.' for successful test run and 'F' for failed test run, but if set
+ * to verbose '-v' '[PASS]' and '[FAIL]' output is produced. What
+ * triggers a failure is if an assert_eq() is not fulfilled.
  *
- * If the test runner is started with verbose mode '-v' the offending assert
- * will be printed to the console directly after the fail. If in normal mode
- * all assert-failures will be collected and printed in the shutdown process.
+ * If the test runner is started with verbose mode '-v' the offending
+ * assert will be printed to the console directly after the fail. If
+ * in normal mode all assert-failures will be collected and printed
+ * in the shutdown process.
  *
  */
 static void cutest_execute_test(void (*func)(), const char *name) {
@@ -339,7 +351,8 @@ static void cutest_execute_test(void (*func)(), const char *name) {
     else {
       printf("[FAIL]: %s\n", name);
       printf("%s", cutest_stats.error_output);
-      memset(cutest_stats.error_output, 0, sizeof(cutest_stats.error_output));
+      memset(cutest_stats.error_output, 0,
+             sizeof(cutest_stats.error_output));
     }
   }
   else {
@@ -375,7 +388,8 @@ static void cutest_execute_test(void (*func)(), const char *name) {
             "%s      <failure message=\"test failure\">%s</failure>\n",
             cutest_junit_report, "Some assert text");
   }
-  sprintf(cutest_junit_report, "%s    </testcase>\n", cutest_junit_report);
+  sprintf(cutest_junit_report, "%s    </testcase>\n",
+          cutest_junit_report);
 
   cutest_assert_fail_cnt = 0;
 }
@@ -384,8 +398,9 @@ static void cutest_execute_test(void (*func)(), const char *name) {
  * Shutdown process
  * ----------------
  *
- * At the end of the execution the CUTest test-runner program will output
- * a JUnit XML report if specified with the -j command line option.
+ * At the end of the execution the CUTest test-runner program will
+ * output a JUnit XML report if specified with the -j command line
+ * option.
  *
  */
 static void cutest_shutdown(const char* filename)
@@ -397,7 +412,10 @@ static void cutest_shutdown(const char* filename)
   struct tm tm;
 
   if (0 == cutest_opts.verbose) {
-    /* Add an enter if not running in verbose, to line break after the ... */
+    /*
+     * Add an enter if not running in verbose, to line break after
+     * the ...
+     */
     if ((0 == cutest_opts.no_linefeed) ||
         (0 != strlen(cutest_stats.error_output))) {
       printf("\n");
@@ -451,35 +469,35 @@ static void cutest_shutdown(const char* filename)
 #endif /* CUTEST_MOCK_MAIN */
 #endif /* CUTEST_RUN_MAIN */
 
-/***************************************************************************
-   -----    ____ ____ _____ ____ ____ _____   ____   ____ ____ ____ -------
-   -----   / __// / //_  _// __// __//_  _/  /    \ /   // __// / / -------
-   -----  / /_ / / /  / / / __//_  /  / /   / / / // / // /_ /  <'  -------
-   ----- /___//___/  /_/ /___//___/  /_/   /_/_/_//___//___//_/_/   -------
+/*********************************************************************
+   --    ____ ____ _____ ____ ____ _____   ____   ____ ____ ____ ----
+   --   / __// / //_  _// __// __//_  _/  /    \ /   // __// / / ----
+   --  / /_ / / /  / / / __//_  /  / /   / / / // / // /_ /  <'  ----
+   -- /___//___/  /_/ /___//___/  /_/   /_/_/_//___//___//_/_/   ----
  *
  * CUTest mock generator
  * =====================
  *
  * This is a tool that can be used to generate mock-up functions. It
- * inspects a specified source-code file (written i C language) and looks
- * for uses of the cutest-specific call() macro which should encapsulate
- * every function that is replaceable with a mock when developing code using
- * test-driven design.
+ * inspects a specified source-code file (written i C language) and
+ * looks for uses of the cutest-specific call() macro which should
+ * encapsulate every function that is replaceable with a mock when
+ * developing code using test-driven design.
  *
  * Requirements
  * ------------
  *
- * To be able to generate well formatted function declarations to mutate
- * into mock-ups this tool make use of the ``cproto`` tool.
+ * To be able to generate well formatted function declarations to
+ * mutate into mock-ups this tool make use of the ``cproto`` tool.
  *
  * How to compile the tool
  * -----------------------
  *
- * Just include the cutest.mk makefile in your own Makefile in your folder
- * containing the source code for the *_test.c files.
+ * Just include the cutest.mk makefile in your own Makefile in your
+ * folder containing the source code for the *_test.c files.
  *
- * The tool is automatically compiled when making the check target. But if
- * you want to make the tool explicitly just call::
+ * The tool is automatically compiled when making the check target
+ * But if you want to make the tool explicitly just call::
  *
  *   $ make cutest_mock
  *
@@ -491,11 +509,11 @@ static void cutest_shutdown(const char* filename)
  *   $ ./cutest_mock design_under_test.c /path/to/cutest/src
  *
  * And it will scan the source-code for uses of the `call()` macro and
- * output a header file-style text, containing everything needed to test
- * your code alongside with the `cutest.h` file.
+ * output a header file-style text, containing everything needed to
+ * test your code alongside with the `cutest.h` file.
  *
- * However, if you use the Makefile targets specified in the beginning of
- * this document you will probably not need to run it manually.
+ * However, if you use the Makefile targets specified in the beginning
+ * of this document you will probably not need to run it manually.
  *
  */
 
@@ -683,7 +701,9 @@ static int get_function_args(cutest_mock_t* mock, const char* buf) {
     int dst_pos = 0;
     /* Arg type */
     pos += skip_white_spaces(&buf[pos]);
-    while ((' ' != buf[pos]) && (',' != buf[pos]) && (')' != buf[pos])) {
+    while ((' ' != buf[pos]) &&
+           (',' != buf[pos]) &&
+           (')' != buf[pos])) {
       if (0 == strncmp("const ", &buf[pos], 6)) {
         mock->arg[mock->arg_cnt].type.is_const = 1;
         pos += 6;
@@ -774,7 +794,8 @@ static void cproto(const int argc, const char* argv[])
            sizeof(mocks.mock[mocks.mock_cnt]));
     pos += get_return_type(&mocks.mock[mocks.mock_cnt].return_type,
                            &buf[pos]);
-    retval = get_function_name(mocks.mock[mocks.mock_cnt].name, &buf[pos]);
+    retval = get_function_name(mocks.mock[mocks.mock_cnt].name,
+                               &buf[pos]);
     if (-1 == retval) {
       /* Not a function */
       continue;
@@ -791,12 +812,12 @@ static void cproto(const int argc, const char* argv[])
  * Mock-ups
  * --------
  *
- * The cutest_mock tool scans the design under test for call() macros, and
- * create a mock-up control stucture, unique for every callable mockable
- * function, so that tests can be fully controlled.
+ * The cutest_mock tool scans the design under test for call() macros,
+ * and create a mock-up control stucture, unique for every callable
+ * mockable function, so that tests can be fully controlled.
  *
- * The control structures are encapsulated in the global struct instance
- * called 'mocks'.
+ * The control structures are encapsulated in the global struct
+ * instance called 'mocks'.
  *
  * In a test they can be accessed like this::
  *
@@ -806,8 +827,8 @@ static void cproto(const int argc, const char* argv[])
  *
  *   FILE* fp = call(fopen("filename.c", "r"));
  *
- * in your code, a mock called cutest_mock_fopen() will be generated. It
- * will affect the cutest_mock.fopen mock-up control structure.
+ * in your code, a mock called cutest_mock_fopen() will be generated.
+ * It will affect the cutest_mock.fopen mock-up control structure.
  *
  * For accurate information please build your <dut>_mocks.h file and
  * inspect the structs yourself.
@@ -815,9 +836,10 @@ static void cproto(const int argc, const char* argv[])
  * Stubbing
  * --------
  *
- * To stub a function encapsulated in a call() macro in your design under
- * test you can easily write your own stub in your test-file, just pointing
- * the cutest_mock.<dut>.func function pointer to your stub.
+ * To stub a function encapsulated in a call() macro in your design
+ * under test you can easily write your own stub in your test-file,
+ * just pointing the cutest_mock.<dut>.func function pointer to your
+ * stub.
  *
  */
 static void print_mock_ctl(cutest_mock_t* mock)
@@ -1029,7 +1051,8 @@ int main(const int argc, const char* argv[])
 
   if (argc < 3) {
     fprintf(stderr, "ERROR: Missing argument\n");
-    printf("USAGE: cutest_mock <c-source-file> <cutest-path> [-I flags]\n");
+    printf("USAGE: cutest_mock "
+           "<c-source-file> <cutest-path> [-I flags]\n");
     exit(EXIT_FAILURE);
   }
 
@@ -1048,7 +1071,7 @@ int main(const int argc, const char* argv[])
 
   memset(called_functions, 0, sizeof(called_functions));
 
-  (void)(fread(file, file_size, 1, fd)+1); /* Hehe, ignore return warning */
+  (void)(fread(file, file_size, 1, fd)+1); /* Ignore return warning */
 
   fclose(fd);
 
@@ -1073,7 +1096,8 @@ int main(const int argc, const char* argv[])
   printf("/*\n"
          " * This file is generated by '%s %s'\n"
          " */\n\n", argv[0], argv[1]);
-  printf("#define _CALL_H_ /* Make sure that the call macro stays modified */\n");
+  printf("#define _CALL_H_ "
+         "/* Make sure that the call macro stays modified */\n");
   printf("#define call(FUNCTION) cutest_mock_##FUNCTION\n\n");
 
   for (i = 0; i < called_functions_cnt; i++) {
@@ -1091,11 +1115,13 @@ int main(const int argc, const char* argv[])
   printf("\n");
 
   /* Include the design under test */
-  printf("#include \"%s\" /* Include design under test. */\n\n", argv[1]);
+  printf("#include \"%s\" "
+         "/* Include design under test. */\n\n", argv[1]);
 
   /* Produce the cutest_mock struct instance */
   printf("struct {\n\n");
-  printf("  int keep_the_struct_with_contents_if_no_mocks_generated;\n\n");
+  printf("  int keep_the_struct_with_contents_if_no_mocks_generated;"
+         "\n\n");
 
   for (i = 0; i < called_functions_cnt; i++) {
     print_ctl(called_functions[i]);
@@ -1114,29 +1140,29 @@ int main(const int argc, const char* argv[])
 
 #endif /* CUTEST_MOCK_MAIN */
 
-/***************************************************************************
-   ---------    ____ ____ _____ ____ ____ _____   ____ ____ _ __ ----------
-   ---------   / __// / //_  _// __// __//_  _/  / _ // / //|/ / ----------
-   ---------  / /_ / / /  / / / __//_  /  / /   /   |/ / //   /  ----------
-   --------- /___//___/  /_/ /___//___/  /_/   /_/_//___//_|_/   ----------
+/*********************************************************************
+   ------    ____ ____ _____ ____ ____ _____   ____ ____ _ __ --------
+   ------   / __// / //_  _// __// __//_  _/  / _ // / //|/ / -------
+   ------  / /_ / / /  / / / __//_  /  / /   /   |/ / //   /  -------
+   ------ /___//___/  /_/ /___//___/  /_/   /_/_//___//_|_/   -------
  *
  * CUTest test runner generator
  * ============================
  *
- * The cutest_run tool will parse your test suite and produce an executable
- * program with some command line options to enable you to control it a
- * little bit.
+ * The cutest_run tool will parse your test suite and produce an
+ * executable program with some command line options to enable you to
+ * control it a little bit.
  *
  * How to build the tool
  * ---------------------
  *
  * Makefile::
  *
- * Just include the cutest.mk makefile in your own Makefile in your folder
- * containing the source code for the *_test.c files.
+ * Just include the cutest.mk makefile in your own Makefile in your
+ * folder containing the source code for the *_test.c files.
  *
- * The tool is automatically compiled when making the check target. But if
- * you want to make the tool explicitly just call::
+ * The tool is automatically compiled when making the check target.
+ * But if you want to make the tool explicitly just call::
  *
  *   $ make cutest_run
  *
@@ -1151,8 +1177,9 @@ int main(const int argc, const char* argv[])
  * macro and output a C program containing everything needed to test
  * your code alongside with the `cutest.h` file.
  *
- * However, if you use the Makefile targets specified in the beginning of
- * this document you will probably not need to run it manually.
+ * However, if you use the Makefile targets specified in the
+ * beginning of this document you will probably not need to run it
+ * manually.
  *
  */
 
@@ -1166,30 +1193,33 @@ int main(const int argc, const char* argv[])
  * The test runner program
  * -----------------------
  *
- * The generated test runner program will inventory all the tests in the
- * specified suite and run them in the order that they appear in the suite.
+ * The generated test runner program will inventory all the tests in
+ * the specified suite and run them in the order that they appear in
+ * the suite.
  *
- * The first thing that happens is the Startup process, then all tests are
- * run in isolation, followed by the Shutdown process.
+ * The first thing that happens is the Startup process, then all
+ * tests are run in isolation, followed by the Shutdown process.
  */
 int main(int argc, char* argv[]) {
   if (argc < 3) {
     fprintf(stderr, "ERROR: Missing argument\n");
-    printf("USAGE: cutest_run_tests <test-c-source-file> <c-mock-header-file>\n");
+    printf("USAGE: cutest_run_tests "
+           "<test-c-source-file> <c-mock-header-file>\n");
     exit(EXIT_FAILURE);
   }
 
   printf("/*\n"
          " * This file is generated by '%s %s %s'.\n"
          " *\n"
-         " * Compile this program to get a test-case executor binary.\n"
+         " * Compile this program to get a test-case executor.\n"
          " *\n"
          " */\n\n", argv[0], argv[1], argv[2]);
   printf("#include <stdlib.h>\n");
   printf("#include <stdio.h>\n");
   printf("#include <string.h>\n");
   printf("\n");
-  printf("#include \"%s\" /* Mock-up functions and design under test */\n", argv[2]);
+  printf("#include \"%s\" "
+         "/* Mock-up functions and design under test */\n", argv[2]);
   printf("#include \"%s\" /* Test-cases */\n", argv[1]);
   printf("\n");
   printf("int main(int argc, char* argv[])\n"
@@ -1214,7 +1244,8 @@ int main(int argc, char* argv[]) {
           char *start = &buf[5];
           int name_len = i - name_pos;
           buf[name_pos + name_len] = '\0';
-          printf("  cutest_execute_test(cutest_%s, \"%s\");\n", start, start);
+          printf("  cutest_execute_test(cutest_%s, \"%s\");\n",
+                 start, start);
           break;
         }
       }
