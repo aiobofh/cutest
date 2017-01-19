@@ -1218,9 +1218,11 @@ int main(int argc, char* argv[]) {
   printf("#include <stdio.h>\n");
   printf("#include <string.h>\n");
   printf("\n");
+  printf("#define main MAIN\n");
   printf("#include \"%s\" "
          "/* Mock-up functions and design under test */\n", argv[2]);
   printf("#include \"%s\" /* Test-cases */\n", argv[1]);
+  printf("#undef main\n");
   printf("\n");
   printf("int main(int argc, char* argv[])\n"
          "{\n"
