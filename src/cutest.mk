@@ -12,7 +12,7 @@ endif
 CUTEST_SRC_DIR ?=./
 
 # Some nice flags for compiling cutest-tests with good quality
-CUTEST_CFLAGS=-g -pedantic -Wall -Wextra -std=c11
+CUTEST_CFLAGS+=-g -pedantic -Wall -Wextra -std=c11
 
 cutest_info:
 	echo $(CUTEST_PATH)
@@ -64,7 +64,7 @@ cutest_help.html: cutest_help.rst
 cutest_help: cutest_help.rst
 	$(Q)less $<
 
-check: $(subst .c,,$(wildcard *_test.c))
+check:: $(subst .c,,$(wildcard *_test.c))
 	@R=true; for i in $^; do \
 	  ./$$i $V -j || (rm $$i || R=false); \
 	done; echo ""; `$$R`
