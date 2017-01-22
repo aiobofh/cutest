@@ -199,7 +199,10 @@ extern struct tm *localtime_r(const time_t *timep, struct tm *result);
  * The test() macro
  * ----------------
  *
- * Every test is defined with this macro.
+ * Every test with default mocked functions is defined with this macro.
+ *
+ * By default all functions called by the call() macro will be replaced
+ * with a mock that does not call the original function.
  *
  * Example::
  *
@@ -210,6 +213,27 @@ extern struct tm *localtime_r(const time_t *timep, struct tm *result);
  *
  */
 #define test(NAME) void cutest_##NAME()
+
+/*
+ * The module_test() macro
+ *
+ * Every test with default calls to real functions is defined with
+ * this macro.
+ *
+ * By default all functions called by the call() macro will be replaced
+ * with a mock that does call the original function by default to
+ * mimic the real implementation, making it poassible to write more
+ * module-like tests.
+ *
+ * Example::
+ *
+ *   module_test(main_should_return_0_on_successful_execution)
+ *   {
+ *     ... Test body ...
+ *   }
+ *
+ */
+#define module_test(NAME) void cutest_##NAME()
 
 /*
  * The assert_eq() macro
@@ -294,6 +318,11 @@ static char cutest_junit_report[CUTEST_MAX_JUNIT_BUFFER_SIZE + 1];
  * the mock controls and test framwork state so that every test is
  * run in isolation.
  *
+ * On the other hand, if the test is defined with the module_test()
+ * macro the mocks will be initialized to call the orignal functions
+ * by default, but still enable control as usual. This behaviour can
+ * be overridden by setting the .func member to NULL.
+ *
  */
 static void cutest_startup(int argc, char* argv[],
                            const char* suite_name)
@@ -338,11 +367,15 @@ static void cutest_startup(int argc, char* argv[],
  * in the shutdown process.
  *
  */
-static void cutest_execute_test(void (*func)(), const char *name) {
+  static void cutest_execute_test(void (*func)(), const char *name,
+                                  int initialize) {
   time_t start_time = time(NULL);
   time_t end_time;
   double elapsed_time;
   memset(&cutest_mock, 0, sizeof(cutest_mock));
+  if (1 == initialize) {
+    cutest_initialize_mocks();
+  }
   func();
   if (cutest_opts.verbose) {
     if (cutest_assert_fail_cnt == 0) {
@@ -1030,7 +1063,21 @@ static void print_mock(cutest_mock_t* mock)
   printf("\n");
 }
 
-static void print_mocks(const char* function_name)
+static void print_mock_init(cutest_mock_t* mock) {
+  printf("  cutest_mock.%s.func = %s;\n", mock->name, mock->name);
+}
+
+static void print_mocks_init(const char* function_name)
+{
+  int i;
+  for (i = 0; i < mocks.mock_cnt; i++) {
+    if (0 == strcmp(mocks.mock[i].name, function_name)) {
+      print_mock_init(&mocks.mock[i]);
+    }
+  }
+}
+
+ static void print_mocks(const char* function_name)
 {
   int i;
   for (i = 0; i < mocks.mock_cnt; i++) {
@@ -1128,6 +1175,12 @@ int main(const int argc, const char* argv[])
   }
 
   printf("} cutest_mock;\n\n");
+
+  printf("void cutest_initialize_mocks() {\n");
+  for (i = 0; i < called_functions_cnt; i++) {
+    print_mocks_init(called_functions[i]);
+  }
+  printf("}\n");
 
   for (i = 0; i < called_functions_cnt; i++) {
     print_mocks(called_functions[i]);
@@ -1231,6 +1284,8 @@ int main(int argc, char* argv[]) {
   FILE *fd = fopen(argv[1], "r");
   while (!feof(fd)) {
     char buf[1024];
+    int name_pos = 0;
+    int initialize = 0;
     if (NULL == fgets(buf, 1024, fd)) {
       break; /* End of file */
     }
@@ -1239,15 +1294,32 @@ int main(int argc, char* argv[]) {
         ('s' == buf[2]) &&
         ('t' == buf[3]) &&
         ('(' == buf[4])) {
-      int name_pos = 5;
+      name_pos = 5;
+    }
+    else if (('m' == buf[0]) &&
+             ('o' == buf[1]) &&
+             ('d' == buf[2]) &&
+             ('u' == buf[3]) &&
+             ('l' == buf[4]) &&
+             ('e' == buf[5]) &&
+             ('_' == buf[6]) &&
+             ('t' == buf[7]) &&
+             ('e' == buf[8]) &&
+             ('s' == buf[9]) &&
+             ('t' == buf[10]) &&
+             ('(' == buf[11])) {
+      name_pos = 12;
+      initialize = 1;
+    }
+    if (name_pos > 0) {
       int i;
-      for (i = 5; i < (int)strlen(buf); i++) {
+      for (i = name_pos; i < (int)strlen(buf); i++) {
         if (')' == buf[i]) {
-          char *start = &buf[5];
+          char *start = &buf[name_pos];
           int name_len = i - name_pos;
           buf[name_pos + name_len] = '\0';
-          printf("  cutest_execute_test(cutest_%s, \"%s\");\n",
-                 start, start);
+          printf("  cutest_execute_test(cutest_%s, \"%s\", %d);\n",
+                 start, start, initialize);
           break;
         }
       }
