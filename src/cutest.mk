@@ -35,6 +35,12 @@ cutest_mock: cutest_mock.c
 	(echo "ERROR: cproto is not installed in your path"; false) && \
 	$(CC) $< $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -DCUTEST_MOCK_MAIN -o $@
 
+# Extract all functions called by the design under test.
+%.tu: $(subst _test,,%_test.c)
+	$(Q)g++ -fdump-translation-unit -c $< -D"call(func)=func" && \
+	cat $<.*.tu | c++filt > $@ && \
+	rm -f $<.*.tu
+
 .PRECIOUS: %_mocks.h
 # Generate mocks from the call()-macro in a source-file.
 %_mocks.h: $(CUTEST_SRC_DIR)/%.c $(CUTEST_PATH)/cutest.h cutest_mock
@@ -65,9 +71,17 @@ cutest_help: cutest_help.rst
 	$(Q)less $<
 
 check:: $(subst .c,,$(wildcard *_test.c))
-	@R=true; for i in $^; do \
-	  ./$$i $V -j || (rm $$i || R=false); \
-	done; echo ""; `$$R`
+	@R=true; \
+	processors=`cat /proc/cpuinfo | grep processor | wc -l`; \
+	for i in $^; do \
+	  while [ `ps xa | grep -v grep | grep _test | wc -l` -gt $$processors ]; do echo "wait"; sleep 0.1; done; \
+	  ./$$i $V -j || rm $$i || R=false & \
+	done; \
+	while [ `ps xa | grep -v grep | grep '_test' | wc -l` -gt 0 ]; do \
+	  echo "waiting..."; \
+	  sleep 1; \
+	done; \
+	echo "	"; `$$R`
 
 clean::
 	$(Q)$(RM) -f cutest_* \
@@ -75,6 +89,7 @@ clean::
 	*_mocks.h \
 	*.junit_report.xml \
 	*_test \
+	*.tu \
 	cutest_help.rst \
 	cutest_help.html \
 	*~
