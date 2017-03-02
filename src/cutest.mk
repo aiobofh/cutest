@@ -53,7 +53,7 @@ cutest_mock: cutest_mock.c
 
 # Compile a test-runner from the generate test-runner program code
 %_test: %_test_run.c
-	$(Q)$(CC) $^ $(CUTEST_CFLAGS) -I$(CUTEST_PATH) $(CUTEST_IFLAGS) -o $@
+	$(Q)$(CC) $^ $(CUTEST_CFLAGS) -I$(CUTEST_PATH) $(CUTEST_IFLAGS) -DNDEBUG -o $@
 
 # Print the CUTest manual
 cutest_help.rst: $(CUTEST_PATH)/cutest.h
