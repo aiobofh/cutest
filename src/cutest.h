@@ -774,7 +774,7 @@ static void cproto(const int argc, const char* argv[])
     }
     strcat(iflags, argv[i]);
   }
-  sprintf(command, "%s %s \"%s\"\n", cproto, iflags, filename);
+  sprintf(command, "%s %s \"%s\" | sort -u\n", cproto, iflags, filename);
 
   pd = popen(command, "r");
 
@@ -996,10 +996,9 @@ static void print_mock(cutest_mock_t* mock)
   printf("{\n");
   printf("  cutest_mock.%s.call_count++;\n", mock->name);
   for (i = 0; i < mock->arg_cnt; i++) {
-    printf("  cutest_mock.%s.args.%s = (%s%s)%s;\n", mock->name,
+    printf("  cutest_mock.%s.args.%s = %s;\n", mock->name,
            mock->arg[i].name,
-           (mock->arg[i].type.is_struct ? "struct " : ""),
-           mock->arg[i].type.name, mock->arg[i].name);
+           mock->arg[i].name);
   }
   if (0 != strcmp(mock->return_type.name, "void")) {
     printf("  if (NULL != cutest_mock.%s.func) {\n", mock->name);
