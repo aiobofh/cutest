@@ -90,6 +90,8 @@ clean::
 	*.junit_report.xml \
 	*_test \
 	*.tu \
+	*.gcda \
+	*.gcno \
 	cutest_help.rst \
 	cutest_help.html \
 	*~

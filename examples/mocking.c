@@ -9,5 +9,5 @@ void foo(int* argument)
   if (NULL == argument) {
     return;
   }
-  *argument = call(bar(*argument));
+  *argument = bar(*argument);
 }
