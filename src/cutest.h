@@ -805,31 +805,6 @@ static int get_function_args(cutest_mock_t* mock, const char* buf) {
   return pos;
 }
 
-static void print_includes(const char* filename) {
-  FILE* fd = fopen(filename, "r");
-  puts("/*");
-  puts(" * All includes from the design under test");
-  puts(" */");
-  while (!feof(fd)) {
-    char buf[1024];
-    if (NULL == fgets(buf, sizeof(buf), fd)) {
-      break;
-    }
-    if (('#' == buf[0]) &&
-        ('i' == buf[1]) &&
-        ('n' == buf[2]) &&
-        ('c' == buf[3]) &&
-        ('l' == buf[4]) &&
-        ('u' == buf[5]) &&
-        ('d' == buf[6]) &&
-        ('e' == buf[7]))
-      {
-        printf("%s", buf);
-      }
-  }
-  fclose(fd);
-}
-
 static int get_mockables(char mockable[1024][256], const char* filename) {
   char command[1024];
   char buf[1024];
@@ -1188,19 +1163,24 @@ static int verify_found_function(const char* buf, const char* function) {
 
 static int line_has_mockable_function(const char* buf) {
   int i;
-  char* pos = (char*)buf;
+  char* pos;
   if ((buf[0] == ' ') || (buf[0] == '\n')) {
     return -1;
   }
   for (i = 0; i < mocks.mock_cnt; i++) {
-    const char* s = strstr(pos, mocks.mock[i].name);
-    if (NULL == s) {
-      continue;
+    pos = (char*)buf;
+    while (pos < buf + strlen(buf)) {
+      const char* s = strstr(pos, mocks.mock[i].name);
+      if (NULL == s) {
+        break;
+      }
+      if (0 == verify_found_function(s, mocks.mock[i].name)) {
+        pos += strlen(mocks.mock[i].name);
+        continue;
+      }
+      return i;
+      break;
     }
-    if (0 == verify_found_function(s, mocks.mock[i].name)) {
-      continue;
-    }
-    return i;
   }
   return -1;
 }
@@ -1373,8 +1353,9 @@ int main(const int argc, const char* argv[])
          "/* Make sure that the call macro stays modified */\n");
   printf("#define call(FUNCTION) cutest_mock_##FUNCTION\n\n");
 
+  /*
   print_includes(argv[1]);
-
+  */
   print_forward_declarations();
 
   printf("\n");
