@@ -42,7 +42,7 @@ cutest_mock: cutest_mock.c
 	rm -f $<.*.tu
 
 %_mockables.o: $(CUTEST_SRC_DIR)/%.c
-	$(Q)$(CC) -o $@ -c $< -O0
+	$(Q)$(CC) -o $@ -c $< -O0 -D"call(func)=func"
 
 .PRECIOUS: %_mocks.h
 # Generate mocks from the call()-macro in a source-file.
@@ -56,7 +56,7 @@ cutest_mock: cutest_mock.c
 
 # Compile a test-runner from the generate test-runner program code
 %_test: %_test_run.c
-	$(CC) $^ $(CUTEST_CFLAGS) -I$(CUTEST_PATH) $(CUTEST_IFLAGS) -DNDEBUG -o $@
+	$(Q)$(CC) $^ $(CUTEST_CFLAGS) -I$(CUTEST_PATH) $(CUTEST_IFLAGS) -DNDEBUG -o $@
 
 # Print the CUTest manual
 cutest_help.rst: $(CUTEST_PATH)/cutest.h
