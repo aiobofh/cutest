@@ -17,6 +17,7 @@ test(foo_shall_call_bar_with_dereferenced_argument_if_argument_is_not_null)
 {
   int my_integer = 3;
   foo(&my_integer);
+  fprintf(stderr, "DEBUG: %d\n", cutest_mock.bar.call_count);
   assert_eq(1, cutest_mock.bar.call_count);
   assert_eq(3, cutest_mock.bar.args.arg0);
 }

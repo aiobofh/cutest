@@ -1,3 +1,4 @@
+#include <stdlib.h>
 /*
  * The practice of test-driven design
  * ----------------------------------

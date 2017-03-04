@@ -41,10 +41,13 @@ cutest_mock: cutest_mock.c
 	cat $<.*.tu | c++filt > $@ && \
 	rm -f $<.*.tu
 
+%_mockables.o: $(CUTEST_SRC_DIR)/%.c
+	$(Q)$(CC) -o $@ -c $< -O0
+
 .PRECIOUS: %_mocks.h
 # Generate mocks from the call()-macro in a source-file.
-%_mocks.h: $(CUTEST_SRC_DIR)/%.c $(CUTEST_PATH)/cutest.h cutest_mock
-	$(Q)./cutest_mock $< $(CUTEST_PATH) $(CUTEST_IFLAGS) > $@
+%_mocks.h: $(CUTEST_SRC_DIR)/%.c %_mockables.o $(CUTEST_PATH)/cutest.h cutest_mock
+	$(Q)./cutest_mock $< $(subst .c,_mockables.o,$<) $(CUTEST_PATH) $(CUTEST_IFLAGS) > $@; \
 
 .PRECIOUS: %_test_run.c
 # Generate a test-runner program code from a test-source-file
@@ -53,7 +56,7 @@ cutest_mock: cutest_mock.c
 
 # Compile a test-runner from the generate test-runner program code
 %_test: %_test_run.c
-	$(Q)$(CC) $^ $(CUTEST_CFLAGS) -I$(CUTEST_PATH) $(CUTEST_IFLAGS) -DNDEBUG -o $@
+	$(CC) $^ $(CUTEST_CFLAGS) -I$(CUTEST_PATH) $(CUTEST_IFLAGS) -DNDEBUG -o $@
 
 # Print the CUTest manual
 cutest_help.rst: $(CUTEST_PATH)/cutest.h
@@ -92,6 +95,7 @@ clean::
 	*.tu \
 	*.gcda \
 	*.gcno \
+	*_mockables.o \
 	cutest_help.rst \
 	cutest_help.html \
 	*~

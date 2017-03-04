@@ -539,7 +539,9 @@ typedef struct cutest_mock_arg_type_s {
 
 typedef struct cutest_mock_arg_s {
   char name[MAX_CUTEST_MOCK_NAME_LENGTH + 1];
+  char function_pointer_name[MAX_CUTEST_MOCK_NAME_LENGTH + 1];
   cutest_mock_arg_type_t type;
+  int is_function_pointer;
 } cutest_mock_arg_t;
 
 typedef struct cutest_mock_return_type_s {
@@ -724,9 +726,10 @@ static int get_function_args(cutest_mock_t* mock, const char* buf) {
     int dst_pos = 0;
     /* Arg type */
     pos += skip_white_spaces(&buf[pos]);
+    int paren = 0;
     while ((' ' != buf[pos]) &&
            (',' != buf[pos]) &&
-           (')' != buf[pos])) {
+           ((')' != buf[pos]) && (0 == paren))) {
       if (0 == strncmp("const ", &buf[pos], 6)) {
         mock->arg[mock->arg_cnt].type.is_const = 1;
         pos += 6;
@@ -756,21 +759,103 @@ static int get_function_args(cutest_mock_t* mock, const char* buf) {
         pos++;
       }
     }
-    while (',' != buf[pos] && ')' != buf[pos]) {
+
+    while ((paren != 0) || ((',' != buf[pos]) && (')' != buf[pos]))) {
+      /* Handle function pointers as arguments */
+      if (buf[pos] == '(') {
+        if (0 == paren) {
+          dst_pos = 0;
+        }
+        paren++;
+      }
+      if ((buf[pos] == ')') && (2 == paren)) {
+        paren = 0;
+        mock->arg[mock->arg_cnt].is_function_pointer = 1;
+      }
+
       mock->arg[mock->arg_cnt].name[dst_pos] = buf[pos];
       dst_pos++;
       pos++;
     }
-    if (0 != strcmp(mock->arg[mock->arg_cnt].type.name, "void")) {
+
+    if ((0 != strcmp(mock->arg[mock->arg_cnt].type.name, "void")) && (0 == mock->arg[mock->arg_cnt].is_function_pointer)) {
       if ('\0' == mock->arg[mock->arg_cnt].name[0]) {
-        sprintf(mock->arg[mock->arg_cnt].name, "arg%d", mock->arg_cnt);
+        if (0 == mock->arg[mock->arg_cnt].is_function_pointer) {
+          sprintf(mock->arg[mock->arg_cnt].name, "arg%d", mock->arg_cnt);
+        }
       }
+      mock->arg_cnt++;
+    }
+    else if (1 == mock->arg[mock->arg_cnt].is_function_pointer) {
+      char tmp[1024];
+      strcpy(tmp, mock->arg[mock->arg_cnt].name);
+      int dp = 2;
+      while (tmp[dp] != ')') {
+        dp++;
+      }
+      mock->arg[mock->arg_cnt].name[2] = 0;
+      sprintf(mock->arg[mock->arg_cnt].function_pointer_name, "arg%d", mock->arg_cnt);
+      strcat(mock->arg[mock->arg_cnt].name, mock->arg[mock->arg_cnt].function_pointer_name);
+      strcat(mock->arg[mock->arg_cnt].name, &tmp[dp]);
       mock->arg_cnt++;
     }
     pos++;
   }
   pos++;
   return pos;
+}
+
+static void print_includes(const char* filename) {
+  FILE* fd = fopen(filename, "r");
+  puts("/*");
+  puts(" * All includes from the design under test");
+  puts(" */");
+  while (!feof(fd)) {
+    char buf[1024];
+    if (NULL == fgets(buf, sizeof(buf), fd)) {
+      break;
+    }
+    if (('#' == buf[0]) &&
+        ('i' == buf[1]) &&
+        ('n' == buf[2]) &&
+        ('c' == buf[3]) &&
+        ('l' == buf[4]) &&
+        ('u' == buf[5]) &&
+        ('d' == buf[6]) &&
+        ('e' == buf[7]))
+      {
+        printf("%s", buf);
+      }
+  }
+  fclose(fd);
+}
+
+static int get_mockables(char mockable[1024][256], const char* filename) {
+  char command[1024];
+  char buf[1024];
+
+  /*
+   * Run nm on the object file in order to get a list of functions that
+   * are actually used in the file.
+   */
+  bzero(command, sizeof(command));
+  sprintf(command, "nm \"%s\"", filename);
+  FILE* pd = popen(command, "r");
+  if (NULL == pd) {
+    fprintf(stderr, "ERROR: Unable to execute command '%s'\n", command);
+    return 0;
+  }
+
+  int mockable_cnt = 0;
+
+  while (fgets(buf, sizeof(buf), pd)) {
+    buf[strlen(buf) - 1] = 0;
+    strcpy(mockable[mockable_cnt++], &buf[11]);
+  }
+
+  pclose(pd);
+
+  return mockable_cnt;
 }
 
 static void cproto(const int argc, const char* argv[])
@@ -783,8 +868,15 @@ static void cproto(const int argc, const char* argv[])
   FILE* pd;
 
   const char* filename = argv[1];
-  const char* cutest_path = argv[2];
+  const char* objfilename = argv[2];
+  const char* cutest_path = argv[3];
 
+  char mockable[1024][256];
+  const int mockable_cnt = get_mockables(mockable, objfilename);
+
+  /*
+   * Run cproto to generate prototypes for all possible functions available.
+   */
   sprintf(cproto, "cproto -i -s -x -I\"%s\"", cutest_path);
   strcpy(iflags, "");
   for (int i = 3; i < argc; i++) {
@@ -810,8 +902,10 @@ static void cproto(const int argc, const char* argv[])
   printf(" * %s", command);
   printf(" *\n");
   while (fgets(buf, sizeof(buf), pd)) {
+    int i;
     int pos = 0;
     int retval = 0;
+    int found_mockable = 0;
     if (('/' == buf[0]) && ('*' == buf[1])) {
       continue;
     }
@@ -825,6 +919,18 @@ static void cproto(const int argc, const char* argv[])
 
     if (-1 == retval) {
       /* Not a function */
+      continue;
+    }
+
+    /* Check if the function is actually used, if not just skip it */
+    for (i = 0; i < mockable_cnt; i++) {
+      if (0 == strncmp(mocks.mock[mocks.mock_cnt].name, mockable[i], strlen(mockable[i]))) {
+        found_mockable = 1;
+        break;
+      }
+    }
+
+    if (0 == found_mockable) {
       continue;
     }
 
@@ -974,6 +1080,19 @@ static void print_forward_declaration(cutest_mock_t* mock)
       }
       printf("%s;\n", buf);
     }
+    /*
+    else {
+      int j;
+      printf("typedef ");
+      for (j = 0; j < (int)strlen(mock->arg[i].type.name); j++) {
+        if (mock->arg[i].type.name[j] == '*') {
+          break;
+        }
+        buf[j] = mock->arg[i].type.name[j];
+      }
+      printf("%s;\n", buf);
+    }
+    */
   }
 }
 
@@ -1071,7 +1190,7 @@ static int line_has_mockable_function(const char* buf) {
   int i;
   char* pos = (char*)buf;
   if ((buf[0] == ' ') || (buf[0] == '\n')) {
-    return 0;
+    return -1;
   }
   for (i = 0; i < mocks.mock_cnt; i++) {
     const char* s = strstr(pos, mocks.mock[i].name);
@@ -1156,9 +1275,16 @@ static void print_mock(cutest_mock_t* mock)
         printf("  /* Can't handle va_list arguments yet. Skipping ... */\n");
       }
       else {
-        printf("  cutest_mock.%s.args.%s = %s;\n", mock->name,
-               mock->arg[i].name,
-               mock->arg[i].name);
+        if (0 == mock->arg[i].is_function_pointer) {
+          printf("  cutest_mock.%s.args.%s = %s;\n", mock->name,
+                 mock->arg[i].name,
+                 mock->arg[i].name);
+        }
+        else {
+          printf("  cutest_mock.%s.args.%s = %s;\n", mock->name,
+                 mock->arg[i].function_pointer_name,
+                 mock->arg[i].function_pointer_name);
+        }
       }
     }
   }
@@ -1170,7 +1296,12 @@ static void print_mock(cutest_mock_t* mock)
     else {
       printf("    return cutest_mock.%s.func(", mock->name);
       for (i = 0; i < mock->arg_cnt; i++) {
-        printf("%s", mock->arg[i].name);
+        if (0 == mock->arg[i].is_function_pointer) {
+          printf("%s", mock->arg[i].name);
+        }
+        else {
+          printf("%s", mock->arg[i].function_pointer_name);
+        }
         if (i < mock->arg_cnt - 1) {
           printf(", ");
         }
@@ -1209,10 +1340,10 @@ int main(const int argc, const char* argv[])
   char* file;
   FILE *fd;
 
-  if (argc < 3) {
+  if (argc < 4) {
     fprintf(stderr, "ERROR: Missing argument\n");
     printf("USAGE: cutest_mock "
-           "<c-source-file> <cutest-path> [-I flags]\n");
+           "<c-source-file> <o-object-file> <cutest-path> [-I flags]\n");
     exit(EXIT_FAILURE);
   }
 
@@ -1241,6 +1372,8 @@ int main(const int argc, const char* argv[])
   printf("#define _CALL_H_ "
          "/* Make sure that the call macro stays modified */\n");
   printf("#define call(FUNCTION) cutest_mock_##FUNCTION\n\n");
+
+  print_includes(argv[1]);
 
   print_forward_declarations();
 
