@@ -823,9 +823,18 @@ static int get_mockables(char mockable[1024][256], const char* filename) {
 
   int mockable_cnt = 0;
 
+  int spacecnt = 0;
+  int pos = 0;
+
   while (fgets(buf, sizeof(buf), pd)) {
     buf[strlen(buf) - 1] = 0;
-    strcpy(mockable[mockable_cnt++], &buf[11]);
+    while (spacecnt < 2) {
+      if (buf[pos] == ' ') {
+        spacecnt++;
+      }
+      pos++;
+    }
+    strcpy(mockable[mockable_cnt++], &buf[pos]);
   }
 
   pclose(pd);
@@ -1205,7 +1214,7 @@ static size_t print_design_under_test(const char* filename) {
     if (0 <= unalias) {
       printf("#undef %s\n", mocks.mock[unalias].name);
       printed_rows++;
-      printf("#line %d \"%s\"\n", row, filename);
+      printf("#line %ld \"%s\"\n", row, filename);
       printed_rows++;
     }
     puts(buf);
@@ -1213,7 +1222,7 @@ static size_t print_design_under_test(const char* filename) {
     if (0 <= unalias) {
       printf("#define %s cutest_%s\n", mocks.mock[unalias].name, mocks.mock[unalias].name);
       printed_rows++;
-      printf("#line %d \"%s\"\n", row + 1, filename);
+      printf("#line %ld \"%s\"\n", row + 1, filename);
       printed_rows++;
     }
     row++;
