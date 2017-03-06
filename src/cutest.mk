@@ -55,12 +55,12 @@ cutest_prox: cutest_prox.c
 
 .PRECIOUS: %_mockables.lst
 %_mockables.lst: %_mockables.o
-	$(Q)nm $< | sed 's/.* //g' > $@
+	$(Q)nm $< | sed 's/.* //g' | grep -v '__stack_' | sort -u > $@
 
 .PRECIOUS: %_mockables.s
 %_mockables.s: $(CUTEST_SRC_DIR)/%.c
 	$(Q)$(CC) -S -fverbose-asm -fvisibility=hidden -fno-inline -g -O0 \
-	-o $@ -c $^ $(CUTEST_CFLAGS) -D"static="
+	-o $@ -c $^ $(CUTEST_CFLAGS) -D"static=" -D"inline=" -D"main=MAIN"
 
 .PRECIOUS: %_proxified.s
 %_proxified.s: %_mockables.s %_mockables.lst cutest_prox

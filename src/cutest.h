@@ -523,6 +523,7 @@ typedef struct cutest_mock_arg_s {
   char function_pointer_name[MAX_CUTEST_MOCK_NAME_LENGTH + 1];
   cutest_mock_arg_type_t type;
   int is_function_pointer;
+  int is_array;
 } cutest_mock_arg_t;
 
 typedef struct cutest_mock_return_type_s {
@@ -607,8 +608,12 @@ static int get_return_type(cutest_mock_return_type_t* return_type,
       continue;
     }
     if (0 == strncmp(&buf[pos], "inline ", 7)) {
-      return_type->is_struct = 1;
+      return_type->is_inline = 1;
       pos += 7;
+      continue;
+    }
+    if (0 == strncmp(&buf[pos], "__extension__ ", 14)) {
+      pos += 14;
       continue;
     }
     return_type->name[dst_pos] = buf[pos];
@@ -698,6 +703,10 @@ static int get_function_args(cutest_mock_t* mock, const char* buf) {
         mock->arg[mock->arg_cnt].is_function_pointer = 1;
       }
 
+      if (buf[pos] == '[') {
+        mock->arg[mock->arg_cnt].is_array = 1;
+      }
+
       mock->arg[mock->arg_cnt].name[dst_pos] = buf[pos];
       dst_pos++;
       pos++;
@@ -707,6 +716,9 @@ static int get_function_args(cutest_mock_t* mock, const char* buf) {
         (0 == mock->arg[mock->arg_cnt].is_function_pointer)) {
       if ('\0' == mock->arg[mock->arg_cnt].name[0]) {
         if (0 == mock->arg[mock->arg_cnt].is_function_pointer) {
+          if (1 == mock->arg[mock->arg_cnt].is_array) {
+            strcat(mock->arg[mock->arg_cnt].type.name, "*");
+          }
           sprintf(mock->arg[mock->arg_cnt].name, "arg%d", mock->arg_cnt);
         }
       }
@@ -803,6 +815,7 @@ static void cproto(const int argc, const char* argv[])
   printf(" * %s", command);
   printf(" *\n");
   while (fgets(buf, sizeof(buf), pd)) {
+    char extbuf[256];
     int i;
     int pos = 0;
     int retval = 0;
@@ -815,8 +828,24 @@ static void cproto(const int argc, const char* argv[])
            sizeof(mocks.mock[mocks.mock_cnt]));
     pos += get_return_type(&mocks.mock[mocks.mock_cnt].return_type,
                            &buf[pos]);
-    retval = get_function_name(mocks.mock[mocks.mock_cnt].name,
+
+    memset(extbuf, 0, sizeof(extbuf));
+
+    retval = get_function_name(extbuf,
                                &buf[pos]);
+
+    int already_defined = 0;
+    for (i = 0; i < mocks.mock_cnt; i++) {
+      if (0 == strcmp(extbuf, mocks.mock[i].name)) {
+        already_defined = 1;
+        break;
+      }
+    }
+    if (1 == already_defined) {
+      continue;
+    }
+
+    strcpy(mocks.mock[mocks.mock_cnt].name, extbuf);
 
     if (-1 == retval) {
       /* Not a function */
@@ -889,9 +918,19 @@ static void print_mock_ctl(cutest_mock_t* mock)
   printf("  struct {\n");
   printf("    int call_count;\n");
   if (0 != strcmp(mock->return_type.name, "void")) {
-    printf("    %s retval;\n", mock->return_type.name);
+    if (mock->return_type.is_struct) {
+      printf("    struct %s retval;\n", mock->return_type.name);
+    }
+    else {
+      printf("    %s retval;\n", mock->return_type.name);
+    }
   }
-  printf("    %s (*func)(", mock->return_type.name);
+  if (mock->return_type.is_struct) {
+    printf("    struct %s (*func)(", mock->return_type.name);
+  }
+  else {
+    printf("    %s (*func)(", mock->return_type.name);
+  }
   for (i = 0; i < mock->arg_cnt; i++) {
     if (mock->arg[i].type.is_const) {
       printf("const ");
@@ -1000,6 +1039,9 @@ static void print_dut_declaration(cutest_mock_t* mock)
   if (mock->return_type.is_const) {
     printf("const ");
   }
+  if (mock->return_type.is_struct) {
+    printf("struct ");
+  }
   printf("%s %s(", mock->return_type.name, mock->name);
 
   for (i = 0; i < mock->arg_cnt; i++) {
@@ -1035,6 +1077,9 @@ static void print_mock_declaration(cutest_mock_t* mock)
   }
   if (mock->return_type.is_const) {
     printf("const ");
+  }
+  if (mock->return_type.is_struct) {
+    printf("struct ");
   }
   printf("%s cutest_%s(", mock->return_type.name, mock->name);
 
