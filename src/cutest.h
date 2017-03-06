@@ -1185,9 +1185,12 @@ static int line_has_mockable_function(const char* buf) {
   return -1;
 }
 
-static void print_design_under_test(const char* filename) {
+static size_t print_design_under_test(const char* filename) {
   FILE *fp = fopen(filename, "r");
   size_t row = 0;
+  size_t printed_rows = 0;
+  printf("#line 1 \"%s\"\n", filename);
+  printed_rows++;
   while (!feof(fp)) {
     char buf[1024];
     if (NULL == fgets(buf, sizeof(buf), fp)) {
@@ -1201,16 +1204,23 @@ static void print_design_under_test(const char* filename) {
 
     if (0 <= unalias) {
       printf("#undef %s\n", mocks.mock[unalias].name);
+      printed_rows++;
       printf("#line %d \"%s\"\n", row, filename);
+      printed_rows++;
     }
     puts(buf);
+    printed_rows++;
     if (0 <= unalias) {
       printf("#define %s cutest_%s\n", mocks.mock[unalias].name, mocks.mock[unalias].name);
+      printed_rows++;
       printf("#line %d \"%s\"\n", row + 1, filename);
+      printed_rows++;
     }
     row++;
   }
   printf("\n");
+  printed_rows++;
+  return printed_rows;
 }
 
 static void print_mock_unaliases()
