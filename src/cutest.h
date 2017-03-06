@@ -25,9 +25,8 @@
  * Features
  * --------
  *
- * * Automated generation of controllable mocks for all C-functions,
- *   with code footprint in the form of the inclusion of call.h and
- *   usage of the call() macro)
+ * * Automated generation of controllable mocks for all C-functions
+ *   called by the design under test.
  * * C-Function stubbing
  * * Generic asserts in 1, 2 and 3 argument flavors.
  * * JUnit XML reports for Jenkins integration
