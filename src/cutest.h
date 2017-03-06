@@ -1356,6 +1356,9 @@ int main(int argc, char* argv[]) {
       const int mocklen = strlen(mockable[i]);
       if (NULL != s) {
         const int pos = s - buf;
+        if (pos < 3) {
+          continue;
+        }
         const int end = pos + mocklen - 1;
         if ((buf[pos - 1] == '\t') && (buf[end + 1] == '\t')) {
           char newbuf[1024];
