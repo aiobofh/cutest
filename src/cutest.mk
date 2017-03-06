@@ -35,19 +35,42 @@ cutest_mock: cutest_mock.c
 	(echo "ERROR: cproto is not installed in your path"; false) && \
 	$(CC) $< $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -DCUTEST_MOCK_MAIN -o $@
 
+# Generate a very strange C-program including cutest.h for int main().
+cutest_prox.c: $(CUTEST_PATH)/cutest.h Makefile
+	$(Q)echo "#include \"cutest.h\"" > $@
+
+# Build a tool to generate a test suite runner.
+cutest_prox: cutest_prox.c
+	$(Q)$(CC) $< $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -DCUTEST_PROX_MAIN -o $@
+
 # Extract all functions called by the design under test.
 %.tu: $(subst _test,,%_test.c)
-	$(Q)g++ -fdump-translation-unit -c $< -D"call(func)=func" && \
+	$(Q)g++ -fdump-translation-unit -c $< && \
 	cat $<.*.tu | c++filt > $@ && \
 	rm -f $<.*.tu
 
+.PRECIOUS: %_mockables.o
 %_mockables.o: $(CUTEST_SRC_DIR)/%.c
-	$(Q)$(CC) -o $@ -c $< -O0 -D"call(func)=func"
+	$(Q)$(CC) -o $@ -c $< $(CFLAGS)
+
+.PRECIOUS: %_mockables.lst
+%_mockables.lst: %_mockables.o
+	$(Q)nm $< | sed 's/.* //g' > $@
+
+.PRECIOUS: %_mockables.s
+%_mockables.s: $(CUTEST_SRC_DIR)/%.c
+	$(Q)$(CC) -S -fverbose-asm -fvisibility=hidden -fno-inline -g -O0 \
+	-o $@ -c $^ $(CUTEST_CFLAGS) -D"static="
+
+.PRECIOUS: %_proxified.s
+%_proxified.s: %_mockables.s %_mockables.lst cutest_prox
+	$(Q)./cutest_prox $< $(subst .s,.lst,$<) > $@
 
 .PRECIOUS: %_mocks.h
 # Generate mocks from the call()-macro in a source-file.
-%_mocks.h: $(CUTEST_SRC_DIR)/%.c %_mockables.o $(CUTEST_PATH)/cutest.h cutest_mock
-	$(Q)./cutest_mock $< $(subst .c,_mockables.o,$<) $(CUTEST_PATH) $(CUTEST_IFLAGS) > $@; \
+%_mocks.h: $(CUTEST_SRC_DIR)/%.c %_mockables.lst $(CUTEST_PATH)/cutest.h cutest_mock
+	$(Q)./cutest_mock $< $(subst .c,_mockables.lst,$<) $(CUTEST_PATH) \
+	$(CUTEST_IFLAGS) > $@; \
 
 .PRECIOUS: %_test_run.c
 # Generate a test-runner program code from a test-source-file
@@ -55,8 +78,9 @@ cutest_mock: cutest_mock.c
 	$(Q)./cutest_run $(filter-out cutest.h,$^) > $@
 
 # Compile a test-runner from the generate test-runner program code
-%_test: %_test_run.c
-	$(Q)$(CC) $^ $(CUTEST_CFLAGS) -I$(CUTEST_PATH) $(CUTEST_IFLAGS) -DNDEBUG -o $@
+%_test: %_proxified.s %_test_run.c
+	$(Q)$(CC) -o $@ $^ $(CUTEST_CFLAGS) -I$(CUTEST_PATH) $(CUTEST_IFLAGS) \
+	-DNDEBUG
 
 # Print the CUTest manual
 cutest_help.rst: $(CUTEST_PATH)/cutest.h
@@ -95,7 +119,8 @@ clean::
 	*.tu \
 	*.gcda \
 	*.gcno \
-	*_mockables.o \
+	*_mockables.* \
+	*_proxified.* \
 	cutest_help.rst \
 	cutest_help.html \
 	*~

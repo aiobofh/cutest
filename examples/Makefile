@@ -8,6 +8,7 @@ Q=@
 all: check
 
 include ../src/cutest.mk
+include ../src/coverage.mk
 
 clean::
 	$(Q)$(RM) -f *~
