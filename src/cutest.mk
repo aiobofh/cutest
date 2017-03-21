@@ -101,11 +101,10 @@ check:: $(subst .c,,$(wildcard *_test.c))
 	@R=true; \
 	processors=`cat /proc/cpuinfo | grep processor | wc -l`; \
 	for i in $^; do \
-	  while [ `ps xa | grep -v grep | grep _test | wc -l` -gt $$processors ]; do echo "wait"; sleep 0.1; done; \
+	  while [ `ps xa | grep -v grep | grep _test | wc -l` -gt $$processors ]; do sleep 0.1; done; \
 	  ./$$i $V -j || rm $$i || R=false & \
 	done; \
 	while [ `ps xa | grep -v grep | grep '_test' | wc -l` -gt 0 ]; do \
-	  echo "waiting..."; \
 	  sleep 1; \
 	done; \
 	echo "	"; `$$R`
