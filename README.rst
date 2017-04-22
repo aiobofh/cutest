@@ -156,7 +156,10 @@ the *CUTest mock generator* respectively.
 The test() macro
 ----------------
 
-Every test is defined with this macro.
+Every unit test is defined with this macro. All function calls within the called
+functions from a test will be automatically mocked. You can override by setting the
+func-member of the mock-control struct to the original function if needed, or to
+any other API compatible function - To stub the funcitonality.
 
 Example::
 
@@ -164,6 +167,13 @@ Example::
   {
     ... Test body ...
   }
+
+The module_test() macro
+-----------------------
+
+A module test differs from a unit test, since nothing will be stubbed/mocked in the
+design under test. You can still stub things by setting the func-member of the
+mock-control struct to any API compatible function.
 
 The assert_eq() macro
 ---------------------
