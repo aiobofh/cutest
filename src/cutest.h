@@ -177,7 +177,10 @@ extern struct tm *localtime_r(const time_t *timep, struct tm *result);
  * The test() macro
  * ----------------
  *
- * Every test is defined with this macro.
+ * Every unit test is defined with this macro. All function calls within the called
+ * functions from a test will be automatically mocked. You can override by setting the
+ * func-member of the mock-control struct to the original function if needed, or to
+ * any other API compatible function - To stub the funcitonality.
  *
  * Example::
  *
@@ -188,6 +191,17 @@ extern struct tm *localtime_r(const time_t *timep, struct tm *result);
  *
  */
 #define test(NAME) void cutest_##NAME()
+
+/*
+ * The module_test() macro
+ * -----------------------
+ *
+ * A module test differs from a unit test, since nothing will be stubbed/mocked in the
+ * design under test. You can still stub things by setting the func-member of the
+ * mock-control struct to any API compatible function.
+ *
+ */
+#define module_test(NAME) void cutest_module_##NAME()
 
 /*
  * The assert_eq() macro
@@ -316,11 +330,14 @@ static void cutest_startup(int argc, char* argv[],
  * in the shutdown process.
  *
  */
-static void cutest_execute_test(void (*func)(), const char *name) {
+static void cutest_execute_test(void (*func)(), const char *name, int do_mock) {
   time_t start_time = time(NULL);
   time_t end_time;
   double elapsed_time;
   memset(&cutest_mock, 0, sizeof(cutest_mock));
+  if (1 == do_mock) {
+    cutest_set_mocks_to_original_functions();
+  }
   func();
   if (cutest_opts.verbose) {
     if (cutest_assert_fail_cnt == 0) {
@@ -1219,6 +1236,16 @@ static void print_mocks()
   }
 }
 
+static void print_func_assignments()
+{
+  int i;
+  printf("void cutest_set_mocks_to_original_functions() {\n");
+  for (i = 0; i < mocks.mock_cnt; i++) {
+    printf("  cutest_mock.%s.func = %s;\n", mocks.mock[i].name, mocks.mock[i].name);
+  }
+  printf("}\n\n");
+}
+
 int main(const int argc, const char* argv[])
 {
   char* file;
@@ -1279,6 +1306,9 @@ int main(const int argc, const char* argv[])
   printf("} cutest_mock;\n\n");
 
   print_mocks();
+  printf("\n");
+
+  print_func_assignments();
   printf("\n");
 
   return 0;
@@ -1536,7 +1566,32 @@ int main(int argc, char* argv[]) {
           char *start = &buf[5];
           int name_len = i - name_pos;
           buf[name_pos + name_len] = '\0';
-          printf("  cutest_execute_test(cutest_%s, \"%s\");\n",
+          printf("  cutest_execute_test(cutest_%s, \"%s\", 0);\n",
+                 start, start);
+          break;
+        }
+      }
+    }
+    else if (('m' == buf[0]) &&
+             ('o' == buf[1]) &&
+             ('d' == buf[2]) &&
+             ('u' == buf[3]) &&
+             ('l' == buf[4]) &&
+             ('e' == buf[5]) &&
+             ('_' == buf[6]) &&
+             ('t' == buf[7]) &&
+             ('e' == buf[8]) &&
+             ('s' == buf[9]) &&
+             ('t' == buf[10]) &&
+             ('(' == buf[11])) {
+      int name_pos = 12;
+      int i;
+      for (i = 12; i < (int)strlen(buf); i++) {
+        if (')' == buf[i]) {
+          char *start = &buf[12];
+          int name_len = i - name_pos;
+          buf[name_pos + name_len] = '\0';
+          printf("  cutest_execute_test(cutest_module_%s, \"%s\", 1);\n",
                  start, start);
           break;
         }

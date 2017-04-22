@@ -28,3 +28,10 @@ test(foo_shall_propagate_bar_return_value_to_integer_refered_by_argument)
   foo(&my_integer);
   assert_eq(123456, my_integer);
 }
+
+module_test(foo_shall_multiply_input_argument_by_four)
+{
+  int my_integer = 3;
+  foo(&my_integer);
+  assert_eq(12, my_integer);
+}
