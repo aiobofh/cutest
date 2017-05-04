@@ -277,6 +277,7 @@ struct {
 } cutest_stats;
 
 static char cutest_junit_report[CUTEST_MAX_JUNIT_BUFFER_SIZE + 1];
+static char cutest_junit_report_tmp[CUTEST_MAX_JUNIT_BUFFER_SIZE + 1];
 
 /*
  * Test initialization
@@ -308,6 +309,7 @@ static void cutest_startup(int argc, char* argv[],
     }
   }
   memset(cutest_junit_report, 0, sizeof(cutest_junit_report));
+  memset(cutest_junit_report_tmp, 0, sizeof(cutest_junit_report_tmp));
   memset(&cutest_stats, 0, sizeof(cutest_stats));
   strcpy(cutest_stats.suite_name, suite_name);
   strcpy(cutest_stats.design_under_test, suite_name);
@@ -373,18 +375,21 @@ static void cutest_execute_test(void (*func)(), const char *name, int do_mock) {
 
   cutest_stats.elapsed_time += elapsed_time;
 
+  strcpy(cutest_junit_report_tmp, cutest_junit_report);
   /* Ugly-output some JUnit XML for each test-case */
   sprintf(cutest_junit_report,
           "%s    <testcase classname=\"%s\" name=\"%s\" time=\"%f\">\n",
-          cutest_junit_report, cutest_stats.design_under_test,
+          cutest_junit_report_tmp, cutest_stats.design_under_test,
           name, elapsed_time);
   if (cutest_assert_fail_cnt != 0) {
+    strcpy(cutest_junit_report_tmp, cutest_junit_report);
     sprintf(cutest_junit_report,
             "%s      <failure message=\"test failure\">%s</failure>\n",
-            cutest_junit_report, "Some assert text");
+            cutest_junit_report_tmp, cutest_stats.error_output);
   }
+  strcpy(cutest_junit_report_tmp, cutest_junit_report);
   sprintf(cutest_junit_report, "%s    </testcase>\n",
-          cutest_junit_report);
+          cutest_junit_report_tmp);
 
   cutest_assert_fail_cnt = 0;
 }

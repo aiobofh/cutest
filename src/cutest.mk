@@ -17,6 +17,9 @@ CUTEST_CFLAGS+=-g -pedantic -Wall -Wextra -std=c11
 cutest_info:
 	echo $(CUTEST_PATH)
 
+cutest_turead: $(CUTEST_PATH)/cutest_turead.c
+	$(Q)$(CC) $< $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -o $@
+
 # Generate a very strange C-program including cutest.h for int main().
 cutest_run.c: $(CUTEST_PATH)/cutest.h Makefile
 	$(Q)echo "#include \"cutest.h\"" > $@
@@ -97,6 +100,9 @@ cutest_help.html: cutest_help.rst
 cutest_help: cutest_help.rst
 	$(Q)less $<
 
+%_test.memcheck: %_test
+	$(Q)valgrind -q --xml=yes --xml-file=$@ ./$< > /dev/null
+
 check:: $(subst .c,,$(wildcard *_test.c))
 	@R=true; \
 	processors=`cat /proc/cpuinfo | grep processor | wc -l`; \
@@ -109,11 +115,26 @@ check:: $(subst .c,,$(wildcard *_test.c))
 	done; \
 	echo "	"; `$$R`
 
+memcheck:: $(subst .c,.memcheck,$(wildcard *_test.c))
+
+valgrind:: $(subst .c,,$(wildcard *_test.c))
+	@R=true; \
+	processors=`cat /proc/cpuinfo | grep processor | wc -l`; \
+	for i in $^; do \
+	  while [ `ps xa | grep -v grep | grep '_test ' | wc -l` -gt $$processors ]; do sleep 0.1; done; \
+	  valgrind -q ./$$i -v -j || rm $$i || R=false & \
+	done; \
+	while [ `ps xa | grep -v grep | grep '_test ' | wc -l` -gt 0 ]; do \
+	  sleep 1; \
+	done; \
+	`$$R`
+
 clean::
 	$(Q)$(RM) -f cutest_* \
 	*_test_run.c \
 	*_mocks.h \
 	*.junit_report.xml \
+	*.memcheck \
 	*_test \
 	*.tu \
 	*.gcda \
