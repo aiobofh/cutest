@@ -18,10 +18,12 @@ test(add_shall_add_the_two_inputs_and_return_their_sum)
 
 test(add_shall_be_able_to_add_minimum_values_for_integers)
 {
-  assert_eq(((long)INT_MIN + (long)INT_MIN), add(INT_MIN, INT_MIN));
+  assert_eq(((long long)INT_MIN + (long long)INT_MIN),
+            (long long)add((int)INT_MIN, (int)INT_MIN));
 }
 
 test(add_shall_be_able_To_add_maximum_values_for_integers)
 {
-  assert_eq(((long)INT_MAX + (long)INT_MAX), add(INT_MAX, INT_MAX));
+  assert_eq(((long long)INT_MAX + (long long)INT_MAX),
+            (long long)add((int)INT_MAX, (int)INT_MAX));
 }
