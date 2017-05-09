@@ -22,6 +22,9 @@
  * The CUTest framework is tightly bound to a very specific build
  * system layout too. So let's admit that GNU Make is also needed.
  *
+ * A huge tip is to check out the examples folder, it contains both
+ * naive, simple and realistic examples of various CUTest usages.
+ *
  * Features
  * --------
  *
@@ -34,6 +37,7 @@
  *   `which`, `grep`, `sed`, `rst2html`, `less`, 'nm` and `cproto`)
  * * In-line documentation to ReSTructured Text or HTML
  *   (requires additional tools: `grep`, `sed` and `rst2html`)
+ * * Memory leakage detection using Valgrind (requires `valgrind`)
  *
  * Organize your directories
  * -------------------------
@@ -106,6 +110,11 @@
  *               "foo shall return adder's return value");
  *   }
  *
+ *   module_test(foo_shall_return_the_adder_functions_result) {
+ *     assert_eq(3, foo(1, 2),
+ *               "foo shall return adder's return value");
+ *   }
+ *
  * foo.c::
  *
  *   int adder(int a, int b) { return a + b; }
@@ -137,6 +146,10 @@
  *   $ make check
  *   ...
  *
+ * Command line to run all tests with valgrind memory leakage checks::
+ *
+ *   $ make valgrind
+ *   ...
  *
  * There are more examples available in the examples folder.
  *
@@ -156,6 +169,12 @@
  */
 #ifndef _CUTEST_H_
 #define _CUTEST_H_
+
+#ifdef CUTEST_LENIENT_ASSERTS
+#pragma GCC diagnostic ignored "-Wnonnull"
+#pragma GCC diagnostic ignored "-Wint-to-pointer-cast"
+#pragma GCC diagnostic ignored "-Wformat="
+#endif
 
 /*
  * To compile the test runner you should never ever have
@@ -177,10 +196,11 @@ extern struct tm *localtime_r(const time_t *timep, struct tm *result);
  * The test() macro
  * ----------------
  *
- * Every unit test is defined with this macro. All function calls within the called
- * functions from a test will be automatically mocked. You can override by setting the
- * func-member of the mock-control struct to the original function if needed, or to
- * any other API compatible function - To stub the funcitonality.
+ * Every unit test is defined with this macro. All function calls within the
+ * called functions from a test will be automatically mocked. You can
+ * override by setting the func-member of the mock-control struct to the
+ * original function if needed, or to any other API compatible function -
+ * To stub the funcitonality.
  *
  * Example::
  *
@@ -196,12 +216,163 @@ extern struct tm *localtime_r(const time_t *timep, struct tm *result);
  * The module_test() macro
  * -----------------------
  *
- * A module test differs from a unit test, since nothing will be stubbed/mocked in the
- * design under test. You can still stub things by setting the func-member of the
- * mock-control struct to any API compatible function.
+ * A module test differs from a unit test, since nothing will be
+ * stubbed/mocked in the design under test. You can still stub things by
+ * setting the func-member of the mock-control struct to any API compatible
+ * function.
  *
  */
 #define module_test(NAME) void cutest_module_##NAME()
+
+#ifdef CUTEST_LENIENT_ASSERTS
+enum cutest_typename {
+  CUTEST_BOOL = 1,
+  CUTEST_UNSIGNED_CHAR,
+  CUTEST_CHAR,
+  CUTEST_SIGNED_CHAR,
+  CUTEST_SHORT_INT,
+  CUTEST_UNSIGNED_SHORT_INT,
+  CUTEST_INT,
+  CUTEST_UNSIGNED_INT,
+  CUTEST_LONG_INT,
+  CUTEST_UNSIGNED_LONG_INT,
+  CUTEST_LONG_LONG_INT,
+  CUTEST_UNSIGNED_LONG_LONG_INT,
+  CUTEST_FLOAT,
+  CUTEST_DOUBLE,
+  CUTEST_LONG_DOUBLE,
+
+  CUTEST_C_BOOL = 100,
+  CUTEST_C_UNSIGNED_CHAR,
+  CUTEST_C_CHAR,
+  CUTEST_C_SIGNED_CHAR,
+  CUTEST_C_SHORT_INT,
+  CUTEST_C_UNSIGNED_SHORT_INT,
+  CUTEST_C_INT,
+  CUTEST_C_UNSIGNED_INT,
+  CUTEST_C_LONG_INT,
+  CUTEST_C_UNSIGNED_LONG_INT,
+  CUTEST_C_LONG_LONG_INT,
+  CUTEST_C_UNSIGNED_LONG_LONG_INT,
+  CUTEST_C_FLOAT,
+  CUTEST_C_DOUBLE,
+  CUTEST_C_LONG_DOUBLE,
+
+  CUTEST_OTHER,
+
+  CUTEST_P_BOOL = 1000,
+  CUTEST_P_CHAR,
+  CUTEST_P_UNSIGNED_CHAR,
+  CUTEST_P_SIGNED_CHAR,
+  CUTEST_P_SHORT_INT,
+  CUTEST_P_UNSIGNED_SHORT_INT,
+  CUTEST_P_INT,
+  CUTEST_P_UNSIGNED_INT,
+  CUTEST_P_LONG_INT,
+  CUTEST_P_UNSIGNED_LONG_INT,
+  CUTEST_P_LONG_LONG_INT,
+  CUTEST_P_UNSIGNED_LONG_LONG_INT,
+  CUTEST_P_FLOAT,
+  CUTEST_P_DOUBLE,
+  CUTEST_P_LONG_DOUBLE,
+  CUTEST_P_VOID,
+
+  CUTEST_C_P_BOOL = 10000,
+  CUTEST_C_P_CHAR,
+  CUTEST_C_P_UNSIGNED_CHAR,
+  CUTEST_C_P_SIGNED_CHAR,
+  CUTEST_C_P_SHORT_INT,
+  CUTEST_C_P_UNSIGNED_SHORT_INT,
+  CUTEST_C_P_INT,
+  CUTEST_C_P_UNSIGNED_INT,
+  CUTEST_C_P_LONG_INT,
+  CUTEST_C_P_UNSIGNED_LONG_INT,
+  CUTEST_C_P_LONG_LONG_INT,
+  CUTEST_C_P_UNSIGNED_LONG_LONG_INT,
+  CUTEST_C_P_FLOAT,
+  CUTEST_C_P_DOUBLE,
+  CUTEST_C_P_LONG_DOUBLE,
+  CUTEST_C_P_VOID,
+
+  CUTEST_LAST
+};
+
+#define cutest_typename(x)                                              \
+  _Generic((x),                                                         \
+           _Bool:                          CUTEST_BOOL,                 \
+           char:                           CUTEST_CHAR,                 \
+           unsigned char:                  CUTEST_UNSIGNED_CHAR,        \
+           signed char:                    CUTEST_SIGNED_CHAR,          \
+           short int:                      CUTEST_SHORT_INT,            \
+           unsigned short int:             CUTEST_UNSIGNED_SHORT_INT,   \
+           int:                            CUTEST_INT,                  \
+           unsigned int:                   CUTEST_UNSIGNED_INT,         \
+           long int:                       CUTEST_LONG_INT,             \
+           unsigned long int:              CUTEST_UNSIGNED_LONG_INT,    \
+           long long int:                  CUTEST_LONG_LONG_INT,        \
+           unsigned long long int:         CUTEST_UNSIGNED_LONG_LONG_INT, \
+           float:                          CUTEST_FLOAT,                \
+           double:                         CUTEST_DOUBLE,               \
+           long double:                    CUTEST_LONG_DOUBLE,          \
+                                                                        \
+           const _Bool:                    CUTEST_C_BOOL,               \
+           const char:                     CUTEST_C_CHAR,               \
+           const unsigned char:            CUTEST_C_UNSIGNED_CHAR,      \
+           const signed char:              CUTEST_C_SIGNED_CHAR,        \
+           const short int:                CUTEST_C_SHORT_INT,          \
+           const unsigned short int:       CUTEST_C_UNSIGNED_SHORT_INT, \
+           const int:                      CUTEST_C_INT,                \
+           const unsigned int:             CUTEST_C_UNSIGNED_INT,       \
+           const long int:                 CUTEST_C_LONG_INT,           \
+           const unsigned long int:        CUTEST_C_UNSIGNED_LONG_INT,  \
+           const long long int:            CUTEST_C_LONG_LONG_INT,      \
+           const unsigned long long int:   CUTEST_C_UNSIGNED_LONG_LONG_INT, \
+           const float:                    CUTEST_C_FLOAT,              \
+           const double:                   CUTEST_C_DOUBLE,             \
+           const long double:              CUTEST_C_LONG_DOUBLE,        \
+                                                                        \
+           _Bool *:                        CUTEST_BOOL,                 \
+           char *:                         CUTEST_CHAR,                 \
+           unsigned char *:                CUTEST_UNSIGNED_CHAR,        \
+           signed char *:                  CUTEST_SIGNED_CHAR,          \
+           short int *:                    CUTEST_SHORT_INT,            \
+           unsigned short int *:           CUTEST_UNSIGNED_SHORT_INT,   \
+           int *:                          CUTEST_INT,                  \
+           unsigned int *:                 CUTEST_UNSIGNED_INT,         \
+           long int *:                     CUTEST_LONG_INT,             \
+           unsigned long int *:            CUTEST_UNSIGNED_LONG_INT,    \
+           long long int *:                CUTEST_LONG_LONG_INT,        \
+           unsigned long long int *:       CUTEST_UNSIGNED_LONG_LONG_INT, \
+           float *:                        CUTEST_FLOAT,                \
+           double *:                       CUTEST_DOUBLE,               \
+           long double *:                  CUTEST_LONG_DOUBLE,          \
+                                                                        \
+           const _Bool *:                  CUTEST_C_P_BOOL,             \
+           const char *:                   CUTEST_C_P_CHAR,             \
+           const unsigned char *:          CUTEST_C_P_UNSIGNED_CHAR,    \
+           const signed char *:            CUTEST_C_P_SIGNED_CHAR,      \
+           const short int *:              CUTEST_C_P_SHORT_INT,        \
+           const unsigned short int *:     CUTEST_C_P_UNSIGNED_SHORT_INT, \
+           const int *:                    CUTEST_C_P_INT,              \
+           const unsigned int *:           CUTEST_C_P_UNSIGNED_INT,     \
+           const long int *:               CUTEST_C_P_LONG_INT,         \
+           const unsigned long int *:      CUTEST_C_P_UNSIGNED_LONG_INT, \
+           const long long int *:          CUTEST_C_P_LONG_LONG_INT,    \
+           const unsigned long long int *: CUTEST_C_P_UNSIGNED_LONG_LONG_INT, \
+           const float *:                  CUTEST_C_P_FLOAT,            \
+           const double *:                 CUTEST_C_P_DOUBLE,           \
+           const long double *:            CUTEST_C_P_LONG_DOUBLE,      \
+                                                                        \
+           default: CUTEST_OTHER)
+
+#define cutest_typename_is_string(VARIABLE)              \
+  ((cutest_typename((VARIABLE)) == CUTEST_CHAR) ||       \
+   (cutest_typename((VARIABLE)) == CUTEST_P_CHAR) ||     \
+   (cutest_typename((VARIABLE)) == CUTEST_C_P_CHAR))
+
+#define cutest_typename_is_pointer(VARIABLE)    \
+  (cutest_typename(VARIABLE) > CUTEST_OTHER)
+#endif
 
 /*
  * The assert_eq() macro
@@ -218,8 +389,69 @@ extern struct tm *localtime_r(const time_t *timep, struct tm *result);
  *   ...
  *   assert_eq(1, 1);
  *   ...
+ *   assert_eq(0, strcmp("expected", some_variable));
+ *   ...
+ *   assert_eq(some_true_expression);
+ *
+ * If you have defined CUTEST_LENIENT_ASSERTS  (and use C11 or above)
+ * CUTest is able to make more readable asserts and error messages by
+ * analyzing the datatypes of the arguments. As you can notice in the
+ * example above; comparing two strings are a but cumbersome. However
+ * This feature makes things very much easier.
+ *
+ * Example::
+ *
+ *   ...
+ *   assert_eq("expected", some_variable);
+ *   ...
  *
  */
+#ifdef CUTEST_LENIENT_ASSERTS
+
+#define assert_eq_3(EXP, REF, STR)                                 \
+  if (cutest_typename_is_string((EXP)) &&                          \
+      cutest_typename_is_string((REF))) {                          \
+    if (0 == strcmp((char*)(EXP), (char*)(REF))) {                 \
+      sprintf(cutest_stats.error_output,                           \
+              "%s %s:%d assert_eq(\"%s\", \"%s\", " STR ") "       \
+              "failed\n", cutest_stats.error_output,               \
+              __FILE__, __LINE__, (char*)EXP, (char*)REF);         \
+      cutest_assert_fail_cnt++;                                    \
+    }                                                              \
+  }                                                                \
+  else {                                                           \
+    if ((EXP) != (REF)) {                                          \
+      sprintf(cutest_stats.error_output,                           \
+              "%s %s:%d assert_eq(" #EXP ", " #REF ", " STR ") "   \
+              "failed\n", cutest_stats.error_output,               \
+              __FILE__, __LINE__);                                 \
+      cutest_assert_fail_cnt++;                                    \
+    }                                                              \
+  }
+
+#define assert_eq_2(EXP, REF)                                      \
+  if (cutest_typename_is_string((EXP)) &&                          \
+      cutest_typename_is_string((REF))) {                          \
+    if (0 != strcmp((char*)(EXP), (char*)(REF))) {                 \
+      sprintf(cutest_stats.error_output,                           \
+              "%s %s:%d assert_eq(\"%s\", \"%s\") "                \
+              "failed\n", cutest_stats.error_output,               \
+              __FILE__, __LINE__, (char*)EXP, (char*)REF);         \
+      cutest_assert_fail_cnt++;                                    \
+    }                                                              \
+  }                                                                \
+  else {                                                           \
+    if ((EXP) != (REF)) {                                          \
+      sprintf(cutest_stats.error_output,                           \
+              "%s %s:%d assert_eq(" #EXP ", " #REF ") "            \
+              "failed\n", cutest_stats.error_output,               \
+              __FILE__, __LINE__);                                 \
+      cutest_assert_fail_cnt++;                                    \
+    }                                                              \
+  }
+
+#else
+
 #define assert_eq_3(EXP, REF, STR)                                 \
   if ((EXP) != (REF)) {                                            \
     sprintf(cutest_stats.error_output,                             \
@@ -229,7 +461,7 @@ extern struct tm *localtime_r(const time_t *timep, struct tm *result);
     cutest_assert_fail_cnt++;                                      \
   }
 
-#define assert_eq_2(EXP, REF) \
+#define assert_eq_2(EXP, REF)                                      \
   if ((EXP) != (REF)) {                                            \
     sprintf(cutest_stats.error_output,                             \
             "%s %s:%d assert_eq(" #EXP ", " #REF ") "              \
@@ -237,6 +469,8 @@ extern struct tm *localtime_r(const time_t *timep, struct tm *result);
             __FILE__, __LINE__);                                   \
     cutest_assert_fail_cnt++;                                      \
   }
+
+#endif
 
 #define assert_eq_1(EXP)                                           \
   if (!(EXP)) {                                                    \

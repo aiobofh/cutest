@@ -1,3 +1,8 @@
+#include <sys/types.h>
+#include <unistd.h>
+
+#define CUTEST_LENIENT_ASSERTS 1
+
 #include "cutest.h"
 
 #define FOPEN_OK_RETVAL (FILE*)1234
@@ -75,7 +80,9 @@ test(write_file_shall_open_the_correct_file_for_writing)
   (void)write_file(filename);
 
   assert_eq(filename, cutest_mock.fopen.args.arg0);
-  assert_eq(0, strcmp("w", cutest_mock.fopen.args.arg1));
+
+  /* Notice the use of lenient asserts here, by passing two strings */
+  assert_eq("w", cutest_mock.fopen.args.arg1);
 }
 
 test(write_file_shall_return_1_if_file_could_not_be_opened)
@@ -139,8 +146,40 @@ test(write_file_shall_close_the_opened_file_if_able_to_write_to_file)
   assert_eq(FOPEN_OK_RETVAL, cutest_mock.fclose.args.arg0);
 }
 
-test(write_file_shall_return_0_if_all_went_well) {
+test(write_file_shall_return_0_if_all_went_well)
+{
   pretend_that_fopen_fputs_and_fclose_will_go_well();
 
   assert_eq(0, write_file("my_filename.txt"));
+}
+
+int count_lines_in_file(const char* tmp_filename)
+{
+  int cnt = 0;
+  char buf[1024];
+  FILE *fp = fopen(tmp_filename, "r");
+  while (!feof(fp)) { if (0 != fgets(buf, 1024, fp)) { cnt++; } };
+  fclose(fp);
+  return cnt;
+}
+
+module_test(write_file_shall_write_a_10_lines_long_file_to_disc_if_possible)
+{
+  /* Beware! This test actually writes a file to disc */
+  pid_t p = getpid();
+  char tmp_filename[1024];
+
+  sprintf(tmp_filename, "/tmp/%ld_real_file", p);
+
+  assert_eq(0, write_file(tmp_filename)); /* File write should be OK */
+  assert_eq(10, count_lines_in_file(tmp_filename));
+
+  unlink(tmp_filename);
+}
+
+module_test(write_file_shall_fail_if_writing_to_disc_is_not_possible)
+{
+  const char* tmp_filename = "/tmp/this_path_sould_not_exist/oogabooga";
+
+  assert_eq(1, write_file(tmp_filename)); /* File write should not be OK */
 }
