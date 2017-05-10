@@ -331,21 +331,21 @@ enum cutest_typename {
            const double:                   CUTEST_C_DOUBLE,             \
            const long double:              CUTEST_C_LONG_DOUBLE,        \
                                                                         \
-           _Bool *:                        CUTEST_BOOL,                 \
-           char *:                         CUTEST_CHAR,                 \
-           unsigned char *:                CUTEST_UNSIGNED_CHAR,        \
-           signed char *:                  CUTEST_SIGNED_CHAR,          \
-           short int *:                    CUTEST_SHORT_INT,            \
-           unsigned short int *:           CUTEST_UNSIGNED_SHORT_INT,   \
-           int *:                          CUTEST_INT,                  \
-           unsigned int *:                 CUTEST_UNSIGNED_INT,         \
-           long int *:                     CUTEST_LONG_INT,             \
-           unsigned long int *:            CUTEST_UNSIGNED_LONG_INT,    \
-           long long int *:                CUTEST_LONG_LONG_INT,        \
-           unsigned long long int *:       CUTEST_UNSIGNED_LONG_LONG_INT, \
-           float *:                        CUTEST_FLOAT,                \
-           double *:                       CUTEST_DOUBLE,               \
-           long double *:                  CUTEST_LONG_DOUBLE,          \
+           _Bool *:                        CUTEST_P_BOOL,               \
+           char *:                         CUTEST_P_CHAR,               \
+           unsigned char *:                CUTEST_P_UNSIGNED_CHAR,      \
+           signed char *:                  CUTEST_P_SIGNED_CHAR,        \
+           short int *:                    CUTEST_P_SHORT_INT,          \
+           unsigned short int *:           CUTEST_P_UNSIGNED_SHORT_INT, \
+           int *:                          CUTEST_P_INT,                \
+           unsigned int *:                 CUTEST_P_UNSIGNED_INT,       \
+           long int *:                     CUTEST_P_LONG_INT,           \
+           unsigned long int *:            CUTEST_P_UNSIGNED_LONG_INT,  \
+           long long int *:                CUTEST_P_LONG_LONG_INT,      \
+           unsigned long long int *:       CUTEST_P_UNSIGNED_LONG_LONG_INT, \
+           float *:                        CUTEST_P_FLOAT,              \
+           double *:                       CUTEST_P_DOUBLE,             \
+           long double *:                  CUTEST_P_LONG_DOUBLE,        \
                                                                         \
            const _Bool *:                  CUTEST_C_P_BOOL,             \
            const char *:                   CUTEST_C_P_CHAR,             \
@@ -366,8 +366,7 @@ enum cutest_typename {
            default: CUTEST_OTHER)
 
 #define cutest_typename_is_string(VARIABLE)              \
-  ((cutest_typename((VARIABLE)) == CUTEST_CHAR) ||       \
-   (cutest_typename((VARIABLE)) == CUTEST_P_CHAR) ||     \
+  ((cutest_typename((VARIABLE)) == CUTEST_P_CHAR) ||     \
    (cutest_typename((VARIABLE)) == CUTEST_C_P_CHAR))
 
 #define cutest_typename_is_pointer(VARIABLE)    \
