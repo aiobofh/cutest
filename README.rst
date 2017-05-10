@@ -264,25 +264,29 @@ Let's say you want to write a piece of code that write ten lines of
 text to a file on disc. Obviously you don't want to actually *write*
 the file for just testing your ideas. This is where the automatic
 mocking of ALL called functions in your design come in handy. This
-work-flow example will also show you how to write module-tests that
-make some kind of "kick-the-tires" sanity check that the integration
+work-flow example will also show you how to write *module-tests* that
+make some kind of "kick-the-tires-sanity-check" that the integration
 to the OS actually works with file access and all.
 
 Let's do this step-by-step...
 
 1. You have to write a function called ``write_file``. And it shall
-   take one single argument (a pointer to the file name stored in a
-   string) where to store the file.
+   take one single argument (a pointer to the file-name stored in a
+   string) where to store the file in your file-system.
 
    a. Write a simple test that assumes everything will go well. This
       implies that you can determine the success of the operation
       somehow. Let's use the old "return zero on success" paradigm.
-      So... Let's call the design under test called ``write_file``
-      with some kind of file-name as argument and expect it to
-      return 0 (zero). Create a file called ``file_operations_test.c``
-      and include ``cutest.h`` in the top of it.
+      So... Let's call the design under test function called
+      ``write_file`` with some kind of file-name as argument and
+      expect it to return 0 (zero).
+
+      Create a file called ``file_operations_test.c`` and include
+      ``cutest.h`` in the top of it.
 
       Code::
+
+       #include "cutest.h"
 
        test(write_file_shall_return_0_if_all_went_well)
        {
@@ -292,13 +296,13 @@ Let's do this step-by-step...
    b. Now... When you try to compile this code using ``make check``
       everything will fail!
 
-      You will get build and compilation errors, since there is no
-      corresponding file that contain the design under test yet.
+      You will get build and compilation errors, simply because there
+      is no corresponding file that contain the design under test yet.
 
    c. Create a file called ``file_operations.c`` and implement a
       function called ``write_file`` that takes one ``const char*``
-      argument as file name. And start by just fulfilling the test
-      by returning a 0 (zero) from it.
+      argument as file name. And start, by just fulfilling the test;
+      returning a 0 (zero) from it.
 
       Code::
 
@@ -307,24 +311,25 @@ Let's do this step-by-step...
          return 0;
        }
 
-   d. No you should be able to compile and run your test using
+   d. Now you should be able to compile and run your test using
       ``make check``. And the test should probably pass, if you
       did it correctly. And since the assumption of your test that
-      ``write_file`` should return 0 (zero) on success probably will
-      be true for all eternity you will probably have to revisit and
+      ``write_file`` should return 0 (zero) on success, probably will
+      not be true for all eternity you will probably have to revisit and
       re-factor it as the function becomes more complete.
 
 2. Using the standard library to write code that opens a file
 
    a. You probably already know that you will need to open a file to
-      write you file contents to inside your ``write_file`` function.
+      write your file contents to inside your ``write_file`` function.
       Let's make sure that we call ``fopen()`` in a good way, using
       the given file name and the correct file opening mode.
       Since this test probably will look nicer using
-      CUTEST_LENIENT_ASSERTS, define it using ``#define`` before
-      your ``#include "cutest.h"`` line. Now you can use strings as
+      CUTEST_LENIENT_ASSERTS; define it using ``#define`` before
+      your ``#include "cutest.h"``-line. Now you can use strings as
       arguments to the ``assert_eq()`` macro instead of having to use
-      ``strcmp()`` return value to compare two strings.
+      the ``strcmp()`` return value equals 0 (zero) to compare two
+      strings.
 
       Code::
 
@@ -338,11 +343,11 @@ Let's do this step-by-step...
        }
 
       As you can see this test will call the design under test with
-      a file name as argument, then assert that the ``fopen()``
-      function in the standard library is called *once*. Then it
-      verifies that the two arguments passed to ``fopen()``is
+      a file-name as argument, then assert that the ``fopen()``
+      function, in the standard library is, called *once*. Then it
+      verifies that the two arguments passed to ``fopen()`` are
       correct, by asserting that the first argument should be the
-      file name passed to ``write_file`` and that the file is opened
+      file-name passed to ``write_file`` and that the file is opened
       in *write* mode.
 
    b. Once again, if you compile this the build will break. So, lets
@@ -359,9 +364,12 @@ Let's do this step-by-step...
        }
 
       Now you should be able to build the test again and run it using
-      ``make check``. Let's take a break here... When running the
-      test you will call your design under test by calling it as a
-      function. The way CUTest works is that it detects ANY function
+      ``make check``. Let's take a break here... And think a bit.
+
+      When running the test it will call your design under test by
+      calling it as an ordinary function...
+
+      The way CUTest works is that it detects ANY function
       call inside a callable function (e.g. ``fopen(...)`` and it
       will be replaced to call a generated mock-up of the same
       function. The mock-up mimics the API, with the same arguments
@@ -369,7 +377,7 @@ Let's do this step-by-step...
       called by default when writing a unit-test.
 
       Hence you can check various aspects of the function call in your
-      test, using ``assert_eq`` on values expected, like in the test-
+      test, using ``assert_eq`` on values expected - Like in the test-
       case we just wrote. We're checking the arguments of the call to
       ``fopen()`` and how many times the ``write_file`` design calls
       the ``fopen()`` function.
@@ -377,16 +385,16 @@ Let's do this step-by-step...
       Pretty neat, right?
 
 3. OK - Common sense tell us, that if a file is opened, it should
-   probably be closed also. Otherwise the OS would end up with a bunch
+   probably be closed too. Otherwise the OS would end up with a bunch
    of opened files.
 
    a. So let's define a test for checking that the provided file name
-      actually close the _correct_ file too, before the design under
+      actually close the _correct_ file, before the design under
       test exits and return it's 0 (zero).
 
       This time you will have to manipulate the return value of
-      the ``fopen()`` function, to something that makes it easy to
-      recognize as argument to the ``fclose()`` value. Making sure
+      the ``fopen()`` function to something that makes it easy to
+      recognize as argument to the ``fclose()`` value. Hance making sure
       that the design close the correct file. This is done by setting
       the retval of the ``fopen()`` mock-up control structure by
       assigning a value to ``cutest_mock.fopen.retval``.
@@ -592,7 +600,7 @@ Let's do this step-by-step...
 4. Testing a loop that writes rows to the opened file.
 
    a. Let's say you want your code to write ten lines of text into the
-      specified file, lets do a simple test that verifies that the
+      specified file. Create a simple test that verifies that the
       ``fputs()`` function is called exactly 10 times.
 
       Code::
@@ -631,7 +639,7 @@ Let's do this step-by-step...
 6. Even more robust code by verifying that ``fputs`` is able to write
    to disc.
 
-   a. Since ``fputs`` can fail let's expect our code to return another
+   a. Since ``fputs`` can fail, let's expect our code to return another
       value if this happens. Implement a test that pretend ``fputs``
       is unable to operate properly ``write_file`` return 2 (two).
 
@@ -763,13 +771,13 @@ Let's do this step-by-step...
    functions used in the design under test should be used rather than
    just mock-ups. To speak the truth, the CUTest framework actually
    mock-up everything, but in the ``module_test`` implementation the
-   custs_mock.<function>.func function pointer is set to the original
+   ``custs_mock.<func>.func`` function pointer is set to the original
    function. Hence you can still verify call counts, arguments passed
    but the over-all functionality of you design will be run for real.
    Note that this can definitely impact execution time.
 
-   Another thing worth noticing is that many developers beleive that
-   these kind of integration tests or module tests are unit-tests.
+   Another thing worth noticing is that many developers believe that
+   these kind of integration tests or module tests *are* unit-tests.
    One could argue that they're not, since they do not drive the
    design, nor do they test only _your_ code, but they test already
    tested code, like ``fopen``, ``close`` and ``fputs`` in this case.
