@@ -249,6 +249,535 @@ At the end of the execution the CUTest test-runner program will
 output a JUnit XML report if specified with the -j command line
 option.
 
+Work-flow using test-driven design
+----------------------------------
+
+As you might have noticed this documentation often use the phrase
+"Test-Driven Design" instead of "Test-Driven Development". This is
+a conscious choice, since the whole idea about CUTest is to drive
+the *design* of your software, rather than just make tests for your
+code. It's a nuance of difference in the meaning of these.
+
+So... Let's walk-through one way of using CUTest to do just this...
+
+Let's say you want to write a piece of code that write ten lines of
+text to a file on disc. Obviously you don't want to actually *write*
+the file for just testing your ideas. This is where the automatic
+mocking of ALL called functions in your design come in handy. This
+work-flow example will also show you how to write module-tests that
+make some kind of "kick-the-tires" sanity check that the integration
+to the OS actually works with file access and all.
+
+Let's do this step-by-step...
+
+1. You have to write a function called ``write_file``. And it shall
+   take one single argument (a pointer to the file name stored in a
+   string) where to store the file.
+
+   a. Write a simple test that assumes everything will go well. This
+      implies that you can determine the success of the operation
+      somehow. Let's use the old "return zero on success" paradigm.
+      So... Let's call the design under test called ``write_file``
+      with some kind of file-name as argument and expect it to
+      return 0 (zero). Create a file called ``file_operations_test.c``
+      and include ``cutest.h`` in the top of it.
+
+      Code::
+
+       test(write_file_shall_return_0_if_all_went_well)
+       {
+         assert_eq(0, write_file("my_filename.txt"));
+       }
+
+   b. Now... When you try to compile this code using ``make check``
+      everything will fail!
+
+      You will get build and compilation errors, since there is no
+      corresponding file that contain the design under test yet.
+
+   c. Create a file called ``file_operations.c`` and implement a
+      function called ``write_file`` that takes one ``const char*``
+      argument as file name. And start by just fulfilling the test
+      by returning a 0 (zero) from it.
+
+      Code::
+
+       int write_file(const char* filename)
+       {
+         return 0;
+       }
+
+   d. No you should be able to compile and run your test using
+      ``make check``. And the test should probably pass, if you
+      did it correctly. And since the assumption of your test that
+      ``write_file`` should return 0 (zero) on success probably will
+      be true for all eternity you will probably have to revisit and
+      re-factor it as the function becomes more complete.
+
+2. Using the standard library to write code that opens a file
+
+   a. You probably already know that you will need to open a file to
+      write you file contents to inside your ``write_file`` function.
+      Let's make sure that we call ``fopen()`` in a good way, using
+      the given file name and the correct file opening mode.
+      Since this test probably will look nicer using
+      CUTEST_LENIENT_ASSERTS, define it using ``#define`` before
+      your ``#include "cutest.h"`` line. Now you can use strings as
+      arguments to the ``assert_eq()`` macro instead of having to use
+      ``strcmp()`` return value to compare two strings.
+
+      Code::
+
+       test(write_file_shall_open_the_correct_file_for_writing)
+       {
+         (void)write_file("my_filename.txt");
+
+         assert_eq(1, cutest_mock.fopen.call_count);
+         assert_eq("my_filename.txt", cutest_mock.fopen.args.arg0);
+         assert_eq("w", cutest_mock.fopen.args.arg1);
+       }
+
+      As you can see this test will call the design under test with
+      a file name as argument, then assert that the ``fopen()``
+      function in the standard library is called *once*. Then it
+      verifies that the two arguments passed to ``fopen()``is
+      correct, by asserting that the first argument should be the
+      file name passed to ``write_file`` and that the file is opened
+      in *write* mode.
+
+   b. Once again, if you compile this the build will break. So, lets
+      just implement the code to open the file. Revisit your code in
+      ``file_operations.c`` and add the call to the ``fopen()``
+      function.
+
+      Code::
+
+       int write_file(const char* filename)
+       {
+          fopen(filename, "w");
+          return 0;
+       }
+
+      Now you should be able to build the test again and run it using
+      ``make check``. Let's take a break here... When running the
+      test you will call your design under test by calling it as a
+      function. The way CUTest works is that it detects ANY function
+      call inside a callable function (e.g. ``fopen(...)`` and it
+      will be replaced to call a generated mock-up of the same
+      function. The mock-up mimics the API, with the same arguments
+      as the original function. But the *actual* ``fopen()`` is never
+      called by default when writing a unit-test.
+
+      Hence you can check various aspects of the function call in your
+      test, using ``assert_eq`` on values expected, like in the test-
+      case we just wrote. We're checking the arguments of the call to
+      ``fopen()`` and how many times the ``write_file`` design calls
+      the ``fopen()`` function.
+
+      Pretty neat, right?
+
+3. OK - Common sense tell us, that if a file is opened, it should
+   probably be closed also. Otherwise the OS would end up with a bunch
+   of opened files.
+
+   a. So let's define a test for checking that the provided file name
+      actually close the _correct_ file too, before the design under
+      test exits and return it's 0 (zero).
+
+      This time you will have to manipulate the return value of
+      the ``fopen()`` function, to something that makes it easy to
+      recognize as argument to the ``fclose()`` value. Making sure
+      that the design close the correct file. This is done by setting
+      the retval of the ``fopen()`` mock-up control structure by
+      assigning a value to ``cutest_mock.fopen.retval``.
+
+      Code::
+
+       #define FOPEN_OK_RETVAL (FILE*)1234
+
+       test(write_file_shall_close_the_opened_file)
+       {
+         cutest_mock.fopen.retval = FOPEN_OK_RETVAL;
+
+         (void)write_file("my_filename.txt");
+
+         assert_eq(1, cutest_mock.fclose.call_count);
+         assert_eq(FOPEN_OK_RETVAL, cutest_mock.fclose.args.arg0);
+       }
+
+   b. And once again: If you try to compile and run this, the test
+      will fail, due to the fact that you have not implemented the
+      code to call the ``fclose()`` function yet. So let's re-factor
+      the design under test again.
+
+      Code::
+
+       int write_file(const char* filename)
+       {
+          FILE* fp = fopen(filename, "w");
+          fclose(fp);
+          return 0;
+       }
+
+      Done! This should no pass the test you wrote earlier.
+
+3. Now when you're getting the hang of things, lets touch a bit
+   trickier subject. Error handling.
+
+   When interacting with the surrounding world via OS functionality
+   or users it's extremely important to take care of potential
+   errors to produce robust design. In this case it's easy to see
+   that the OS might be unable to open the file to write to for
+   various reasons. For example the path in which to write the
+   file could be non-existent or the user might not have access to
+   write files. In any case the ``write_file`` design should
+   allow the OS to fail and gracefully report its inability to
+   operate on the file to the programmer using it.
+
+   a. Let's start by manipulating (pretending) that ``fopen()`` is not
+      able to open the file for writing, and expect some kind of return
+      value, indicating what went wrong. In this example you also can
+      practice self-documenting code by writing a function to do the
+      pretending part.
+
+      Code::
+
+       static void pretend_that_fopen_will_fail()
+       {
+         cutest_mock.fopen.retval = NULL;
+       }
+
+       test(write_file_shall_return_1_if_file_could_not_be_opened)
+       {
+         pretend_that_fopen_will_fail();
+
+         assert_eq(1, write_file("my_filename.txt"));
+       }
+
+      So. We expect the ``write_file`` function to return 1 (one) if
+      the OS was not able to open the file for writing. And we pretend
+      that ``fopen()`` will fail by returning ``NULL`` as ``FILE*``
+      return value.
+
+   b. Note that you can't always assume that the function returns 0,
+      nor that it does need/can close the file anymore when this is
+      done. Hence you will have to re-factor the two earlier written
+      naive tests to take this error handling into account.
+
+      First of all. If ``fopen()`` succeeds, the design should close
+      the file using ``fclose()`` and only then return 0 (zero).
+
+      Code::
+
+       static void pretend_that_fopen_will_go_well()
+       {
+         cutest_mock.fopen.retval = FOPEN_OK_RETVAL;
+       }
+
+       test(write_file_shall_open_the_correct_file_for_writing)
+       {
+         pretend_that_fopen_will_go_well();
+
+         (void)write_file("my_filename.txt");
+
+         assert_eq(1, cutest_mock.fopen.call_count);
+         assert_eq("my_filename.txt", cutest_mock.fopen.args.arg0);
+         assert_eq("w", cutest_mock.fopen.args.arg1);
+       }
+
+       test(write_file_shall_close_the_opened_file)
+       {
+         pretend_that_fopen_will_go_well();
+
+         (void)write_file("my_filename.txt");
+
+         assert_eq(1, cutest_mock.fclose.call_count);
+         assert_eq(FOPEN_OK_RETVAL, cutest_mock.fclose.args.arg0);
+       }
+
+   c. One could argue that there should be a test for making sure that
+      the file is not closed if it was never opened. Depending on the
+      level of white-box testing you want you could probably skip this
+      test, since you know what the expressions inside the design under
+      test will look like. If you still want it, a test like that
+      would look like this:
+
+      Code::
+
+       test(write_file_shall_not_try_to_close_an_unopened_file)
+       {
+         pretend_that_fopen_will_fail();
+
+         (void)write_file("my_filename.txt");
+
+         assert_eq(0, cutest_mock.fclose.call_count);
+       }
+
+   d. Now we are perfectly set to implement the code. The old tests are
+      re-factored and the new one is written. So move over to the
+      design under test, and make it return 1 (one) if the ``fopen()``
+      function fails.
+
+      Code::
+
+       int write_file(const char* filename)
+       {
+          FILE* fp = fopen(filename, "w");
+          if (NULL == fp) {
+            return 1;
+          }
+          fclose(fp);
+          return 0;
+       }
+
+      And true enough. This tests will pass since the ``write_file``
+      function mirrors the tests expectations of it.
+
+4. Even more error handling is needed to build a robust piece of code.
+
+   Even closing a file could theoretically go wrong. Lets look in-to
+   making a specific return value from ``write_file`` if ``fclose()``
+   did not work as intended.
+
+   a. Make sure that you write a test to assert that ``write_file``
+      returns a 3 (three) if the file could not be closed.
+
+      Code::
+
+       #define FCLOSE_NOT_OK_RETVAL 1
+
+       void pretend_that_fclose_will_fail()
+       {
+         cutest_mock.fclose.retval = FCLOSE_NOT_OK_RETVAL;
+       }
+
+       void pretend_that_fopen_will_go_well_but_fclose_will_fail()
+       {
+         pretend_that_fopen_will_go_well();
+         pretend_that_fclose_will_fail();
+       }
+
+       test(write_file_shall_return_3_if_file_could_not_be_closed)
+       {
+         pretend_that_fopen_will_go_well_but_fclose_will_fail();
+
+         assert_eq(3, write_file("my_filename.txt"));
+       }
+
+      Setting the test up to pretend that a file is opened successfully
+      but closing it fails for some reason and the ``write_file``
+      design will return 3.
+
+   b. Implement the design of ``write_file`` accordingly.
+
+      Code::
+
+       int write_file(const char* filename)
+       {
+          FILE* fp = fopen(filename, "w");
+          if (NULL == fp) {
+            return 1;
+          }
+          if (0 != fclose(fp)) {
+            return 3;
+          }
+          return 0;
+       }
+
+      As you can see, exit-early mind-set makes things quite easy to
+      test. Just calling the same design under test over and over and
+      just assert various aspects of the algorithm, only manipulating
+      the mocks so that the program flow reaches the part you want.
+
+4. Testing a loop that writes rows to the opened file.
+
+   a. Let's say you want your code to write ten lines of text into the
+      specified file, lets do a simple test that verifies that the
+      ``fputs()`` function is called exactly 10 times.
+
+      Code::
+
+       test(write_file_shall_write_10_lines_to_the_opened_file)
+       {
+         pretend_that_fopen_will_go_well();
+
+         (void)write_file("my_filename.txt");
+
+         assert_eq(10, cutest_mock.fputs.call_count);
+       }
+
+   b. And implement the design accordingly
+
+      Code::
+
+       int write_file(const char* filename)
+       {
+          int i = 10;
+          FILE* fp = fopen(filename, "w");
+          if (NULL == fp) {
+            return 1;
+          }
+          while (i-- > 0) {
+            fputs("A text row\n", fp);
+          }
+          if (0 != fclose(fp)) {
+            return 3;
+          }
+          return 0;
+       }
+
+      There we go. Ten rows written to the file using ``fputs``.
+
+6. Even more robust code by verifying that ``fputs`` is able to write
+   to disc.
+
+   a. Since ``fputs`` can fail let's expect our code to return another
+      value if this happens. Implement a test that pretend ``fputs``
+      is unable to operate properly ``write_file`` return 2 (two).
+
+      Code::
+
+       test(write_file_shall_return_2_if_file_could_not_be_written)
+       {
+         pretend_that_fopen_will_go_well_but_fputs_will_fail();
+
+         assert_eq(2, write_file("my_filename.txt"));
+       }
+
+   b. You would probably still want ``fclose`` to be called even tho
+      the writing went wrong, once again helping the OS to reduce the
+      number of open files. So let's re-factor the previously written
+      test for this ``fclose``. The previous test was called
+      ``write_file_shall_close_the_opened_file``. It is still a valid
+      name, but if a file could be opened the ``write_file`` design
+      implies that ``fputs`` will be called some 10 times.... For
+      example it could look something like this:
+
+      Code::
+
+       test(write_file_shall_close_the_opened_file_if_able_to_write_to_file)
+       {
+         pretend_that_fopen_and_fputs_will_go_well();
+
+         (void)write_file("my_filename.txt");
+
+         assert_eq(1, cutest_mock.fclose.call_count);
+         assert_eq(FOPEN_OK_RETVAL, cutest_mock.fclose.args.arg0);
+       }
+
+      Also, ``fclose`` fclose should be called correctly if fputs will
+      fail, and such test could imply that ``fputs`` is probably only
+      called once. Or the OS could run out of disc space... This test
+      example implies that something went wrong on the first write and
+      ``fputs`` should probably not be called more than once.
+
+      Code:::
+
+       test(write_file_shall_close_the_opened_file_if_unable_to_write_to_file)
+       {
+         pretend_that_fopen_will_go_well_but_fputs_will_fail();
+
+         (void)write_file("my_filename.txt");
+
+         assert_eq(1, cutest_mock.fputs.call_count);
+         assert_eq(1, cutest_mock.fclose.call_count);
+         assert_eq(FOPEN_OK_RETVAL, cutest_mock.fclose.args.arg0);
+       }
+
+   c. Now we have most cases covered I would say. Lets implement the
+      writing of lines as something that match our test assertions.
+
+      Code::
+
+       int write_file(const char* filename)
+       {
+          int i = 10;
+          int retval = 0;
+          FILE* fp = fopen(filename, "w");
+          if (NULL == fp) {
+            return 1;
+          }
+          while (i-- > 0) {
+            if (0 == fputs("A text row\n", fp)) {
+              retval = 2;
+              break;
+            }
+          }
+          if (0 != fclose(fp)) {
+            retval = 3;
+          }
+          return retval;
+       }
+
+     There we have it. A fully functional design driven by small tests
+     implemented in pure C.
+
+7. Sometimes it can be a good idea to make some hand-waving integration
+   tests. These can be done in advance or after a design has been done.
+
+   If you practice *acceptance-test-driven development* it should be
+   done in advance. But if you just want to verify that your code and
+   design actually works in the real world it is often easier to do
+   when the design is completed. And IF you do it in advance you need
+   to accept that the test will not work until the complete design is
+   implemented.
+
+   Here are a few simple tests that make sure that the ``write_file``
+   design actually write stuff to disc and that it looks somewhat
+   correct.
+
+   Code:::
+
+    int count_lines_in_file(const char* tmp_filename)
+    {
+      int cnt = 0;
+      char buf[1024];
+      FILE *fp = fopen(tmp_filename, "r");
+      while (!feof(fp)) { if (0 != fgets(buf, 1024, fp)) { cnt++; } };
+      fclose(fp);
+      return cnt;
+    }
+
+    module_test(write_file_shall_write_a_10_lines_long_file_to_disc_if_possible)
+    {
+      pid_t p = getpid();
+      char tmp_filename[1024];
+
+      sprintf(tmp_filename, "/tmp/%ld_real_file", p);
+
+      assert_eq(0, write_file(tmp_filename));
+      assert_eq(10, count_lines_in_file(tmp_filename));
+
+      unlink(tmp_filename);
+    }
+
+    module_test(write_file_shall_fail_if_writing_to_disc_is_not_possible)
+    {
+      const char* tmp_filename = "/tmp/this_path_sould_not_exist/oogabooga";
+
+      assert_eq(1, write_file(tmp_filename));
+    }
+
+   Worth noticing is that these kind of tests use the ``module_test``
+   macro in the CUTest framework. Since it implies that the original
+   functions used in the design under test should be used rather than
+   just mock-ups. To speak the truth, the CUTest framework actually
+   mock-up everything, but in the ``module_test`` implementation the
+   custs_mock.<function>.func function pointer is set to the original
+   function. Hence you can still verify call counts, arguments passed
+   but the over-all functionality of you design will be run for real.
+   Note that this can definitely impact execution time.
+
+   Another thing worth noticing is that many developers beleive that
+   these kind of integration tests or module tests are unit-tests.
+   One could argue that they're not, since they do not drive the
+   design, nor do they test only _your_ code, but they test already
+   tested code, like ``fopen``, ``close`` and ``fputs`` in this case.
+   Which might seem like waste of clock cycles.
+
+That's it folks! I hope you enjoyed this example of a work-flow and
+please come back to the author with feedback!
+
 
 CUTest mock generator
 =====================
@@ -269,19 +798,19 @@ How to compile the tool
 -----------------------
 
 Just include the cutest.mk makefile in your own Makefile in your
-folder containing the source code for the *_test.c files.
+folder containing the source code for the ``*_test.c`` files.
 
 The tool is automatically compiled when making the check target
 But if you want to make the tool explicitly just call::
 
-  $ make cutest_mock
+ $ make cutest_mock
 
 Usage
 -----
 
 If you *need* to run the tool manually this is how::
 
-  $ ./cutest_mock design_under_test.c mockables.lst /path/to/cutest
+ $ ./cutest_mock design_under_test.c mockables.lst /path/to/cutest
 
 And it will scan the source-code for mockable functions and
 output a header file-style text, containing everything needed to
@@ -335,22 +864,20 @@ replaced by CUTest mocks.
 How to build the tool
 ---------------------
 
-Makefile::
-
-Just include the cutest.mk makefile in your own Makefile in your
-folder containing the source code for the *_test.c files.
+Just include the ``cutest.mk`` makefile in your own Makefile in your
+folder containing the source code for the ``*_test.c`` files.
 
 The tool is automatically compiled when making the check target.
 But if you want to make the tool explicitly just call::
 
-  $ make cutest_prox
+ $ make cutest_prox
 
 Usage
 -----
 
 If you *need* to run the tool manually this is how::
 
-  $ ./cutest_prox dut_mockables.s dut_mockables.lst
+ $ ./cutest_prox dut_mockables.s dut_mockables.lst
 
 And an assembler file will be outputed to stdout.
 
@@ -365,22 +892,20 @@ control it a little bit.
 How to build the tool
 ---------------------
 
-Makefile::
-
-Just include the cutest.mk makefile in your own Makefile in your
-folder containing the source code for the *_test.c files.
+Just include the ``cutest.mk`` makefile in your own Makefile in your
+folder containing the source code for the ``*_test.c`` files.
 
 The tool is automatically compiled when making the check target.
 But if you want to make the tool explicitly just call::
 
-  $ make cutest_run
+ $ make cutest_run
 
 Usage
 -----
 
 If you *need* to run the tool manually this is how::
 
-  $ ./cutest_run dut_test.c dut_mocks.h
+ $ ./cutest_run dut_test.c dut_mocks.h
 
 And it will scan the test suite source-code for uses of the `test()`
 macro and output a C program containing everything needed to test

@@ -79,6 +79,7 @@ test(write_file_shall_open_the_correct_file_for_writing)
 
   (void)write_file(filename);
 
+  assert_eq(1, cutest_mock.fopen.call_count);
   assert_eq(filename, cutest_mock.fopen.args.arg0);
 
   /* Notice the use of lenient asserts here, by passing two strings */
