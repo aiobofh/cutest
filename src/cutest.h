@@ -2287,7 +2287,7 @@ int main(int argc, char* argv[]) {
  *  $ ./cutest_run dut_test.c dut_mocks.h
  *
  * And it will scan the test suite source-code for uses of the ``test()``
- * and ``module_test()```macros and output a C program containing
+ * and ``module_test()`` macros and output a C program containing
  * everything needed to test your code alongside with the ``cutest.h``
  * file.
  *
