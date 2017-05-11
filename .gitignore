@@ -1,0 +1,12 @@
+cutest*
+*_mocks.h
+*_test
+*_test_run.c
+*.gcda
+*.gcno
+*.lst
+*.o
+*.s
+*.junit_report.xml
+*.memcheck
+*~
