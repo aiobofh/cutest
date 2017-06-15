@@ -1,0 +1,4 @@
+This example project contains separate src- and test-folders, with the
+aim to be able to change directory into the test-folder to run the tests,
+and have the src-folder un-touched for just building binaries in an obj-
+folder.

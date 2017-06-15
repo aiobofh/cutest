@@ -1,9 +1,11 @@
 # Build everything in src
 
+all: check src
+
 info:
 	echo $(MAKEFLAGS)
 
-all:
+src:
 	@make -s -C src
 
 check:
