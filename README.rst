@@ -1,3 +1,9 @@
+::
+
+ The____ ____ _____ ____ ____ _____
+   / __// / //_  _// __// __//_  _/
+  / /_ / / /  / / / __//_  /  / /
+ /___//___/  /_/ /___//___/  /_/Framework
 
 CUTest - The C Unit Test framework
 ==================================
@@ -20,20 +26,40 @@ system layout too. So let's admit that GNU Make is also needed.
 A huge tip is to check out the examples folder, it contains both
 naive, simple and realistic examples of various CUTest usages.
 
+Version history
+---------------
+
+* v1.0.0 2017-06-17 Initial release
+
+  - Implementation of pure C programs to generate suite specific
+    frameworks in the src-directory
+  - Implementation of the testing framework and easy-to-read
+    examples in the examples-directory
+  - Development of "includable" Makefiles for test-running and
+    code coverage calculations
+  - Authoring of a full documentation
+
 Features
 --------
 
 * Automated generation of controllable mocks for all C-functions
-  called by the design under test.
+  called by the design under test. (x86 and ARM tested)
+* Automatic mocking of all function calls in a function under test
 * C-Function stubbing
 * Generic asserts in 1, 2 and 3 argument flavors.
 * JUnit XML reports for Jenkins integration
 * Very few dependencies to other tools (``echo``, ``gcc``, ``as``,
   ``make``, ``which``, ``grep``, ``sed``, ``rst2html``, ``less``,
   ``nm`` ``gcovr`` and ``cproto``)
+* Code-coverage JUnit reports (requires ``gcovr``, ``egrep``)
 * In-line documentation to ReSTructured Text or HTML
   (requires additional tools: ``grep``, ``sed`` and ``rst2html``)
 * Memory leakage detection using Valgrind (requires ``valgrind``)
+* Automatic renaming of ``main()`` to ``MAIN()`` in your design under
+  test to make it reachable for testing.
+* Type-aware generic ``assert_eq()``-macros (CUTEST_LENIENT_ASSERTS)
+* This quite comprehensive documentation
+* Jenkins/CI-friendly output formats
 
 Organize your directories
 -------------------------
@@ -53,19 +79,54 @@ Here is a flat example::
 
   src/dut.c       <- your program (design under test)
   src/dut_test.c  <- test suite for dut.c (must #include cutest.h)
-  src/Makefile
+  src/Makefile    <- build your system and run tests
 
 ... So keep your clean:-target clean ;).
 
-Here is a more complex example::
+Some more complex examples
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-  my_project/src/dut.c
-  my_project/src/Makefile
-  my_project/test/dut_test.c
-  my_project/test/Makefile
+Most programmers have their own ideas on what a neat directory
+structure would look like for their projects.
 
-In this case you need to set the ``CUTEST_SRC_DIR=../src`` in the
-test ``Makefile`` in ``my_project/test/Makefile``.
+Separate folders for source-code and test-code used from top-level
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If you have your top-make-file in the my_project-folder, and you
+usually build your system and run tests from there you should set-up
+``CUTEST_TEST_DIR=test`` and ``CUTEST_SRC_DIR=src``::
+
+  my_project/Makefile         <- build your system and run tests
+  my_project/src/dut.c        <- your program (design under test)
+  my_project/test/dut_test.c  <- test suite for ../src/dut.c
+
+Usage::
+
+  $ cd my_project
+  $ make check
+
+Separate folders for source-code and test-code used from test-folder
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If you have your test-make-file in the test-folder and only build tests
+from there, but build your system from the source-folder you should do
+a set-up in your test/Makefile like this: ``CUTEST_TEST_DIR=./`` which
+is default, and ``CUTEST_SRC_DIR=../src``. This approach keep your
+product code completely free from test-related stuff - even the build
+system remain unchanged::
+
+  my_project/src/Makefile    <- build your system
+  my_project/src/dut.c       <- your program (design under test)
+  my_project/test/Makefile   <- run your tests (make check)
+  my_project/test/dut_test.c <- test suite for ../src/dut.c
+
+Usage::
+
+  $ cd my_project/test
+  $ make check
+
+As you can see, it should be possible to arrange your project folder in
+the way you want.
 
 Include paths
 -------------
@@ -74,7 +135,7 @@ If you have many ``-I../path/to/somewhere`` passed to the build of
 your project collect all ``-I``-flags into the ``CUTEST_IFLAGS``
 variable before inclusion of ``cutest.mk`` and the include paths
 will be passed on to ``cproto`` and the test-runner build
-automatically. Hopefully easing your integration a bit.
+automatically. Hopefully this is simplifying your integration a bit.
 
 Example
 -------
@@ -131,6 +192,9 @@ Makefile for automatically downloading cutest into your project::
   clean::
      rm -rf cutest
 
+Or you can point to a specific branch or tag in the cutest.git
+repository using the ``-b <name>`` flag to ``git clone``.
+
 Command line to build a test runner and execute it::
 
   $ make foo_test
@@ -148,6 +212,62 @@ Command line to run all tests with Valgrind memory leakage checks::
   ...
 
 There are more examples available in the examples folder.
+
+Command line to remove your current cutest installation (clean-up)::
+
+  $ rm -rf cutest
+  $ make cutest
+  ...
+
+This will remove your currently cloned version of cutest and download
+a new one. Don't add the ``cutest`` folder to your own project-
+repository, unless you have very specific needs. E.g.: No internet
+connection on the development machines or you truly want an older
+version at all times!
+
+Extend linking dependencies to your original code in other files
+----------------------------------------------------------------
+
+In many situations your test-suite just call the function under test,
+and the function itself calls other functions. These functions can be
+defined in the same file as the function under test, or somewhere
+else. The first case is simple for CUTest to find, however if you call
+functions in an API with code defined in some other file or library
+you need to help CUTest out. This is done in your ``Makefile`` that
+includes the ``cutest.mk`` file.
+
+CUTest must know the implementation to be able to make calls to it if
+you currently want the mock-up function to call the actual function.
+For example when writing a module-test or integration-test.
+
+Let's say that you have two files ``other.c`` and ``this.c`` and you
+are developing the ``this.c`` file (using test-driven design, obviously)
+the function you're writing is calling the ``other_func()`` from the
+``other.c`` file, declared in ``other.h`` which ``this.c`` includes::
+
+  #include "other.h"
+
+  int this_func() {
+    :
+    other_funct();
+    :
+  }
+
+When the build-system links the ``this_test`` executable there is no
+good way (currently) to link the ``other.c`` file to the ``this_test``
+executable. But you can add the dependency yourself by adding it in the
+Makefile like so::
+
+  -include "cutest.mk"
+
+  this_test: other.c and_another.c
+
+And the dependency is handled in the ``cutest.mk`` file when it sets
+up the ``this_test`` build target.
+
+.. note:: This will build the ``other.c`` with the CUTEST_CFLAGS that
+          might be a little bit harsher than you're used to, so you can
+          get a shit-load of warnings you've never seen before.
 
 In-line documentation to ReSTructured Text and/or HTML
 ------------------------------------------------------
@@ -948,3 +1068,17 @@ the suite.
 
 The first thing that happens is the start-up process, then all
 tests are run in isolation, followed by the Shutdown process.
+Contribute
+----------
+
+Wow! You've come this far in all this mumbo-jumbo text! Anyhow: If you
+lack functionality or have invented something awesome that would
+contribute to the feature-set of CUTest, please contribute! The code
+is son GitHub, and no-one would be happier than me to have more
+developers collaborating and making the product more awesome.
+
+Send me an e-mail or contact me via GitHub.
+
+Thanks for reading!
+
+//AiO
