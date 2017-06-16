@@ -29,7 +29,7 @@ naive, simple and realistic examples of various CUTest usages.
 Version history
 ---------------
 
-* v1.0.0 2017-06-17 Initial release
+* v1.0.0 2017-06-16 Initial release
 
   - Implementation of pure C programs to generate suite specific
     frameworks in the src-directory
@@ -1068,6 +1068,7 @@ the suite.
 
 The first thing that happens is the start-up process, then all
 tests are run in isolation, followed by the Shutdown process.
+
 Contribute
 ----------
 

@@ -50,7 +50,7 @@
  * Version history
  * ---------------
  *
- * * v1.0.0 2017-06-17 Initial release
+ * * v1.0.0 2017-06-16 Initial release
  *
  *   - Implementation of pure C programs to generate suite specific
  *     frameworks in the src-directory
@@ -2538,6 +2538,7 @@ int main(int argc, char* argv[]) {
 #endif /* CUTEST_RUN_MAIN */
 
 /*
+ *
  * Contribute
  * ----------
  *
