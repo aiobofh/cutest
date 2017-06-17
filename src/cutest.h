@@ -782,7 +782,7 @@ static void cutest_startup(int argc, char* argv[],
 
 /*
  * Test execution
- * --------------
+ * ^^^^^^^^^^^^^^
  *
  * When executing tests the elapsed time for execution is sampled and
  * used in the JUnit report. Depending on command line options an
@@ -868,7 +868,7 @@ static void cutest_execute_test(void (*func)(), const char *name,
 
 /*
  * Shutdown process
- * ----------------
+ * ^^^^^^^^^^^^^^^^
  *
  * At the end of the execution the CUTest test-runner program will
  * output a JUnit XML report if specified with the ``-j`` command line
