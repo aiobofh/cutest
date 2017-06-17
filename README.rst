@@ -29,6 +29,11 @@ naive, simple and realistic examples of various CUTest usages.
 Version history
 ---------------
 
+* v1.0.1 xxxx-xx-xx Fix-up release
+
+  - Fixed release date and documentation
+  - Improved Makefile for release handling
+
 * v1.0.0 2017-06-16 Initial release
 
   - Implementation of pure C programs to generate suite specific
@@ -64,8 +69,8 @@ Features
 Organize your directories
 -------------------------
 
-The CUTest framework make some expectations but should be fairly
-flexible by default the paths are set to support a flat structure
+The CUTest framework make some assumptions, but should be fairly
+flexible. By default the paths are set to support a flat structure
 with test-case source files and design under test source files in
 the same folder.
 
@@ -79,7 +84,11 @@ Here is a flat example::
 
   src/dut.c       <- your program (design under test)
   src/dut_test.c  <- test suite for dut.c (must #include cutest.h)
-  src/Makefile    <- build your system and run tests
+  src/Makefile    <- build your system and run tests (include cutest.mk)
+
+You should apply a ``clean``-target in your ``Makefile`` with double
+colon so that the ``clean``-target in the ``cutest.mk`` is also
+evaluated when you do ``make clean`` to cleanup artifacts.
 
 ... So keep your clean:-target clean ;).
 
@@ -87,7 +96,10 @@ Some more complex examples
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Most programmers have their own ideas on what a neat directory
-structure would look like for their projects.
+structure should look like for their projects and with their
+perspective
+
+I will try to show some scenarios that CUTest support.
 
 Separate folders for source-code and test-code used from top-level
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -140,7 +152,15 @@ automatically. Hopefully this is simplifying your integration a bit.
 Example
 -------
 
+I prefer example-based documentation so this is also what I provide
+here. You will see many code-snippets (hopefully all of them are
+in good shape). This example is a generic example showing how to
+arrange your tests in a test-suite that corresponds to a file with the
+design under test.
+
 foo_test.c::
+
+  // Test-suite for foo.c
 
   #include "cutest.h"
 
@@ -174,23 +194,52 @@ foo_test.c::
 
 foo.c::
 
+  // My awesome mathimatical helpers
+
   int adder(int a, int b) { return a + b; }
   int foo(int i, int j) { return adder(a, b); }
 
 Makefile for a simple directory structure::
 
-  CUTEST_SRC_DIR=./ # If you have a flat directory structure
+  #
+  # Makefile
+  #
+
   include /path/to/cutest/src/cutest.mk
+
+  # The following lines has nothing to do with CUTest
+
+  %.o: %.c # Default target to build objects from sources
+          @$(CC) -o $@ -c $< $(CFLAGS)
+
+  clean:: # Notice the double colon here (also clean in cutest.mk)
+          @$(RM) *.o
 
 
 Makefile for automatically downloading cutest into your project::
 
-  CUTEST_SRC_DIR=./ # If you have a flat directory structure
-  include cutest/src/cutest.mk
-  cutest:
-     git clone https://github.com/aiobofh/cutest.git
+  #
+  # Makefile
+  #
+
+  -include cutest/src/cutest.mk
+
+  all:
+     @make -s cutest && \  # Always make sure we have CUTest
+     make -s check && \    # Always run all unit-tests
+     make -s my_program    # Then compile our my_program
+
+  cutest: # Download cutest v1.0.0 by cloning the GitHub repo
+     @git clone -b v1.0.0 https://github.com/aiobofh/cutest.git
+
+  %.o: %.c # Default target to build objects from sources
+          @$(CC) -o $@ -c $< $(CFLAGS)
+
+  my_program: foo.o main.o
+          @$(CC) -o $@ $^ $(CFLAGS)
+
   clean::
-     rm -rf cutest
+     @$(RM) *.o cutest my_program
 
 Or you can point to a specific branch or tag in the cutest.git
 repository using the ``-b <name>`` flag to ``git clone``.
@@ -223,7 +272,8 @@ This will remove your currently cloned version of cutest and download
 a new one. Don't add the ``cutest`` folder to your own project-
 repository, unless you have very specific needs. E.g.: No internet
 connection on the development machines or you truly want an older
-version at all times!
+version at all times! A good practice is to put cutest it in your
+``.gitignore`` file if you are using Git.
 
 Extend linking dependencies to your original code in other files
 ----------------------------------------------------------------
@@ -275,14 +325,24 @@ In-line documentation to ReSTructured Text and/or HTML
 You can always read the ``cutest.h`` file, since it's the only one
 around.
 
-When you have inclued the ``cutest.mk`` makefile in your own
+When you have included the ``cutest.mk`` makefile in your own
 ``Makefile`` you can build the documentation using::
 
   $ make cutest_help       # Will print out the manual to console
   $ make cutest_help.html  # Generate a HTML document
   $ make cutest_help.rst   # Generate a RST document
 
-To compile the test runner you should never ever have
+Test-runner
+-----------
+
+As you can see in the example above, the CUTest-part of your build
+system will produce a ``*_test`` executable. This what is referred
+to as the test-runner. This binary contains all your test-cases in
+sequence as you have them in your test-suite, and it also contains
+your design under test, along with mock-up versions of all functions
+and other things that are used internally.
+
+To compile the test runner successfully you should never ever have
 ``CUTEST_RUN_MAIN`` nor ``CUTEST_MOCK_MAIN`` defined to the
 compiler. They are used to compile the *CUTest test runner
 generator* and the *CUTest mock generator* respectively.
@@ -329,7 +389,7 @@ Example::
   ...
   assert_eq(some_true_expression);
 
-If you have defined ``CUTEST_LENIENT_ASSERTS``  (and use C11 or
+If you have defined ``CUTEST_LENIENT_ASSERTS`` (and use C11 or
 above) CUTest is able to make more readable asserts and error
 messages by analyzing the data-types of the arguments. As you can
 notice in the example above; comparing two strings are a but
@@ -341,12 +401,47 @@ Example::
   assert_eq("expected", some_variable);
   ...
 
-Test initialization
--------------------
+The ``CUTEST_LENIENT_ASSERTS`` will probably be enabled by default
+in later versions of CUTest, since they *greatly* improve the user-
+experience.
 
-In between every ``test()`` macro the CUTest framework will clear all
-the mock controls and test framework state so that every test is
-run in isolation.
+Phases in the test-build and -execution
+---------------------------------------
+
+First off - There are a lot of magical things happening, hidden from
+your eyes when you build a test-runner. For example - The build-system
+defined in ``cutest.mk`` will make some assumptions about your code, and
+generate many intermediate files.
+
+Building
+^^^^^^^^
+
+Before the build-system starts building your source code it extracts
+some parts of ``cutest.h`` into small executable binaries. These are
+helper tools to parse and extract information from your test-suite and
+your design under test. For example it builds the execution sequence
+for your specific unit-tests in your test-suite, and set-up a ``main()``
+function. (That's why your own ``main()`` is automatically renamed to
+``MAIN()`` if you want to program it using unit-tests and TDD).
+
+Then all function calls to other functions are replaced with function
+calls to mock-up functions instead, by modifying the Assembler output
+from compiling your design under test. This is done by changing the
+jump-destinations for ``call``, ``jmp`` and such instructions (So far
+tested on x86 and ARM). This allows your production code to stay
+intact in C-code format. We don't want to clutter it with test-code.
+
+Once your test-runner is built it should be able to run.
+
+Test initialization
+^^^^^^^^^^^^^^^^^^^
+
+In between every ``test()`` or ``module_test()`` definition in your
+test-suite, the CUTest framework will clear all the mock controls
+and test framework state so that every test is run in isolation.
+
+You still need to keep track of your own global data or internal
+state, if your code require such things.
 
 Test execution
 --------------
@@ -362,6 +457,11 @@ If the test runner is started with verbose mode ``-v`` the offending
 assert will be printed to the console directly after the fail. If
 in normal mode all assert-failures will be collected and printed
 in the shutdown process.
+
+By default the ``check`` build target provided by ``cutest.mk`` will
+try to output as little as possible. However you can override this
+by setting the ``Q`` environment variable to empty
+(``make check Q=``). This will make the console output more verbose.
 
 Shutdown process
 ----------------
@@ -1075,7 +1175,7 @@ Contribute
 Wow! You've come this far in all this mumbo-jumbo text! Anyhow: If you
 lack functionality or have invented something awesome that would
 contribute to the feature-set of CUTest, please contribute! The code
-is son GitHub, and no-one would be happier than me to have more
+is on GitHub, and no-one would be happier than me to have more
 developers collaborating and making the product more awesome.
 
 Send me an e-mail or contact me via GitHub.
