@@ -444,7 +444,7 @@ You still need to keep track of your own global data or internal
 state, if your code require such things.
 
 Test execution
---------------
+^^^^^^^^^^^^^^
 
 When executing tests the elapsed time for execution is sampled and
 used in the JUnit report. Depending on command line options an
@@ -464,7 +464,7 @@ by setting the ``Q`` environment variable to empty
 (``make check Q=``). This will make the console output more verbose.
 
 Shutdown process
-----------------
+^^^^^^^^^^^^^^^^
 
 At the end of the execution the CUTest test-runner program will
 output a JUnit XML report if specified with the ``-j`` command line
