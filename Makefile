@@ -22,7 +22,8 @@ release: cutest-$(VERSION).tar.gz
 
 cutest-$(VERSION).tar.gz:
 	@echo "Checking git repository for version tag v$(VERSION)" && \
-	git tag -l | grep "v$(VERSION)" || \
+	git tag -l | grep "v$(VERSION)" && echo "Version v$(VERSION) is already released" && \
+	git tag -l | grep "v$(VERSION)" && exit 1 || \
 	echo "OK, version not found... Creating release" && \
 	mkdir cutest-$(VERSION) && \
 	cp -r LICENSE examples src cutest-$(VERSION)/. && \
