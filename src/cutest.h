@@ -1837,6 +1837,7 @@ static void cproto(const int argc, const char* argv[])
       exit(EXIT_FAILURE);
     }
     strcat(iflags, argv[i]);
+    strcat(iflags, " ");
   }
   sprintf(command, "%s %s \"%s\" 2>/dev/null | sort -u\n", cproto,
           iflags, filename);

@@ -76,7 +76,7 @@ $(CUTEST_TEST_DIR)/%.tu: $(subst _test,,$(CUTEST_TEST_DIR)/%_test.c)
 
 .PRECIOUS: $(CUTEST_TEST_DIR)/%_mockables.o
 $(CUTEST_TEST_DIR)/%_mockables.o: $(CUTEST_SRC_DIR)/%.c
-	$(Q)$(CC) -o $@ -c $< $(CFLAGS)
+	$(Q)$(CC) -o $@ -c $< $(CFLAGS) $(CUTEST_IFLAGS) -I$(CUTEST_SRC_DIR) $(CUTEST_DEFINES)
 
 .PRECIOUS: $(CUTEST_TEST_DIR)/%_mockables.lst
 $(CUTEST_TEST_DIR)/%_mockables.lst: $(CUTEST_TEST_DIR)/%_mockables.o
@@ -85,7 +85,7 @@ $(CUTEST_TEST_DIR)/%_mockables.lst: $(CUTEST_TEST_DIR)/%_mockables.o
 .PRECIOUS: $(CUTEST_TEST_DIR)/%_mockables.s
 $(CUTEST_TEST_DIR)/%_mockables.s: $(CUTEST_SRC_DIR)/%.c
 	$(Q)$(CC) -S -fverbose-asm -fvisibility=hidden -fno-inline -g -O0 \
-	-o $@ -c $^ $(CUTEST_CFLAGS) -D"static=" -D"inline=" -D"main=MAIN"
+	-o $@ -c $^ $(CUTEST_CFLAGS) $(CUTEST_IFLAGS) $(CUTEST_DEFINES) -D"static=" -D"inline=" -D"main=MAIN"
 
 .PRECIOUS: $(CUTEST_TEST_DIR)/%_proxified.s
 $(CUTEST_TEST_DIR)/%_proxified.s: $(CUTEST_TEST_DIR)/%_mockables.s $(CUTEST_TEST_DIR)/%_mockables.lst $(CUTEST_TEST_DIR)/cutest_prox
@@ -104,8 +104,7 @@ $(CUTEST_TEST_DIR)/%_test_run.c: $(CUTEST_TEST_DIR)/%_test.c $(CUTEST_TEST_DIR)/
 
 # Compile a test-runner from the generate test-runner program code
 $(CUTEST_TEST_DIR)/%_test: $(CUTEST_TEST_DIR)/%_proxified.s $(CUTEST_TEST_DIR)/%_test_run.c
-	$(Q)$(CC) -o $@ $^ $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -I$(abspath $(CUTEST_TEST_DIR)) -I$(abspath $(CUTEST_SRC_DIR)) $(CUTEST_IFLAGS) \
-	-DNDEBUG
+	$(Q)$(CC) -o $@ $^ $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -I$(abspath $(CUTEST_TEST_DIR)) -I$(abspath $(CUTEST_SRC_DIR)) $(CUTEST_IFLAGS) -DNDEBUG -D"inline=" $(CUTEST_DEFINES)
 
 # Print the CUTest manual
 $(CUTEST_TEST_DIR)/cutest_help.rst: $(CUTEST_PATH)/cutest.h
