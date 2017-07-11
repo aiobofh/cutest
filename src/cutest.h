@@ -1914,6 +1914,9 @@ static int get_function_args(cutest_mock_t* mock, const char* buf) {
               mock->arg_cnt,
               array);
     }
+    else if (0 == strcmp("...", type_str)) {
+      sprintf(dst, "... /* Unsupported in cutest */");
+    }
     else {
       sprintf(dst, "%s arg%d",
               type_str,
@@ -2308,8 +2311,7 @@ static void print_mock(cutest_mock_t* mock)
   if (0 != strcmp(mock->return_type.name, "void")) {
     printf("  if (NULL != cutest_mock.%s.func) {\n", mock->name);
     if (1 == has_variadic_arg(mock)) {
-      printf("    fprintf(stderr, \"Can't redirect variadic args\\n\");"
-             "\n");
+      printf("    /* Setting .func on mocks that have variadic arguments (printf etc.) will not call the function you refer to */\n");
     }
     else {
       printf("    return cutest_mock.%s.func(", mock->name);
