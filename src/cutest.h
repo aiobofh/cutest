@@ -621,10 +621,18 @@ enum cutest_typename {
   }                                                                \
   else {                                                           \
     if ((EXP) != (REF)) {                                          \
-      sprintf(cutest_stats.error_output,                           \
-              "%s %s:%d assert_eq(" #EXP ", " #REF ", " STR ") "   \
-              "failed\n", cutest_stats.error_output,               \
-              __FILE__, __LINE__);                                 \
+      if (cutest_typename_is_pointer((EXP))) {                     \
+        sprintf(cutest_stats.error_output,                         \
+                "%s %s:%d assert_eq(%p, %p, " STR ") "             \
+                "failed\n", cutest_stats.error_output,             \
+                __FILE__, __LINE__, (void*)(EXP), (void*)(REF));   \
+      }                                                            \
+      else {                                                       \
+        sprintf(cutest_stats.error_output,                         \
+                "%s %s:%d assert_eq(%lld, %lld, " STR ") "         \
+                "failed\n", cutest_stats.error_output,             \
+                __FILE__, __LINE__, (long long)(EXP), (long long)(REF)); \
+      }                                                            \
       cutest_assert_fail_cnt++;                                    \
     }                                                              \
   }
@@ -642,10 +650,18 @@ enum cutest_typename {
   }                                                                \
   else {                                                           \
     if ((EXP) != (REF)) {                                          \
-      sprintf(cutest_stats.error_output,                           \
-              "%s %s:%d assert_eq(" #EXP ", " #REF ") "            \
-              "failed\n", cutest_stats.error_output,               \
-              __FILE__, __LINE__);                                 \
+      if (cutest_typename_is_pointer((EXP))) {                     \
+        sprintf(cutest_stats.error_output,                         \
+                "%s %s:%d assert_eq(%p, %p) "                      \
+                "failed\n", cutest_stats.error_output,             \
+                __FILE__, __LINE__, (void*)(EXP), (void*)(REF));   \
+      }                                                            \
+      else {                                                       \
+        sprintf(cutest_stats.error_output,                         \
+                "%s %s:%d assert_eq(%lld, %lld) "                  \
+                "failed\n", cutest_stats.error_output,             \
+                __FILE__, __LINE__, (long long)(EXP), (long long)(REF)); \
+      }                                                            \
       cutest_assert_fail_cnt++;                                    \
     }                                                              \
   }
