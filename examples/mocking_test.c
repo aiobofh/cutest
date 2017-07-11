@@ -35,3 +35,27 @@ module_test(foo_shall_multiply_input_argument_by_four)
   foo(&my_integer);
   assert_eq(12, my_integer);
 }
+
+test(moo_shall_no_call_bar_if_argument_is_null)
+{
+  moo(NULL);
+  assert_eq(0, cutest_mock.mii.call_count);
+}
+
+module_test(moo_shall_multiply_input_argument_by_four)
+{
+  int my_integer = 3;
+  moo(&my_integer);
+  assert_eq(12, my_integer);
+  assert_eq(1, cutest_mock.mii.call_count);
+}
+
+module_test(muu_shall_multiply_input_array_by_four)
+{
+  int val1 = 1;
+  int val2 = 3;
+  int* my_integers[2] = {&val1, &val2};
+  muu(my_integers);
+  assert_eq(4, val1);
+  assert_eq(12, val2);
+}
