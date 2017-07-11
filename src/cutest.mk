@@ -33,7 +33,8 @@ CUTEST_SRC_DIR ?=./
 CUTEST_TEST_DIR ?=./
 
 # Some nice flags for compiling cutest-tests with good quality
-CUTEST_CFLAGS+=-g -pedantic -Wall -Wextra -std=c11
+CUTEST_CFLAGS?=-g -pedantic -Wall -Wextra -std=c11
+CUTEST_CFLAGS+=-D"CUTEST_LENIENT_ASSERTS=1"
 
 cutest_info:
 	@echo "Test-folder: $(CUTEST_TEST_DIR)"
