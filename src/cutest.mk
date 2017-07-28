@@ -69,6 +69,14 @@ $(CUTEST_TEST_DIR)/cutest_prox.c: $(CUTEST_PATH)/cutest.h Makefile
 $(CUTEST_TEST_DIR)/cutest_prox: $(CUTEST_TEST_DIR)/cutest_prox.c
 	$(Q)$(CC) $< $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -DCUTEST_PROX_MAIN -o $@
 
+# Generate a very strange C-program including cutest.h for int main().
+$(CUTEST_TEST_DIR)/cutest_filt.c: $(CUTEST_PATH)/cutest.h Makefile
+	$(Q)echo "#include \"cutest.h\"" > $@
+
+# Build a tool to generate a test suite runner.
+$(CUTEST_TEST_DIR)/cutest_filt: $(CUTEST_TEST_DIR)/cutest_filt.c
+	$(Q)$(CC) $< $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -DCUTEST_FILT_MAIN -o $@
+
 # Extract all functions called by the design under test.
 $(CUTEST_TEST_DIR)/%.tu: $(subst _test,,$(CUTEST_TEST_DIR)/%_test.c)
 	$(Q)g++ -fdump-translation-unit -c $< && \
@@ -89,7 +97,7 @@ $(CUTEST_TEST_DIR)/%_mockables.s: $(CUTEST_SRC_DIR)/%.c
 	-o $@ -c $^ $(CUTEST_CFLAGS) $(CUTEST_IFLAGS) $(CUTEST_DEFINES) -D"static=" -D"inline=" -D"main=MAIN"
 
 .PRECIOUS: $(CUTEST_TEST_DIR)/%_proxified.s
-$(CUTEST_TEST_DIR)/%_proxified.s: $(CUTEST_TEST_DIR)/%_mockables.s $(CUTEST_TEST_DIR)/%_mockables.lst $(CUTEST_TEST_DIR)/cutest_prox
+$(CUTEST_TEST_DIR)/%_proxified.s: $(CUTEST_TEST_DIR)/%_mockables.s $(CUTEST_TEST_DIR)/%_mockables.lst $(CUTEST_TEST_DIR)/cutest_prox $(CUTEST_TEST_DIR)/cutest_filt
 	$(Q)$(CUTEST_TEST_DIR)//cutest_prox $< $(subst .s,.lst,$<) > $@
 
 .PRECIOUS: $(CUTEST_TEST_DIR)/%_mocks.h
@@ -105,7 +113,7 @@ $(CUTEST_TEST_DIR)/%_test_run.c: $(CUTEST_TEST_DIR)/%_test.c $(CUTEST_TEST_DIR)/
 
 # Compile a test-runner from the generate test-runner program code
 $(CUTEST_TEST_DIR)/%_test: $(CUTEST_TEST_DIR)/%_proxified.s $(CUTEST_TEST_DIR)/%_test_run.c
-	$(Q)$(CC) -o $@ $^ $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -I$(abspath $(CUTEST_TEST_DIR)) -I$(abspath $(CUTEST_SRC_DIR)) $(CUTEST_IFLAGS) -DNDEBUG -D"inline=" $(CUTEST_DEFINES)
+	$(Q)$(CC) -o $@ $^ $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -I$(abspath $(CUTEST_TEST_DIR)) -I$(abspath $(CUTEST_SRC_DIR)) $(CUTEST_IFLAGS) -DNDEBUG -D"inline=" $(CUTEST_DEFINES) 3>&1 1>&2 2>&3 3>&- | $(CUTEST_TEST_DIR)/cutest_filt
 
 # Print the CUTest manual
 $(CUTEST_TEST_DIR)/cutest_help.rst: $(CUTEST_PATH)/cutest.h

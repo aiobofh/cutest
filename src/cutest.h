@@ -383,6 +383,7 @@
 #ifndef CUTEST_RUN_MAIN
 #ifndef CUTEST_MOCK_MAIN
 #ifndef CUTEST_PROX_MAIN
+#ifndef CUTEST_FILT_MAIN
 
 #define _XOPEN_SOURCE
 #include <time.h>
@@ -1494,6 +1495,7 @@ static void cutest_shutdown(const char* filename)
  *
  */
 
+#endif /* CUTEST_FILT_MAIN */
 #endif /* CUTEST_PROX_MAIN */
 #endif /* CUTEST_MOCK_MAIN */
 #endif /* CUTEST_RUN_MAIN */
@@ -2590,6 +2592,80 @@ int main(int argc, char* argv[]) {
 }
 
 #endif /* CUTST_PROX_MAIN */
+
+/*********************************************************************
+   ----    ____ ____ _____ ____ ____ _____   ____ __ __   _____ -----
+   ----   / __// / //_  _// __// __//_  _/  / __// // /  /_  _/ -----
+   ----  / /_ / / /  / / / __//_  /  / /   / _/ / // /__  / /   -----
+   ---- /___//___/  /_/ /___//___/  /_/   /_/  /_//____/_/_/    -----
+ *
+ * CUTest GCC warnings filtration tool
+ * ===================================
+ *
+ * The ``cutest_filt`` tool removes confusing warnings and
+ * notifications from the GCC output.
+ *
+ * How to build the tool
+ * ---------------------
+ *
+ * Just include the ``cutest.mk`` makefile in your own ``Makefile`` in
+ * your folder containing the source code for the ``*_test.c`` files.
+ *
+ * The tool is automatically compiled when making the check target.
+ * But if you want to make the tool explicitly just call::
+ *
+ *  $ make cutest_filt
+ *
+ * Usage
+ * -----
+ *
+ * If you *need* to run the tool manually this is how::
+ *
+ *  $ gcc <options and files> 3>&1 1>&2 2>&3 3>&- | cutest_filt
+ *
+ * And the output will be a bit more human readalbe.
+ *
+ * */
+
+
+#ifdef CUTEST_FILT_MAIN
+
+#include <stdio.h>
+#include <unistd.h>
+#include <string.h>
+
+int main(int argc, char* argv[]) {
+  (void)argc;
+  (void)argv;
+  char buf[10240];
+  int lines_to_skip_after_found_string = 0;
+  while (!feof(stdin) && (NULL != fgets(buf, sizeof(buf), stdin))) {
+    if (lines_to_skip_after_found_string > 0) {
+      lines_to_skip_after_found_string--;
+      continue;
+    }
+    if (NULL != strstr(buf, "note: in definition of macro 'cutest_typename")) {
+      lines_to_skip_after_found_string = 2;
+      continue;
+    }
+    if (NULL != strstr(buf, "note: in expansion of macro 'cutest_typename")) {
+      lines_to_skip_after_found_string = 5;
+      continue;
+    }
+    if (NULL != strstr(buf, "note: in definition of macro 'assert_eq")) {
+      lines_to_skip_after_found_string = 2;
+      continue;
+    }
+    if (NULL != strstr(buf, "note: in expansion of macro 'assert_eq")) {
+      lines_to_skip_after_found_string = 5;
+      continue;
+    }
+    fprintf(stderr, "%s", buf);
+  }
+  return 0;
+}
+
+#endif
 
 /*********************************************************************
    ------    ____ ____ _____ ____ ____ _____   ____ ____ _ __ --------
