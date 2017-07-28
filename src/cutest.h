@@ -2639,26 +2639,46 @@ int main(int argc, char* argv[]) {
   (void)argv;
   char buf[10240];
   int lines_to_skip_after_found_string = 0;
+  char* skip_until = NULL;
+  int allow = 0;
   while (!feof(stdin) && (NULL != fgets(buf, sizeof(buf), stdin))) {
     if (lines_to_skip_after_found_string > 0) {
       lines_to_skip_after_found_string--;
       continue;
     }
-    if (NULL != strstr(buf, "note: in definition of macro 'cutest_typename")) {
-      lines_to_skip_after_found_string = 2;
+    if (NULL != strstr(buf, "if ((EXP) != (REF)) {")) {
+      skip_until = "note: in expansion of macro 'assert_eq'";
       continue;
     }
-    if (NULL != strstr(buf, "note: in expansion of macro 'cutest_typename")) {
-      lines_to_skip_after_found_string = 5;
-      continue;
+    if (skip_until != NULL) {
+      if (NULL != strstr(buf, skip_until)) {
+        skip_until = NULL;
+        allow = 1;
+      }
+      else {
+        continue;
+      }
     }
-    if (NULL != strstr(buf, "note: in definition of macro 'assert_eq")) {
-      lines_to_skip_after_found_string = 2;
-      continue;
+    if (allow == 0) {
+      if (NULL != strstr(buf, "note: in definition of macro 'cutest_typename")) {
+        lines_to_skip_after_found_string = 2;
+        continue;
+      }
+      if (NULL != strstr(buf, "note: in expansion of macro 'cutest_typename")) {
+        lines_to_skip_after_found_string = 5;
+        continue;
+      }
+      if (NULL != strstr(buf, "note: in definition of macro 'assert_eq")) {
+        lines_to_skip_after_found_string = 2;
+        continue;
+      }
+      if (NULL != strstr(buf, "note: in expansion of macro 'assert_eq")) {
+        lines_to_skip_after_found_string = 5;
+        continue;
+      }
     }
-    if (NULL != strstr(buf, "note: in expansion of macro 'assert_eq")) {
-      lines_to_skip_after_found_string = 5;
-      continue;
+    else {
+      allow = 0;
     }
     fprintf(stderr, "%s", buf);
   }
