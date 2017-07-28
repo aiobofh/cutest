@@ -2665,15 +2665,19 @@ int main(int argc, char* argv[]) {
         continue;
       }
       if (NULL != strstr(buf, "note: in expansion of macro 'cutest_typename")) {
-        lines_to_skip_after_found_string = 5;
-        continue;
-      }
-      if (NULL != strstr(buf, "note: in definition of macro 'assert_eq")) {
         lines_to_skip_after_found_string = 2;
         continue;
       }
-      if (NULL != strstr(buf, "note: in expansion of macro 'assert_eq")) {
-        lines_to_skip_after_found_string = 5;
+      if (NULL != strstr(buf, "note: in definition of macro 'assert_eq_")) {
+        lines_to_skip_after_found_string = 2;
+        continue;
+      }
+      if (NULL != strstr(buf, "note: in expansion of macro 'assert_eq_")) {
+        lines_to_skip_after_found_string = 2;
+        continue;
+      }
+      if (NULL != strstr(buf, "note: in expansion of macro 'assert_eq'")) {
+        lines_to_skip_after_found_string = 2;
         continue;
       }
     }
