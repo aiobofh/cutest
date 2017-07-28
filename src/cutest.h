@@ -1846,7 +1846,12 @@ static int get_function_args(cutest_mock_t* mock, const char* buf) {
         while ('[' != arg_name_str[arg_name_len - 1]) {
           arg_name_len--;
         }
-        array = atoi(&arg_name_str[arg_name_len]);
+        if (']' == arg_name_str[arg_name_len]) {
+          array = -1;
+        }
+        else {
+          array = atoi(&arg_name_str[arg_name_len]);
+        }
       }
     }
 
@@ -1908,11 +1913,16 @@ static int get_function_args(cutest_mock_t* mock, const char* buf) {
               mock->arg_cnt,
               function_pointer_prot);
     }
-    else if (array) {
+    else if (array > 0) {
       sprintf(dst, "%s arg%d[%d]",
               type_str,
               mock->arg_cnt,
               array);
+    }
+    else if (array < 0) {
+      sprintf(dst, "%s arg%d[]",
+              type_str,
+              mock->arg_cnt);
     }
     else if (0 == strcmp("...", type_str)) {
       sprintf(dst, "... /* Unsupported in cutest */");
@@ -1932,11 +1942,17 @@ static int get_function_args(cutest_mock_t* mock, const char* buf) {
               function_pointer_name,
               function_pointer_prot);
     }
-    else if (array) {
+    else if (array > 0) {
       sprintf(dst, "%s arg%d[%d]; /* %s */",
               tn,
               mock->arg_cnt,
               array,
+              arg_name_str);
+    }
+    else if (array < 0) {
+      sprintf(dst, "%s* arg%d; /* %s */",
+              tn,
+              mock->arg_cnt,
               arg_name_str);
     }
     else {
@@ -1955,7 +1971,7 @@ static int get_function_args(cutest_mock_t* mock, const char* buf) {
               mock->arg_cnt,
               arg_name_str);
     }
-    else if (array) {
+    else if (array > 0) {
       sprintf(dst, "memcpy(cutest_mock.%s.args.arg%d, arg%d, sizeof(%s) * %d); /* %s */",
               mock->name,
               mock->arg_cnt,
