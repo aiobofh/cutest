@@ -2264,7 +2264,12 @@ static void print_dut_declarations()
 {
   int i;
   for (i = 0; i < mocks.mock_cnt; i++) {
-    print_dut_declaration("extern ", "", &mocks.mock[i]);
+    if (mocks.mock[i].return_type.is_struct) {
+      print_dut_declaration("extern struct", "", &mocks.mock[i]);
+    }
+    else {
+      print_dut_declaration("extern ", "", &mocks.mock[i]);
+    }
     printf(";\n");
   }
 }
