@@ -1997,7 +1997,13 @@ static int get_function_args(cutest_mock_t* mock, const char* buf) {
     pos++;
   }
 
-  sprintf(mock->func_text, "%s (*func)(%s)", mock->return_type.name, all_args);
+  char pretype[100];
+  memset(pretype, 0, sizeof(pretype));
+  if (mock->return_type.is_struct) {
+    strcpy(pretype, "struct ");
+  }
+
+  sprintf(mock->func_text, "%s%s (*func)(%s)", pretype, mock->return_type.name, all_args);
 
   pos++;
   return pos;
@@ -2265,7 +2271,7 @@ static void print_dut_declarations()
   int i;
   for (i = 0; i < mocks.mock_cnt; i++) {
     if (mocks.mock[i].return_type.is_struct) {
-      print_dut_declaration("extern struct", "", &mocks.mock[i]);
+      print_dut_declaration("extern struct ", "", &mocks.mock[i]);
     }
     else {
       print_dut_declaration("extern ", "", &mocks.mock[i]);
