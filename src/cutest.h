@@ -2284,7 +2284,12 @@ static void print_mock_declarations()
 {
   int i;
   for (i = 0; i < mocks.mock_cnt; i++) {
-    print_dut_declaration("", "cutest_", &mocks.mock[i]);
+    if (mocks.mock[i].return_type.is_struct) {
+      print_dut_declaration("struct ", "cutest_", &mocks.mock[i]);
+    }
+    else {
+      print_dut_declaration("", "cutest_", &mocks.mock[i]);
+    }
     printf(";\n");
   }
 }
