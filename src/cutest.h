@@ -2309,7 +2309,12 @@ static int has_variadic_arg(cutest_mock_t* mock) {
 static void print_mock(cutest_mock_t* mock)
 {
   int i;
-  print_dut_declaration("", "cutest_", mock);
+  if (mock->return_type.is_struct) {
+    print_dut_declaration("struct ", "cutest_", mock);
+  }
+  else {
+    print_dut_declaration("", "cutest_", mock);
+  }
   printf("\n");
   printf("{\n");
   printf("  cutest_mock.%s.call_count++;\n", mock->name);
