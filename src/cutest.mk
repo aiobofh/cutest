@@ -34,7 +34,10 @@ CUTEST_TEST_DIR ?=./
 
 # Some nice flags for compiling cutest-tests with good quality
 CUTEST_CFLAGS?=-g -pedantic -Wall -Wextra -std=c11
-CUTEST_CFLAGS+=-D"CUTEST_LENIENT_ASSERTS=1"
+
+ifneq (${LENIENT},0)
+	CUTEST_CFLAGS+=-D"CUTEST_LENIENT_ASSERTS=1"
+endif
 
 cutest_info:
 	@echo "Test-folder: $(CUTEST_TEST_DIR)"
@@ -113,7 +116,7 @@ $(CUTEST_TEST_DIR)/%_test_run.c: $(CUTEST_TEST_DIR)/%_test.c $(CUTEST_TEST_DIR)/
 
 # Compile a test-runner from the generate test-runner program code
 $(CUTEST_TEST_DIR)/%_test: $(CUTEST_TEST_DIR)/%_proxified.s $(CUTEST_TEST_DIR)/%_test_run.c
-	$(Q)$(CC) -o $@ $^ $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -I$(abspath $(CUTEST_TEST_DIR)) -I$(abspath $(CUTEST_SRC_DIR)) $(CUTEST_IFLAGS) -DNDEBUG -D"inline=" $(CUTEST_DEFINES) 3>&1 1>&2 2>&3 3>&- | $(CUTEST_TEST_DIR)/cutest_filt
+	$(Q)$(CC) -o $@ $^ $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -I$(abspath $(CUTEST_TEST_DIR)) -I$(abspath $(CUTEST_SRC_DIR)) $(CUTEST_IFLAGS) -DNDEBUG -D"inline=" $(CUTEST_DEFINES) 3>&1 1>&2 2>&3 3>&- # | $(CUTEST_TEST_DIR)/cutest_filt
 
 # Print the CUTest manual
 $(CUTEST_TEST_DIR)/cutest_help.rst: $(CUTEST_PATH)/cutest.h
