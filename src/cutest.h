@@ -50,7 +50,7 @@
  * Version history
  * ---------------
  *
- * * v1.0.1 xxxx-xx-xx Fix-up release
+ * * v1.0.1 2017-08-15 Fix-up release
  *
  *   - Fixed release date and documentation
  *   - Improved Makefile for release handling
