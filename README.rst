@@ -33,6 +33,10 @@ Version history
 
   - Fixed release date and documentation
   - Improved Makefile for release handling
+  - Lenient (type-agnostic) asserts enabled by default
+  - Refactored the assert_eq mechanism
+  - Allow for higher warning level by default when lenient asserts
+    are used
 
 * v1.0.0 2017-06-16 Initial release
 
@@ -401,9 +405,58 @@ Example::
   assert_eq("expected", some_variable);
   ...
 
-The ``CUTEST_LENIENT_ASSERTS`` will probably be enabled by default
-in later versions of CUTest, since they *greatly* improve the user-
-experience.
+The ``CUTEST_LENIENT_ASSERTS`` is now enabled by default in CUTest but require
+C11. If you want to disable it just set your envinment variable ``LENIENT=0``
+when invoking the make-system and it will be disabled.
+
+By default the lenient assert macro is trying to convert the expected value
+and reference value by casting to an unsigned long long, just to cover as
+many cases as possible. Strings and floats are treated differently for better
+and more understandable print-outs on what differs.
+
+When using ``CUTEST_LENIENT_ASSERTS`` you can also write your own compare
+for the assert_eq() macro. This is very useful when you write your own data
+types and want to be sure that they are compared in a relevant way. You can
+force the assert_eq() macro to use your function by defining the macro
+``CUTEST_MY_OWN_EQ_COMPARATORS``, and match the datatype to the function you
+want to use as compare function.
+
+Example::
+
+ typedef struct my_own_type_s {
+   int a;
+   char b[3];
+   long c;
+ } my_own_type_t;
+
+ static int compare_my_own_type_t(my_own_type_t a, my_own_type_t b, char* output)
+ {
+   if ((a.a == b.a) && // The actual compare operation
+       (a.b[0] == b.b[0]) &&
+       (a.b[1] == b.b[1]) &&
+       (a.b[2] == b.b[2]) &&
+       (a.c == b.c)) {
+     return 0; // Return 0 if all is OK
+   }
+   // Otherwise generate a text to be put inside the assert_eq() failure output
+   // between the parenthesis 'assert_eq(<MY TEXT>) failed'
+   sprintf(output, "{%d, \"%c%c%c\", %ld}, {%d, \"%c%c%c\", %ld}",
+           a.a, a.b[0], a.b[1], a.b[2], a.c,
+           b.a, b.b[0], b.b[1], b.b[2], b.c);
+   return 1; // Return something other than 0 if the assert failed.
+ }
+
+ #define CUTEST_MY_OWN_EQ_COMPARATORS(EXP, REF)        \
+   my_own_type_t: compare_my_own_type_t,
+
+Then you should be able to write a test that looks something like this::
+
+ test(cutest_shall_compare_own_data_types_correctly)
+ {
+   my_own_type_t values = {1, "234", 5};
+   my_own_type_t gold = {1, "234", 5};
+   assert_eq(gold, values); // Will invoke your own compare function
+ }
 
 Phases in the test-build and -execution
 ---------------------------------------
@@ -1052,6 +1105,38 @@ However, if you use the ``Makefile`` targets specified in the
 beginning of this document you will probably not need to run it
 manually.
 
+Find the end (length) of the argument to a function prototupe by
+searching for a comma ',' or a right-parentheis;
+Find the end of the argument datatype name.
+
+If the buffer points to:
+
+                                        Scan starts here
+                                        |
+                                        v
+const unsigned long long *pointer_to_long
+                       ^
+                       |
+                       This is where the end is.
+
+                                       Scan starts here
+                                       |
+                                       v
+const unsigned long long a_long_variable
+                       ^
+                       |
+                       This is where the end is.
+
+If it for some reason only is a type name as primitive declaration
+the end position is returned, since there are no white spaces to
+scan for.
+This function should take a pointer to a buffer pointing to the
+end of the function name in a string from a line produced by cproto.
+
+unsigned long my_function(const unsigned char value);
+                          ^
+                          |
+                          This is where buf should point at
 Mock-ups
 --------
 
@@ -1123,6 +1208,33 @@ If you *need* to run the tool manually this is how::
  $ ./cutest_prox dut_mockables.s dut_mockables.lst
 
 And an assembler file will be outputted to stdout.
+
+
+CUTest GCC warnings filtration tool
+===================================
+
+The ``cutest_filt`` tool removes confusing warnings and
+notifications from the GCC output.
+
+How to build the tool
+---------------------
+
+Just include the ``cutest.mk`` makefile in your own ``Makefile`` in
+your folder containing the source code for the ``*_test.c`` files.
+
+The tool is automatically compiled when making the check target.
+But if you want to make the tool explicitly just call::
+
+ $ make cutest_filt
+
+Usage
+-----
+
+If you *need* to run the tool manually this is how::
+
+ $ gcc <options and files> 3>&1 1>&2 2>&3 3>&- | cutest_filt
+
+And the output will be a bit more human readalbe.
 
 
 CUTest test runner generator

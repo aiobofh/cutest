@@ -54,6 +54,10 @@
  *
  *   - Fixed release date and documentation
  *   - Improved Makefile for release handling
+ *   - Lenient (type-agnostic) asserts enabled by default
+ *   - Refactored the assert_eq mechanism
+ *   - Allow for higher warning level by default when lenient asserts
+ *     are used
  *
  * * v1.0.0 2017-06-16 Initial release
  *
@@ -358,9 +362,7 @@
 #define _CUTEST_H_
 
 #ifdef CUTEST_LENIENT_ASSERTS
-#pragma GCC diagnostic ignored "-Wnonnull"
-#pragma GCC diagnostic ignored "-Wint-to-pointer-cast"
-#pragma GCC diagnostic ignored "-Wformat="
+#pragma GCC diagnostic ignored "-Wint-conversion"
 #endif
 
 /*
@@ -387,6 +389,7 @@
 
 #define _XOPEN_SOURCE
 #include <time.h>
+#include <math.h>
 
 extern struct tm *localtime_r(const time_t *timep, struct tm *result);
 
@@ -408,6 +411,7 @@ extern struct tm *localtime_r(const time_t *timep, struct tm *result);
  *   }
  *
  */
+#define skip(NAME) void cutest_skipped_##NAME()
 #define test(NAME) void cutest_##NAME()
 
 /*
@@ -421,155 +425,6 @@ extern struct tm *localtime_r(const time_t *timep, struct tm *result);
  *
  */
 #define module_test(NAME) void cutest_module_##NAME()
-
-#ifdef CUTEST_LENIENT_ASSERTS
-enum cutest_typename {
-  CUTEST_BOOL = 1,
-  CUTEST_UNSIGNED_CHAR,
-  CUTEST_CHAR,
-  CUTEST_SIGNED_CHAR,
-  CUTEST_SHORT_INT,
-  CUTEST_UNSIGNED_SHORT_INT,
-  CUTEST_INT,
-  CUTEST_UNSIGNED_INT,
-  CUTEST_LONG_INT,
-  CUTEST_UNSIGNED_LONG_INT,
-  CUTEST_LONG_LONG_INT,
-  CUTEST_UNSIGNED_LONG_LONG_INT,
-  CUTEST_FLOAT,
-  CUTEST_DOUBLE,
-  CUTEST_LONG_DOUBLE,
-
-  CUTEST_C_BOOL = 100,
-  CUTEST_C_UNSIGNED_CHAR,
-  CUTEST_C_CHAR,
-  CUTEST_C_SIGNED_CHAR,
-  CUTEST_C_SHORT_INT,
-  CUTEST_C_UNSIGNED_SHORT_INT,
-  CUTEST_C_INT,
-  CUTEST_C_UNSIGNED_INT,
-  CUTEST_C_LONG_INT,
-  CUTEST_C_UNSIGNED_LONG_INT,
-  CUTEST_C_LONG_LONG_INT,
-  CUTEST_C_UNSIGNED_LONG_LONG_INT,
-  CUTEST_C_FLOAT,
-  CUTEST_C_DOUBLE,
-  CUTEST_C_LONG_DOUBLE,
-
-  CUTEST_OTHER,
-
-  CUTEST_P_BOOL = 1000,
-  CUTEST_P_CHAR,
-  CUTEST_P_UNSIGNED_CHAR,
-  CUTEST_P_SIGNED_CHAR,
-  CUTEST_P_SHORT_INT,
-  CUTEST_P_UNSIGNED_SHORT_INT,
-  CUTEST_P_INT,
-  CUTEST_P_UNSIGNED_INT,
-  CUTEST_P_LONG_INT,
-  CUTEST_P_UNSIGNED_LONG_INT,
-  CUTEST_P_LONG_LONG_INT,
-  CUTEST_P_UNSIGNED_LONG_LONG_INT,
-  CUTEST_P_FLOAT,
-  CUTEST_P_DOUBLE,
-  CUTEST_P_LONG_DOUBLE,
-  CUTEST_P_VOID,
-
-  CUTEST_C_P_BOOL = 10000,
-  CUTEST_C_P_CHAR,
-  CUTEST_C_P_UNSIGNED_CHAR,
-  CUTEST_C_P_SIGNED_CHAR,
-  CUTEST_C_P_SHORT_INT,
-  CUTEST_C_P_UNSIGNED_SHORT_INT,
-  CUTEST_C_P_INT,
-  CUTEST_C_P_UNSIGNED_INT,
-  CUTEST_C_P_LONG_INT,
-  CUTEST_C_P_UNSIGNED_LONG_INT,
-  CUTEST_C_P_LONG_LONG_INT,
-  CUTEST_C_P_UNSIGNED_LONG_LONG_INT,
-  CUTEST_C_P_FLOAT,
-  CUTEST_C_P_DOUBLE,
-  CUTEST_C_P_LONG_DOUBLE,
-  CUTEST_C_P_VOID,
-
-  CUTEST_LAST
-};
-
-#define cutest_typename(x)                                              \
-  _Generic((x),                                                         \
-           _Bool:                          CUTEST_BOOL,                 \
-           char:                           CUTEST_CHAR,                 \
-           unsigned char:                  CUTEST_UNSIGNED_CHAR,        \
-           signed char:                    CUTEST_SIGNED_CHAR,          \
-           short int:                      CUTEST_SHORT_INT,            \
-           unsigned short int:             CUTEST_UNSIGNED_SHORT_INT,   \
-           int:                            CUTEST_INT,                  \
-           unsigned int:                   CUTEST_UNSIGNED_INT,         \
-           long int:                       CUTEST_LONG_INT,             \
-           unsigned long int:              CUTEST_UNSIGNED_LONG_INT,    \
-           long long int:                  CUTEST_LONG_LONG_INT,        \
-           unsigned long long int:         CUTEST_UNSIGNED_LONG_LONG_INT, \
-           float:                          CUTEST_FLOAT,                \
-           double:                         CUTEST_DOUBLE,               \
-           long double:                    CUTEST_LONG_DOUBLE,          \
-                                                                        \
-           const _Bool:                    CUTEST_C_BOOL,               \
-           const char:                     CUTEST_C_CHAR,               \
-           const unsigned char:            CUTEST_C_UNSIGNED_CHAR,      \
-           const signed char:              CUTEST_C_SIGNED_CHAR,        \
-           const short int:                CUTEST_C_SHORT_INT,          \
-           const unsigned short int:       CUTEST_C_UNSIGNED_SHORT_INT, \
-           const int:                      CUTEST_C_INT,                \
-           const unsigned int:             CUTEST_C_UNSIGNED_INT,       \
-           const long int:                 CUTEST_C_LONG_INT,           \
-           const unsigned long int:        CUTEST_C_UNSIGNED_LONG_INT,  \
-           const long long int:            CUTEST_C_LONG_LONG_INT,      \
-           const unsigned long long int:   CUTEST_C_UNSIGNED_LONG_LONG_INT, \
-           const float:                    CUTEST_C_FLOAT,              \
-           const double:                   CUTEST_C_DOUBLE,             \
-           const long double:              CUTEST_C_LONG_DOUBLE,        \
-                                                                        \
-           _Bool *:                        CUTEST_P_BOOL,               \
-           char *:                         CUTEST_P_CHAR,               \
-           unsigned char *:                CUTEST_P_UNSIGNED_CHAR,      \
-           signed char *:                  CUTEST_P_SIGNED_CHAR,        \
-           short int *:                    CUTEST_P_SHORT_INT,          \
-           unsigned short int *:           CUTEST_P_UNSIGNED_SHORT_INT, \
-           int *:                          CUTEST_P_INT,                \
-           unsigned int *:                 CUTEST_P_UNSIGNED_INT,       \
-           long int *:                     CUTEST_P_LONG_INT,           \
-           unsigned long int *:            CUTEST_P_UNSIGNED_LONG_INT,  \
-           long long int *:                CUTEST_P_LONG_LONG_INT,      \
-           unsigned long long int *:       CUTEST_P_UNSIGNED_LONG_LONG_INT, \
-           float *:                        CUTEST_P_FLOAT,              \
-           double *:                       CUTEST_P_DOUBLE,             \
-           long double *:                  CUTEST_P_LONG_DOUBLE,        \
-                                                                        \
-           const _Bool *:                  CUTEST_C_P_BOOL,             \
-           const char *:                   CUTEST_C_P_CHAR,             \
-           const unsigned char *:          CUTEST_C_P_UNSIGNED_CHAR,    \
-           const signed char *:            CUTEST_C_P_SIGNED_CHAR,      \
-           const short int *:              CUTEST_C_P_SHORT_INT,        \
-           const unsigned short int *:     CUTEST_C_P_UNSIGNED_SHORT_INT, \
-           const int *:                    CUTEST_C_P_INT,              \
-           const unsigned int *:           CUTEST_C_P_UNSIGNED_INT,     \
-           const long int *:               CUTEST_C_P_LONG_INT,         \
-           const unsigned long int *:      CUTEST_C_P_UNSIGNED_LONG_INT, \
-           const long long int *:          CUTEST_C_P_LONG_LONG_INT,    \
-           const unsigned long long int *: CUTEST_C_P_UNSIGNED_LONG_LONG_INT, \
-           const float *:                  CUTEST_C_P_FLOAT,            \
-           const double *:                 CUTEST_C_P_DOUBLE,           \
-           const long double *:            CUTEST_C_P_LONG_DOUBLE,      \
-                                                                        \
-           default: CUTEST_OTHER)
-
-#define cutest_typename_is_string(VARIABLE)              \
-  ((cutest_typename((VARIABLE)) == CUTEST_P_CHAR) ||     \
-   (cutest_typename((VARIABLE)) == CUTEST_C_P_CHAR))
-
-#define cutest_typename_is_pointer(VARIABLE)    \
-  (cutest_typename(VARIABLE) > CUTEST_OTHER)
-#endif
 
 /*
  * The assert_eq() macro
@@ -602,69 +457,198 @@ enum cutest_typename {
  *   assert_eq("expected", some_variable);
  *   ...
  *
- * The ``CUTEST_LENIENT_ASSERTS`` will probably be enabled by default
- * in later versions of CUTest, since they *greatly* improve the user-
- * experience.
+ * The ``CUTEST_LENIENT_ASSERTS`` is now enabled by default in CUTest but require
+ * C11. If you want to disable it just set your envinment variable ``LENIENT=0``
+ * when invoking the make-system and it will be disabled.
+ *
+ * By default the lenient assert macro is trying to convert the expected value
+ * and reference value by casting to an unsigned long long, just to cover as
+ * many cases as possible. Strings and floats are treated differently for better
+ * and more understandable print-outs on what differs.
  *
  */
 #ifdef CUTEST_LENIENT_ASSERTS
 
-#define assert_eq_3(EXP, REF, STR)                                 \
-  if (cutest_typename_is_string((EXP)) &&                          \
-      cutest_typename_is_string((REF))) {                          \
-    if (0 == strcmp((char*)(EXP), (char*)(REF))) {                 \
-      sprintf(cutest_stats.error_output,                           \
-              "%s %s:%d assert_eq(\"%s\", \"%s\", " STR ") "       \
-              "failed\n", cutest_stats.error_output,               \
-              __FILE__, __LINE__, (char*)EXP, (char*)REF);         \
-      cutest_assert_fail_cnt++;                                    \
-    }                                                              \
-  }                                                                \
-  else {                                                           \
-    if ((EXP) != (REF)) {                                          \
-      if (cutest_typename_is_pointer((EXP))) {                     \
-        sprintf(cutest_stats.error_output,                         \
-                "%s %s:%d assert_eq(%p, %p, " STR ") "             \
-                "failed\n", cutest_stats.error_output,             \
-                __FILE__, __LINE__, (void*)(EXP), (void*)(REF));   \
-      }                                                            \
-      else {                                                       \
-        sprintf(cutest_stats.error_output,                         \
-                "%s %s:%d assert_eq(%lld, %lld, " STR ") "         \
-                "failed\n", cutest_stats.error_output,             \
-                __FILE__, __LINE__, (long long)(EXP), (long long)(REF)); \
-      }                                                            \
-      cutest_assert_fail_cnt++;                                    \
-    }                                                              \
+int cutest_assert_eq_char(const char a, const char b, char* output)
+{
+  if (a == b) {
+    return 0;
+  }
+  sprintf(output, "'%c' (%d), '%c' (%d)", a, a, b, b);
+  return 1;
+}
+
+int cutest_assert_eq_str(const char* a, const char *b, char* output)
+{
+  if (0 == strcmp(a, b)) {
+    return 0;
+  }
+  sprintf(output, "\"%s\", \"%s\"", a, b);
+  return 1;
+}
+
+int cutest_compare_float(float f1, float f2)
+{
+  float epsilon = 0.00001;
+  if (fabsf(f1 - f2) <= epsilon) {
+    return 1;
+  }
+  return 0;
+}
+
+int cutest_compare_double(double f1, double f2)
+{
+  double epsilon = 0.00001;
+  if (fabs(f1 - f2) <= epsilon) {
+    return 1;
+  }
+  return 0;
+}
+
+int cutest_compare_long_double(long double f1, long double f2)
+{
+  long double epsilon = 0.00001;
+  if (fabsl(f1 - f2) <= epsilon) {
+    return 1;
+  }
+  return 0;
+}
+
+
+int cutest_assert_eq_float(const float a, const float b, char* output)
+{
+  if (cutest_compare_float(a, b)) {
+    return 0;
+  }
+  sprintf(output, "%f, %f", a, b);
+  return 1;
+}
+
+int cutest_assert_eq_double(const double a, const double b, char* output)
+{
+  if (cutest_compare_double(a, b)) {
+    return 0;
+  }
+  sprintf(output, "%f, %f", a, b);
+  return 1;
+}
+
+int cutest_assert_eq_long_double(const long double a, const long double b,
+                                 char* output)
+{
+  if (cutest_compare_long_double(a, b)) {
+    return 0;
+  }
+  sprintf(output, "%Lf, %Lf", a, b);
+  return 1;
+}
+
+int cutest_assert_eq_default(const unsigned long long a,
+                             const unsigned long long b,
+                             char* output)
+{
+  if (a == b) {
+    return 0;
+  }
+  sprintf(output, "%lld, %lld", a, b);
+  return 1;
+}
+
+/*
+ * When using ``CUTEST_LENIENT_ASSERTS`` you can also write your own compare
+ * for the assert_eq() macro. This is very useful when you write your own data
+ * types and want to be sure that they are compared in a relevant way. You can
+ * force the assert_eq() macro to use your function by defining the macro
+ * ``CUTEST_MY_OWN_EQ_COMPARATORS``, and match the datatype to the function you
+ * want to use as compare function.
+ *
+ * Example::
+ *
+ *  typedef struct my_own_type_s {
+ *    int a;
+ *    char b[3];
+ *    long c;
+ *  } my_own_type_t;
+ *
+ *  static int compare_my_own_type_t(my_own_type_t a, my_own_type_t b, char* output)
+ *  {
+ *    if ((a.a == b.a) && // The actual compare operation
+ *        (a.b[0] == b.b[0]) &&
+ *        (a.b[1] == b.b[1]) &&
+ *        (a.b[2] == b.b[2]) &&
+ *        (a.c == b.c)) {
+ *      return 0; // Return 0 if all is OK
+ *    }
+ *    // Otherwise generate a text to be put inside the assert_eq() failure output
+ *    // between the parenthesis 'assert_eq(<MY TEXT>) failed'
+ *    sprintf(output, "{%d, \"%c%c%c\", %ld}, {%d, \"%c%c%c\", %ld}",
+ *            a.a, a.b[0], a.b[1], a.b[2], a.c,
+ *            b.a, b.b[0], b.b[1], b.b[2], b.c);
+ *    return 1; // Return something other than 0 if the assert failed.
+ *  }
+ *
+ *  #define CUTEST_MY_OWN_EQ_COMPARATORS(EXP, REF)        \
+ *    my_own_type_t: compare_my_own_type_t,
+ *
+ * Then you should be able to write a test that looks something like this::
+ *
+ *  test(cutest_shall_compare_own_data_types_correctly)
+ *  {
+ *    my_own_type_t values = {1, "234", 5};
+ *    my_own_type_t gold = {1, "234", 5};
+ *    assert_eq(gold, values); // Will invoke your own compare function
+ *  }
+ *
+ */
+#ifndef CUTEST_MY_OWN_EQ_COMPARATORS
+#define CUTEST_MY_OWN_EQ_COMPARATORS(EXP, REF)
+#endif
+
+#define assert_eq_comp(EXP, REF)                             \
+  _Generic((EXP),                                            \
+           float: cutest_assert_eq_float,                    \
+           const float: cutest_assert_eq_float,              \
+           double: cutest_assert_eq_double,                  \
+           const double: cutest_assert_eq_double,            \
+           long double: cutest_assert_eq_long_double,        \
+           const long double: cutest_assert_eq_long_double,  \
+           char: cutest_assert_eq_char,                      \
+           const char: cutest_assert_eq_char,                \
+           char*: cutest_assert_eq_str,                      \
+           const char*: cutest_assert_eq_str,                \
+           CUTEST_MY_OWN_EQ_COMPARATORS(EXP, REF)            \
+  default: cutest_assert_eq_default)
+
+#define assert_eq_3(EXP, REF, STR)                                      \
+  {                                                                     \
+    char o[1024];                                                       \
+    o[0] = 0;                                                           \
+    const int retval = assert_eq_comp((EXP), (REF))((EXP), (REF), o);   \
+    if (0 != retval) {                                                  \
+      sprintf(cutest_stats.error_output,                                \
+              "%s %s:%d assert_eq(%s, " STR ") failed\n",               \
+              cutest_stats.error_output,                                \
+              __FILE__,                                                 \
+              __LINE__,                                                 \
+              o);                                                       \
+      cutest_assert_fail_cnt++;                                         \
+    }                                                                   \
   }
 
-#define assert_eq_2(EXP, REF)                                      \
-  if (cutest_typename_is_string((EXP)) &&                          \
-      cutest_typename_is_string((REF))) {                          \
-    if (0 != strcmp((char*)(EXP), (char*)(REF))) {                 \
-      sprintf(cutest_stats.error_output,                           \
-              "%s %s:%d assert_eq(\"%s\", \"%s\") "                \
-              "failed\n", cutest_stats.error_output,               \
-              __FILE__, __LINE__, (char*)EXP, (char*)REF);         \
-      cutest_assert_fail_cnt++;                                    \
-    }                                                              \
-  }                                                                \
-  else {                                                           \
-    if ((EXP) != (REF)) {                                          \
-      if (cutest_typename_is_pointer((EXP))) {                     \
-        sprintf(cutest_stats.error_output,                         \
-                "%s %s:%d assert_eq(%p, %p) "                      \
-                "failed\n", cutest_stats.error_output,             \
-                __FILE__, __LINE__, (void*)(EXP), (void*)(REF));   \
-      }                                                            \
-      else {                                                       \
-        sprintf(cutest_stats.error_output,                         \
-                "%s %s:%d assert_eq(%lld, %lld) "                  \
-                "failed\n", cutest_stats.error_output,             \
-                __FILE__, __LINE__, (long long)(EXP), (long long)(REF)); \
-      }                                                            \
-      cutest_assert_fail_cnt++;                                    \
-    }                                                              \
+#define assert_eq_2(EXP, REF)                                           \
+  {                                                                     \
+    char o[1024];                                                       \
+    o[0] = 0;                                                           \
+    const int retval = assert_eq_comp((EXP), (REF))((EXP), (REF), o);   \
+    if (0 != retval) {                                                  \
+      sprintf(cutest_stats.error_output,                                \
+              "%s %s:%d assert_eq(%s) failed\n",                        \
+              cutest_stats.error_output,                                \
+              __FILE__,                                                 \
+              __LINE__,                                                 \
+              o);                                                       \
+      cutest_assert_fail_cnt++;                                         \
+    }                                                                   \
   }
 
 #else
