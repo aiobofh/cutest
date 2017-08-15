@@ -25,7 +25,7 @@ test(add_shall_be_able_to_add_minimum_values_for_integers)
             (long long)add((int)INT_MIN, (int)INT_MIN));
 }
 
-test(add_shall_be_able_To_add_maximum_values_for_integers)
+test(add_shall_be_able_to_add_maximum_values_for_integers)
 {
   assert_eq(((long long)INT_MAX + (long long)INT_MAX),
             (long long)add((int)INT_MAX, (int)INT_MAX));
