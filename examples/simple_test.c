@@ -2,6 +2,9 @@
 
 #include "cutest.h"
 
+/*
+ * add()
+ */
 test(add_shall_return_0_if_both_inputs_are_0)
 {
   assert_eq(0, add(0, 0));
