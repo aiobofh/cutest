@@ -170,7 +170,7 @@ module_test(write_file_shall_write_a_10_lines_long_file_to_disc_if_possible)
   pid_t p = getpid();
   char tmp_filename[1024];
 
-  sprintf(tmp_filename, "/tmp/%ld_real_file", p);
+  sprintf(tmp_filename, "/tmp/%ld_real_file", (long)p);
 
   assert_eq(0, write_file(tmp_filename)); /* File write should be OK */
   assert_eq(10, count_lines_in_file(tmp_filename));
