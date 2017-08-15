@@ -1726,29 +1726,29 @@ static int is_type(const char* buffer) {
 }
 
 /*
- * Find the end of the argument datatype name.
- *
- * If the buffer points to:
- *
- *                                         Scan starts here
- *                                         |
- *                                         v
- * const unsigned long long *pointer_to_long
- *                        ^
- *                        |
- *                        This is where the end is.
- *
- *                                        Scan starts here
- *                                        |
- *                                        v
- * const unsigned long long a_long_variable
- *                        ^
- *                        |
- *                        This is where the end is.
- *
- * If it for some reason only is a type name as primitive declaration
- * the end position is returned, since there are no white spaces to
- * scan for.
+   Find the end of the argument datatype name.
+
+   If the buffer points to:
+
+                                           Scan starts here
+                                           |
+                                           v
+   const unsigned long long *pointer_to_long
+                          ^
+                          |
+                          This is where the end is.
+
+                                          Scan starts here
+                                          |
+                                          v
+   const unsigned long long a_long_variable
+                          ^
+                          |
+                          This is where the end is.
+
+   If it for some reason only is a type name as primitive declaration
+   the end position is returned, since there are no white spaces to
+   scan for.
  */
 int find_type_len(const char* buf, int end) {
   int last_type_name_character = end;
@@ -1771,13 +1771,13 @@ int find_type_len(const char* buf, int end) {
 }
 
 /*
- * This function should take a pointer to a buffer pointing to the
- * end of the function name in a string from a line produced by cproto.
- *
- * unsigned long my_function(const unsigned char value);
- *                           ^
- *                           |
- *                           This is where buf should point at
+   This function should take a pointer to a buffer pointing to the
+   end of the function name in a string from a line produced by cproto.
+
+   unsigned long my_function(const unsigned char value);
+                             ^
+                             |
+                             This is where buf should point at
  */
 static int get_function_args(cutest_mock_t* mock, const char* buf) {
   int pos = 0;
