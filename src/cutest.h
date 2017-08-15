@@ -621,32 +621,34 @@ int cutest_assert_eq_default(const unsigned long long a,
 
 #define assert_eq_3(EXP, REF, STR)                                      \
   {                                                                     \
-    char o[1024];                                                       \
-    o[0] = 0;                                                           \
-    const int retval = assert_eq_comp((EXP), (REF))((EXP), (REF), o);   \
-    if (0 != retval) {                                                  \
+    char cutest_o[1024];                                                \
+    cutest_o[0] = 0;                                                    \
+    const int cutest_assert_retval =                                    \
+      assert_eq_comp((EXP), (REF))((EXP), (REF), cutest_o);             \
+    if (0 != cutest_assert_retval) {                                    \
       sprintf(cutest_stats.error_output,                                \
               "%s %s:%d assert_eq(%s, " STR ") failed\n",               \
               cutest_stats.error_output,                                \
               __FILE__,                                                 \
               __LINE__,                                                 \
-              o);                                                       \
+              cutest_o);                                                \
       cutest_assert_fail_cnt++;                                         \
     }                                                                   \
   }
 
 #define assert_eq_2(EXP, REF)                                           \
   {                                                                     \
-    char o[1024];                                                       \
-    o[0] = 0;                                                           \
-    const int retval = assert_eq_comp((EXP), (REF))((EXP), (REF), o);   \
-    if (0 != retval) {                                                  \
+    char cutest_o[1024];                                                \
+    cutest_o[0] = 0;                                                    \
+    const int cutest_assert_retval =                                    \
+      assert_eq_comp((EXP), (REF))((EXP), (REF), cutest_o);             \
+    if (0 != cutest_assert_retval) {                                    \
       sprintf(cutest_stats.error_output,                                \
               "%s %s:%d assert_eq(%s) failed\n",                        \
               cutest_stats.error_output,                                \
               __FILE__,                                                 \
               __LINE__,                                                 \
-              o);                                                       \
+              cutest_o);                                                \
       cutest_assert_fail_cnt++;                                         \
     }                                                                   \
   }
