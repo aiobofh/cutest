@@ -26,7 +26,9 @@ src:
 	@mkdir obj >/dev/null; make -s -C src
 
 check:
-	@make -s -C test
+	@$(MAKE) -r --no-print-directory -C test
 
 clean::
-	@rm -f *~ obj; make -s -C src clean; make -s -C test clean
+	@rm -f *~ obj; \
+	$(MAKE) -r --no-print-directory -C src clean; \
+	$(MAKE) -r --no-print-directory -C test clean

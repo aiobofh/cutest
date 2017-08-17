@@ -16,7 +16,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define CUTEST_VERSION "1.0.1"
+#define CUTEST_VERSION "1.0.2"
 
 /*********************************************************************
  *::
@@ -49,6 +49,10 @@
  *
  * Version history
  * ---------------
+ *
+ * * v1.0.2 yyyy-mm-dd Release work flow enhancements
+ *
+ *   - Fixed the documentation generator to be run before release
  *
  * * v1.0.1 2017-08-15 Fix-up release
  *

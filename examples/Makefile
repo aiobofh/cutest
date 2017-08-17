@@ -27,7 +27,9 @@ Q=@
 all: check
 
 include ../src/cutest.mk
+ifneq (${COVERAGE},0)
 include ../src/coverage.mk
+endif
 
 clean::
 	$(Q)$(RM) -f *~

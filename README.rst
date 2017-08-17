@@ -29,6 +29,10 @@ naive, simple and realistic examples of various CUTest usages.
 Version history
 ---------------
 
+* v1.0.2 yyyy-mm-dd Release work flow enhancements
+
+  - Fixed the documentation generator to be run before release
+
 * v1.0.1 2017-08-15 Fix-up release
 
   - Fixed release date and documentation
