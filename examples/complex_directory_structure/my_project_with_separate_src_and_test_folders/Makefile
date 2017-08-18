@@ -28,6 +28,9 @@ src:
 check:
 	@$(MAKE) -r --no-print-directory -C test
 
+valgrind:
+	@$(MAKE) -r --no-print-directory -C test valgrind
+
 clean::
 	@rm -f *~ obj; \
 	$(MAKE) -r --no-print-directory -C src clean; \

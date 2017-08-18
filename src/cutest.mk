@@ -34,6 +34,9 @@ CUTEST_TEST_DIR ?=./
 
 # Some nice flags for compiling cutest-tests with good quality
 CUTEST_CFLAGS?=-g -pedantic -Wall -Wextra -std=c11
+# This makes valgrind work with long double values, should suffice for
+# most applications as well.
+CUTEST_CFLAGS+= -mlong-double-64
 
 ifneq (${LENIENT},0)
 	CUTEST_CFLAGS+=-D"CUTEST_LENIENT_ASSERTS=1"
@@ -151,7 +154,6 @@ check:: $(subst .c,,$(wildcard $(CUTEST_TEST_DIR)/*_test.c))
 memcheck:: $(subst .c,.memcheck,$(wildcard $(CUTEST_TEST_DIR)/*_test.c))
 
 valgrind:: $(subst .c,,$(wildcard $(CUTEST_TEST_DIR)/*_test.c))
-	echo $<
 	@R=true; \
 	processors=`cat /proc/cpuinfo | grep processor | wc -l`; \
 	for i in $^; do \

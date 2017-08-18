@@ -53,6 +53,9 @@
  * * v1.0.2 yyyy-mm-dd Release work flow enhancements
  *
  *   - Fixed the documentation generator to be run before release
+ *   - Made the release build more determenistic and reduced text output
+ *   - Reduced coverage text report to console to only show non-covered
+ *   - Enabled coverage reports also when running test through valgrind
  *
  * * v1.0.1 2017-08-15 Fix-up release
  *
@@ -630,12 +633,13 @@ int cutest_assert_eq_default(const unsigned long long a,
     const int cutest_assert_retval =                                    \
       assert_eq_comp((EXP), (REF))((EXP), (REF), cutest_o);             \
     if (0 != cutest_assert_retval) {                                    \
-      sprintf(cutest_stats.error_output,                                \
-              "%s %s:%d assert_eq(%s, " STR ") failed\n",               \
-              cutest_stats.error_output,                                \
+      char error_output_buf[1024];                                      \
+      sprintf(error_output_buf,                                         \
+              " %s:%d assert_eq(%s, " STR ") failed\n",                 \
               __FILE__,                                                 \
               __LINE__,                                                 \
               cutest_o);                                                \
+      strcat(cutest_stats.error_output, error_output_buf);              \
       cutest_assert_fail_cnt++;                                         \
     }                                                                   \
   }
@@ -647,12 +651,13 @@ int cutest_assert_eq_default(const unsigned long long a,
     const int cutest_assert_retval =                                    \
       assert_eq_comp((EXP), (REF))((EXP), (REF), cutest_o);             \
     if (0 != cutest_assert_retval) {                                    \
-      sprintf(cutest_stats.error_output,                                \
-              "%s %s:%d assert_eq(%s) failed\n",                        \
-              cutest_stats.error_output,                                \
+      char error_output_buf[1024];                                      \
+      sprintf(error_output_buf,                                         \
+              " %s:%d assert_eq(%s) failed\n",                          \
               __FILE__,                                                 \
               __LINE__,                                                 \
               cutest_o);                                                \
+      strcat(cutest_stats.error_output, error_output_buf);              \
       cutest_assert_fail_cnt++;                                         \
     }                                                                   \
   }
@@ -661,19 +666,23 @@ int cutest_assert_eq_default(const unsigned long long a,
 
 #define assert_eq_3(EXP, REF, STR)                                 \
   if ((EXP) != (REF)) {                                            \
-    sprintf(cutest_stats.error_output,                             \
-            "%s %s:%d assert_eq(" #EXP ", " #REF ", " STR ") "     \
-            "failed\n", cutest_stats.error_output,                 \
+    char error_output_buf[1024];                                   \
+    sprintf(error_output_buf,                                      \
+            " %s:%d assert_eq(" #EXP ", " #REF ", " STR ") "       \
+            "failed\n",                                            \
             __FILE__, __LINE__);                                   \
+    strcat(cutest_stats.error_output, error_output_buf);           \
     cutest_assert_fail_cnt++;                                      \
   }
 
 #define assert_eq_2(EXP, REF)                                      \
   if ((EXP) != (REF)) {                                            \
-    sprintf(cutest_stats.error_output,                             \
-            "%s %s:%d assert_eq(" #EXP ", " #REF ") "              \
-            "failed\n", cutest_stats.error_output,                 \
+    char error_output_buf[1024];                                   \
+    sprintf(error_output_buf,                                      \
+            " %s:%d assert_eq(" #EXP ", " #REF ") "                \
+            "failed\n",                                            \
             __FILE__, __LINE__);                                   \
+    strcat(cutest_stats.error_output, error_output_buf);           \
     cutest_assert_fail_cnt++;                                      \
   }
 
@@ -681,10 +690,12 @@ int cutest_assert_eq_default(const unsigned long long a,
 
 #define assert_eq_1(EXP)                                           \
   if (!(EXP)) {                                                    \
-    sprintf(cutest_stats.error_output,                             \
-            "%s %s:%d assert_eq(" #EXP ") "                        \
-            "failed\n", cutest_stats.error_output,                 \
+    char error_output_buf[1024];                                   \
+    sprintf(error_output_buf,                                      \
+            " %s:%d assert_eq(" #EXP ") "                          \
+            "failed\n",                                            \
             __FILE__, __LINE__);                                   \
+    strcat(cutest_stats.error_output, error_output_buf);           \
     cutest_assert_fail_cnt++;                                      \
   }
 
@@ -711,7 +722,7 @@ static int cutest_exit_code = EXIT_SUCCESS;
 struct {
   char suite_name[128];
   char design_under_test[128];
-  char error_output[1024*1024];
+  char error_output[1024*1024*10];
   int test_cnt;
   int fail_cnt;
   float elapsed_time;

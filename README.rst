@@ -32,6 +32,9 @@ Version history
 * v1.0.2 yyyy-mm-dd Release work flow enhancements
 
   - Fixed the documentation generator to be run before release
+  - Made the release build more determenistic and reduced text output
+  - Reduced coverage text report to console to only show non-covered
+  - Enabled coverage reports also when running test through valgrind
 
 * v1.0.1 2017-08-15 Fix-up release
 

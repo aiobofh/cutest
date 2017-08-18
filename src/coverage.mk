@@ -21,15 +21,27 @@
 CUTEST_CFLAGS+=-fprofile-arcs -ftest-coverage
 CUTEST_COVERAGE_DIR?=.
 
+
 coverage.xml: check
 	$(Q)gcovr -r $(CUTEST_COVERAGE_DIR) -e '/usr.*' -e '.*_test.c' -e 'cutest.h' -e '.*_mocks.h' -e 'error.h' -e '.*_test_run.c' -x > $@
 
+.NOTPARALLEL: lines.cov
+lines.cov: $(subst .c,,$(wildcard $(CUTEST_TEST_DIR)/*_test.c))
+	$(Q)gcovr -r $(CUTEST_COVERAGE_DIR) -e '/usr.*' -e '.*_test.c' -e '.*cutest.h' -e '.*_mocks.h' -e 'error.h' -e '.*_test_run.c' $(CUTEST_COVERAGE_EXCLUDE) | egrep -v '^File' | egrep -v '^-' | egrep -v '^Directory' | grep -v 'GCC Code' | grep -v '100%' | grep -v "\-\-\%" > $@; true
+
+.NOTPARALLEL: branches.cov
+branches.cov: $(subst .c,,$(wildcard $(CUTEST_TEST_DIR)/*_test.c))
+	$(Q)gcovr -r $(CUTEST_COVERAGE_DIR) -e '/usr.*' -e '.*_test.c' -e '.*cutest.h'  -e '.*_mocks.h' -e 'error.h' -e '.*_test_run.c' $(CUTEST_COVERAGE_EXCLUDE) -b | egrep -v '^File' | egrep -v '^-' | egrep -v '^Directory' | grep -v 'GCC Code' | grep -v '100%' | grep -v "\-\-\%" > $@; true
+
+output_coverage: lines.cov branches.cov
+	$(Q)test -s lines.cov && echo "Lines not covered:" >&2 && cat lines.cov >&2 && echo >&2; \
+	test -s branches.cov && echo "Branches not covered:" >&2; cat branches.cov >&2
+
 check::
-	$(Q)echo "Lines covered:"; \
-	gcovr -r $(CUTEST_COVERAGE_DIR) -e '/usr.*' -e '.*_test.c' -e '.*cutest.h' -e '.*_mocks.h' -e 'error.h' -e '.*_test_run.c' $(CUTEST_COVERAGE_EXCLUDE) | egrep -v '^File' | egrep -v '^-' | egrep -v '^Directory' | grep -v 'GCC Code'; \
-	echo ""; \
-	echo "Branches covered:"; \
-	gcovr -r $(CUTEST_COVERAGE_DIR) -e '/usr.*' -e '.*_test.c' -e '.*cutest.h'  -e '.*_mocks.h' -e 'error.h' -e '.*_test_run.c' $(CUTEST_COVERAGE_EXCLUDE) -b | egrep -v '^File' | egrep -v '^-' | egrep -v '^Directory' | grep -v 'GCC Code';
+	$(Q)$(MAKE) -r --no-print-directory output_coverage
+
+valgrind::
+	$(Q)$(MAKE) -r --no-print-directory output_coverage
 
 clean::
-	$(Q)rm -rf coverage.xml *.gcno *.gcda
+	$(Q)rm -rf coverage.xml *.gcno *.gcda *.cov

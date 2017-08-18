@@ -2,13 +2,13 @@
 # Makefile to build releases of CUTest
 #
 
-export COVERAGE=0
+#export COVERAGE=1
 VERSION=$(shell grep 'CUTEST_VERSION' src/cutest.h | cut -d'"' -f2)
 
 all:
-	@echo "========================" && \
-	echo "Running regression tests" && \
-	echo "========================" && \
+	@echo "======================================" && \
+	echo "Running regression tests with valgrind" && \
+	echo "======================================" && \
 	echo "" && \
 	$(MAKE) -r --no-print-directory regression_tests && \
 	$(MAKE) -r --no-print-directory README.rst && \
@@ -17,11 +17,11 @@ all:
 
 regression_tests:
 	@echo "examples:" && \
-	$(MAKE) -r --no-print-directory -C examples && echo "OK" && \
+	$(MAKE) -r --no-print-directory -C examples valgrind >/dev/null && echo "OK" && \
 	echo "my_project_with_a_test_folder_inside_the_src_folder:" && \
-	$(MAKE) -r --no-print-directory -C examples/complex_directory_structure/my_project_with_a_test_folder_inside_the_src_folder/src && echo "OK" && \
+	$(MAKE) -r --no-print-directory -C examples/complex_directory_structure/my_project_with_a_test_folder_inside_the_src_folder/src valgrind >/dev/null && echo "OK" && \
 	echo "my_project_with_separate_src_and_test_folders:" && \
-	$(MAKE) -r --no-print-directory -C examples/complex_directory_structure/my_project_with_separate_src_and_test_folders && echo "OK" && \
+	$(MAKE) -r --no-print-directory -C examples/complex_directory_structure/my_project_with_separate_src_and_test_folders valgrind >/dev/null && echo "OK" && \
 	echo ""
 
 release: cutest-$(VERSION).tar.gz
@@ -48,9 +48,9 @@ cutest-$(VERSION).tar.gz:
 	echo "OK" && \
 	echo "" && \
 	tar -xzf cutest-$(VERSION).tar.gz && cp Makefile cutest-$(VERSION)/. && \
-	echo "========================" && \
-	echo "Testing tar-ball" && \
-	echo "========================" && \
+	echo "==============================" && \
+	echo "Testing tar-ball with valgrind" && \
+	echo "==============================" && \
 	echo "" && \
 	$(MAKE) -r --no-print-directory -C cutest-$(VERSION) regression_tests && \
 	rm -rf cutest-$(VERSION) && \
@@ -68,7 +68,9 @@ README.rst: examples/cutest_help.rst
 	echo "" && \
 	mv $^ $@ && echo "OK" && \
 	$(MAKE) -r --no-print-directory -C examples clean && \
-	echo ""
+	echo "" && \
+	git add $@
+
 clean:
 	@rm -rf tmp cutest-* *~ && \
 	$(MAKE) -r --no-print-directory -C examples clean && \
