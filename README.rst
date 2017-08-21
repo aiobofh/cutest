@@ -465,6 +465,24 @@ Then you should be able to write a test that looks something like this::
    assert_eq(gold, values); // Will invoke your own compare function
  }
 
+The skip() macro
+----------------
+
+This is a feature that come in handy when you are unable to run a test
+for some reason, but intend to fix it sooner or later. Just put this
+macro in the first line of your test-case and the test will be skipped
+and logged as skipped. It requires a string as argument, which should
+contain the reason for the test being skipped currently. And remember
+to refactor/re-implement code so that all tests pass :) .
+
+Example::
+
+ test(this_test_will_be_skipped)
+ {
+   skip("This test is being skipped, since the code just will crash");
+   assert_eq(0, product_code_that_will_crash());
+ }
+
 Phases in the test-build and -execution
 ---------------------------------------
 
@@ -509,9 +527,15 @@ Test execution
 When executing tests the elapsed time for execution is sampled and
 used in the JUnit report. Depending on command line options an
 output is printed to the console, either as a short version with
-'.' for successful test run and 'F' for failed test run, but if set
-to verbose ``-v`` ``[PASS]`` and ``[FAIL]`` output is produced. What
-triggers a failure is if an ``assert_eq()`` is not fulfilled.
+'.' for successful test run, 'F' for failed test run, 'E' for an
+error (crash), or 'S' for skipped tests. But if the test-runner is set
+to verbose ``-v``: ``[PASS]``, ``[FAIL]``, ``[ERROR]`` and ``[SKIP]``
+output is produced.
+
+* PASS - All went good and all asserts were fulfilled.
+* FAIL - One or more asserts were not fulfilled.
+* ERROR - The design under test or the test case crashed.
+* SKIP - The test is skipped using the ``skip()`` macro
 
 If the test runner is started with verbose mode ``-v`` the offending
 assert will be printed to the console directly after the fail. If

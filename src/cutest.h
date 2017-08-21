@@ -397,6 +397,8 @@
 #define _XOPEN_SOURCE
 #include <time.h>
 #include <math.h>
+#include <signal.h>
+#include <setjmp.h>
 
 extern struct tm *localtime_r(const time_t *timep, struct tm *result);
 
@@ -418,7 +420,6 @@ extern struct tm *localtime_r(const time_t *timep, struct tm *result);
  *   }
  *
  */
-#define skip(NAME) void cutest_skipped_##NAME()
 #define test(NAME) void cutest_##NAME()
 
 /*
@@ -709,7 +710,34 @@ int cutest_assert_eq_default(const unsigned long long a,
 
 #define assert_eq(...) assert_eq_chooser(__VA_ARGS__)(__VA_ARGS__)
 
+/*
+ * The skip() macro
+ * ----------------
+ *
+ * This is a feature that come in handy when you are unable to run a test
+ * for some reason, but intend to fix it sooner or later. Just put this
+ * macro in the first line of your test-case and the test will be skipped
+ * and logged as skipped. It requires a string as argument, which should
+ * contain the reason for the test being skipped currently. And remember
+ * to refactor/re-implement code so that all tests pass :) .
+ *
+ * Example::
+ *
+ *  test(this_test_will_be_skipped)
+ *  {
+ *    skip("This test is being skipped, since the code just will crash");
+ *    assert_eq(0, product_code_that_will_crash());
+ *  }
+ *
+ */
+#define skip(REASON)                            \
+  cutest_stats.skip_reason = REASON;            \
+  cutest_stats.skip_cnt++;                      \
+  return
+
+
 static int cutest_assert_fail_cnt = 0;
+static int cutest_error_cnt = 0;
 static struct {
   int verbose;
   int junit;
@@ -725,6 +753,9 @@ struct {
   char error_output[1024*1024*10];
   int test_cnt;
   int fail_cnt;
+  int error_cnt;
+  int skip_cnt;
+  char* skip_reason;
   float elapsed_time;
 } cutest_stats;
 
@@ -771,6 +802,19 @@ static char cutest_junit_report_tmp[CUTEST_MAX_JUNIT_BUFFER_SIZE + 1];
  * state, if your code require such things.
  *
  */
+jmp_buf buf;
+
+static void cutest_segfault_handler(int s)
+{
+  switch(s) {
+  case SIGSEGV:
+    longjmp(buf, 1);
+    break;
+  default:
+    fprintf(stderr, "ERROR: Misconfigured CUTest version\n");
+  }
+}
+
 static void cutest_startup(int argc, char* argv[],
                            const char* suite_name)
 {
@@ -796,6 +840,7 @@ static void cutest_startup(int argc, char* argv[],
   memset(&cutest_stats, 0, sizeof(cutest_stats));
   strcpy(cutest_stats.suite_name, suite_name);
   strcpy(cutest_stats.design_under_test, suite_name);
+  signal(SIGSEGV, cutest_segfault_handler);
 }
 
 /*
@@ -805,9 +850,15 @@ static void cutest_startup(int argc, char* argv[],
  * When executing tests the elapsed time for execution is sampled and
  * used in the JUnit report. Depending on command line options an
  * output is printed to the console, either as a short version with
- * '.' for successful test run and 'F' for failed test run, but if set
- * to verbose ``-v`` ``[PASS]`` and ``[FAIL]`` output is produced. What
- * triggers a failure is if an ``assert_eq()`` is not fulfilled.
+ * '.' for successful test run, 'F' for failed test run, 'E' for an
+ * error (crash), or 'S' for skipped tests. But if the test-runner is set
+ * to verbose ``-v``: ``[PASS]``, ``[FAIL]``, ``[ERROR]`` and ``[SKIP]``
+ * output is produced.
+ *
+ * * PASS - All went good and all asserts were fulfilled.
+ * * FAIL - One or more asserts were not fulfilled.
+ * * ERROR - The design under test or the test case crashed.
+ * * SKIP - The test is skipped using the ``skip()`` macro
  *
  * If the test runner is started with verbose mode ``-v`` the offending
  * assert will be printed to the console directly after the fail. If
@@ -827,23 +878,45 @@ static void cutest_execute_test(void (*func)(), const char *name,
   time_t end_time;
   double elapsed_time;
   memset(&cutest_mock, 0, sizeof(cutest_mock));
+  cutest_stats.skip_reason = NULL;
   if (1 == do_mock) {
     cutest_set_mocks_to_original_functions();
   }
-  func();
+  if (!setjmp(buf)) { /* To be able to recover from segfaults */
+    func();
+  }
+  else {
+    char buf[1024];
+    sprintf(buf, " Segmentation fault! Caught in: %s\n", name);
+    strcat(cutest_stats.error_output, buf);
+    cutest_error_cnt++;
+  }
   if (cutest_opts.verbose) {
-    if (cutest_assert_fail_cnt == 0) {
+    if (NULL != cutest_stats.skip_reason) {
+      printf("[SKIP]: %s\n", name);
+    }
+    else if (cutest_error_cnt != 0) {
+      printf("[ERROR]: %s\n", name);
+      printf("%s", cutest_stats.error_output);
+    }
+    else if (cutest_assert_fail_cnt == 0) {
       printf("[PASS]: %s\n", name);
     }
     else {
       printf("[FAIL]: %s\n", name);
       printf("%s", cutest_stats.error_output);
-      memset(cutest_stats.error_output, 0,
-             sizeof(cutest_stats.error_output));
     }
+    memset(cutest_stats.error_output, 0,
+           sizeof(cutest_stats.error_output));
   }
   else {
-    if (cutest_assert_fail_cnt == 0) {
+    if (NULL != cutest_stats.skip_reason) {
+      printf("S");
+    }
+    else if (cutest_error_cnt != 0) {
+      printf("E");
+    }
+    else if (cutest_assert_fail_cnt == 0) {
       printf(".");
     }
     else {
@@ -858,6 +931,7 @@ static void cutest_execute_test(void (*func)(), const char *name,
 
   cutest_stats.test_cnt++;
   cutest_stats.fail_cnt += (cutest_assert_fail_cnt != 0);
+  cutest_stats.error_cnt += (cutest_error_cnt != 0 );
 
   end_time = time(NULL);
 
@@ -871,6 +945,18 @@ static void cutest_execute_test(void (*func)(), const char *name,
           "%s    <testcase classname=\"%s\" name=\"%s\" time=\"%f\">\n",
           cutest_junit_report_tmp, cutest_stats.design_under_test,
           name, elapsed_time);
+  if (NULL != cutest_stats.skip_reason) {
+    strcpy(cutest_junit_report_tmp, cutest_junit_report);
+    sprintf(cutest_junit_report,
+            "%s      <skipped />\n",
+            cutest_junit_report_tmp);
+  }
+  if (cutest_error_cnt != 0) {
+    strcpy(cutest_junit_report_tmp, cutest_junit_report);
+    sprintf(cutest_junit_report,
+            "%s      <error message=\"segfault\">%s</failure>\n",
+            cutest_junit_report_tmp, cutest_stats.error_output);
+  }
   if (cutest_assert_fail_cnt != 0) {
     strcpy(cutest_junit_report_tmp, cutest_junit_report);
     sprintf(cutest_junit_report,
@@ -882,6 +968,7 @@ static void cutest_execute_test(void (*func)(), const char *name,
           cutest_junit_report_tmp);
 
   cutest_assert_fail_cnt = 0;
+  cutest_error_cnt = 0;
 }
 
 /*
@@ -944,12 +1031,14 @@ static void cutest_shutdown(const char* filename)
             "             errors=\"%d\"\n"
             "             tests=\"%d\"\n"
             "             failures=\"%d\"\n"
+            "             skipped=\"%d\"\n"
             "             time=\"%f\"\n"
             "             timestamp=\"%s\">\n"
             "%s"
             "  </testsuite>\n"
             "</testsuites>\n",
             filename, 0, cutest_stats.test_cnt, cutest_stats.fail_cnt,
+            cutest_stats.skip_cnt,
             (double)cutest_stats.elapsed_time / (double)1000, timestamp,
             cutest_junit_report);
     fclose(stream);
@@ -2801,11 +2890,31 @@ int main(int argc, char* argv[]) {
          "  cutest_startup(argc, argv, \"%s\");\n\n", argv[1]);
 
   FILE *fd = fopen(argv[1], "r");
+  int slash_star_comment = 0;
   while (!feof(fd)) {
     char buf[1024];
     if (NULL == fgets(buf, 1024, fd)) {
       break; /* End of file */
     }
+
+    const size_t len = strlen(buf);
+    size_t i;
+    for (i = 0; i < len - 1; i++) {
+      if (('/' == buf[i]) && ('*' == buf[i+1])) {
+        slash_star_comment++;
+      }
+      else if (('*' == buf[i]) && ('/' == buf[i+1])) {
+        slash_star_comment--;
+      }
+    }
+
+    if (slash_star_comment > 0) {
+      continue;
+    }
+
+    /*
+     * Find test-names
+     */
     if (('t' == buf[0]) &&
         ('e' == buf[1]) &&
         ('s' == buf[2]) &&
