@@ -29,7 +29,7 @@ naive, simple and realistic examples of various CUTest usages.
 Version history
 ---------------
 
-* v1.0.2 yyyy-mm-dd Release work flow enhancements
+* v1.0.2 2017-08-30 Release work flow fix, skipping and output fix
 
   - Fixed the documentation generator to be run before release
   - Made the release build more determenistic and reduced text output

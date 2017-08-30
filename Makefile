@@ -4,6 +4,7 @@
 
 #export COVERAGE=1
 VERSION=$(shell grep 'CUTEST_VERSION' src/cutest.h | cut -d'"' -f2)
+DATE=$(shell /bin/date +"%Y-%m-%d")
 
 all:
 	@echo "======================================" && \
@@ -54,9 +55,13 @@ cutest-$(VERSION).tar.gz:
 	echo "" && \
 	$(MAKE) -r --no-print-directory -C cutest-$(VERSION) regression_tests && \
 	rm -rf cutest-$(VERSION) && \
-	echo "" && \
-	echo "ALL OK!!! Go ahead and upload the cutest-$(VERSION).tar.gz then inform the public!" && \
-	echo ""
+	grep 'yyyy-mm-dd' README.rst >/dev/null && (bash -c 'echo -e "\e[31mWARNING!!!\e[0m: cutest.h still as yyyy-mm-dd. You need to update it."'; echo "Removing $@"; rm -f $@; true); \
+	grep ' * * v$(VERSION) $(DATE)' README.rst >/dev/null || (bash -c 'echo -e "\e[31mWARNING!!!\e[0m: cutest.h has wrong date."'; echo "Removing $@"; rm -f $@: true); \
+	git status | grep 'git add' >/dev/null && (git status; echo "Removing $@" && rm -f $@; true); \
+	test -f $@ && echo "\nALL OK!!! Go ahead and upload the cutest-$(VERSION).tar.gz then inform the public!\n"
+
+foo:
+	bash -c 'echo -e "\e[31mWARNING\e[0m: cutest.h still as yyyy-mm-dd. You need to update it."'
 
 examples/cutest_help.rst:
 	@$(MAKE) -r --no-print-directory -C examples cutest_help.rst
@@ -68,8 +73,7 @@ README.rst: examples/cutest_help.rst
 	echo "" && \
 	mv $^ $@ && echo "OK" && \
 	$(MAKE) -r --no-print-directory -C examples clean && \
-	echo "" && \
-	git add $@
+	echo ""
 
 clean:
 	@rm -rf tmp cutest-* *~ && \
