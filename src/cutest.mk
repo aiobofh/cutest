@@ -89,19 +89,23 @@ $(CUTEST_TEST_DIR)/%.tu: $(subst _test,,$(CUTEST_TEST_DIR)/%_test.c)
 	cat $<.*.tu | c++filt > $@ && \
 	rm -f $<.*.tu
 
+# Produce an object file to be processed to search for mockable functions
 .PRECIOUS: $(CUTEST_TEST_DIR)/%_mockables.o
 $(CUTEST_TEST_DIR)/%_mockables.o: $(CUTEST_SRC_DIR)/%.c
 	$(Q)$(CC) -o $@ -c $< $(CFLAGS) $(CUTEST_IFLAGS) -I$(CUTEST_SRC_DIR) $(CUTEST_DEFINES)
 
+# Generate a list of all posible mockable functions
 .PRECIOUS: $(CUTEST_TEST_DIR)/%_mockables.lst
 $(CUTEST_TEST_DIR)/%_mockables.lst: $(CUTEST_TEST_DIR)/%_mockables.o
 	$(Q)nm $< | sed 's/.* //g' | grep -v '__stack_' | sort -u > $@
 
+# Generate an assembler file for later processing
 .PRECIOUS: $(CUTEST_TEST_DIR)/%_mockables.s
 $(CUTEST_TEST_DIR)/%_mockables.s: $(CUTEST_SRC_DIR)/%.c
 	$(Q)$(CC) -S -fverbose-asm -fvisibility=hidden -fno-inline -g -O0 \
 	-o $@ -c $^ $(CUTEST_CFLAGS) $(CUTEST_IFLAGS) $(CUTEST_DEFINES) -D"static=" -D"inline=" -D"main=MAIN"
 
+# Generate an assembler output with all function calls replaced to cutest mocks/stubs
 .PRECIOUS: $(CUTEST_TEST_DIR)/%_proxified.s
 $(CUTEST_TEST_DIR)/%_proxified.s: $(CUTEST_TEST_DIR)/%_mockables.s $(CUTEST_TEST_DIR)/%_mockables.lst $(CUTEST_TEST_DIR)/cutest_prox $(CUTEST_TEST_DIR)/cutest_filt
 	$(Q)$(CUTEST_TEST_DIR)//cutest_prox $< $(subst .s,.lst,$<) > $@
@@ -136,13 +140,35 @@ $(CUTEST_TEST_DIR)/cutest_help.html: $(CUTEST_TEST_DIR)/cutest_help.rst
 cutest_help: $(CUTEST_TEST_DIR)/cutest_help.rst
 	$(Q)less $<
 
+# Produce a valgrind report
 $(CUTEST_TEST_DIR)/%_test.memcheck: $(CUTEST_TEST_DIR)/%_test
 	$(Q)valgrind -q --xml=yes --xml-file=$@ ./$< > /dev/null
 
-check:: $(subst .c,,$(wildcard $(CUTEST_TEST_DIR)/*_test.c))
+# Produce a list of potential test-suite file names
+$(CUTEST_TEST_DIR)/cutest_sources.lst: $(CUTEST_SRC_DIR)
+	$(Q)ls -1 $(CUTEST_SRC_DIR)/*.c | grep -v '_test.c' | grep -v 'cutest_' | grep -v '_test_run.c' | sed -e 's/^.*\///g;s/\.c/_test\.c/g' > $@
+
+# Produce a list of actual test-suite file names
+$(CUTEST_TEST_DIR)/cutest_testsuites.lst: $(CUTEST_TEST_DIR)
+	$(Q)ls -1 $(CUTEST_TEST_DIR)/*_test.c | sed -e 's/^.*\///g' > $@
+
+# Compare the potential and actual list to determine if any test-suites are missing
+missing: $(CUTEST_TEST_DIR)/cutest_sources.lst $(CUTEST_TEST_DIR)/cutest_testsuites.lst
+	$(Q)for i in `cat $(CUTEST_TEST_DIR)/cutest_sources.lst`; do \
+	  grep $$i $(CUTEST_TEST_DIR)/cutest_testsuites.lst >/dev/null || echo "WARNING: Missing testsuite $$i" >&2; \
+	done
+
+# Compare the potential and actual list to determine if there are too many test-suites
+toomany: $(CUTEST_TEST_DIR)/cutest_sources.lst $(CUTEST_TEST_DIR)/cutest_testsuites.lst
+	$(Q)for i in `cat $(CUTEST_TEST_DIR)/cutest_testsuites.lst`; do \
+	  grep $$i $(CUTEST_TEST_DIR)/cutest_sources.lst >/dev/null || echo "WARNING: Unused testsuite $$i" >&2; \
+	done
+
+# Run all test-suites on as many threads as needed
+check:: missing toomany $(subst .c,,$(wildcard $(CUTEST_TEST_DIR)/*_test.c))
 	@R=true; \
 	processors=`cat /proc/cpuinfo | grep processor | wc -l`; \
-	for i in $^; do \
+	for i in $(filter-out toomany,$(filter-out missing,$^)); do \
 	  while [ `ps xa | grep -v grep | grep '_test ' | wc -l` -gt $$processors ]; do sleep 0.1; done; \
 	  ./$$i $V -j || rm $$i || R=false & \
 	done; \
@@ -151,12 +177,14 @@ check:: $(subst .c,,$(wildcard $(CUTEST_TEST_DIR)/*_test.c))
 	done; \
 	echo "	"; `$$R`
 
+# Perform a memcheck on any test suite
 memcheck:: $(subst .c,.memcheck,$(wildcard $(CUTEST_TEST_DIR)/*_test.c))
 
-valgrind:: $(subst .c,,$(wildcard $(CUTEST_TEST_DIR)/*_test.c))
+# Run all test-suites on as many threads as needed and verify with valgrind
+valgrind:: missing toomany $(subst .c,,$(wildcard $(CUTEST_TEST_DIR)/*_test.c))
 	@R=true; \
 	processors=`cat /proc/cpuinfo | grep processor | wc -l`; \
-	for i in $^; do \
+	for i in $(filter-out toomany,$(filter-out missing,$^)); do \
 	  while [ `ps xa | grep -v grep | grep '_test ' | wc -l` -gt $$processors ]; do sleep 0.1; done; \
 	  valgrind -q ./$$i -v -j || rm $$i || R=false & \
 	done; \
@@ -179,4 +207,6 @@ clean::
 	$(CUTEST_TEST_DIR)/*_proxified.* \
 	$(CUTEST_TEST_DIR)/cutest_help.rst \
 	$(CUTEST_TEST_DIR)/cutest_help.html \
+	$(CUTEST_TEST_DIR)/cutest_sources.lst \
+	$(CUTEST_TEST_DIR)/cutest_testsuites.lst \
 	$(CUTEST_TEST_DIR)/*~
