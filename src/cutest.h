@@ -808,6 +808,7 @@ static void cutest_segfault_handler(int s)
 {
   switch(s) {
   case SIGSEGV:
+    signal(SIGSEGV, cutest_segfault_handler);
     longjmp(buf, 1);
     break;
   default:
@@ -840,6 +841,7 @@ static void cutest_startup(int argc, char* argv[],
   memset(&cutest_stats, 0, sizeof(cutest_stats));
   strcpy(cutest_stats.suite_name, suite_name);
   strcpy(cutest_stats.design_under_test, suite_name);
+
   signal(SIGSEGV, cutest_segfault_handler);
 }
 
