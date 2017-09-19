@@ -923,7 +923,7 @@ static void cutest_execute_test(void (*func)(), const char *name,
   if (1 == do_mock) {
     cutest_set_mocks_to_original_functions();
   }
-  if (!setjmp(buf)) { /* To be able to recover from segfaults */
+  if ((0 == cutest_opts.segfault_recovery) || (!setjmp(buf))) { /* To be able to recover from segfaults */
     func();
   }
   else {
