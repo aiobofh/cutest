@@ -399,6 +399,7 @@
 #include <math.h>
 #include <signal.h>
 #include <setjmp.h>
+#include <string.h>
 
 extern struct tm *localtime_r(const time_t *timep, struct tm *result);
 
@@ -742,6 +743,7 @@ static struct {
   int verbose;
   int junit;
   int no_linefeed;
+  int segfault_recovery;
 } cutest_opts;
 static int cutest_exit_code = EXIT_SUCCESS;
 
@@ -758,6 +760,11 @@ struct {
   char* skip_reason;
   float elapsed_time;
 } cutest_stats;
+
+static struct {
+  int cnt;
+  char test_name[1024][1024];
+} cutest_tests_to_run;
 
 static char cutest_junit_report[CUTEST_MAX_JUNIT_BUFFER_SIZE + 1];
 static char cutest_junit_report_tmp[CUTEST_MAX_JUNIT_BUFFER_SIZE + 1];
@@ -816,12 +823,31 @@ static void cutest_segfault_handler(int s)
   }
 }
 
+static int cutest_test_name_argument_given(const char* test_name)
+{
+  int i = 0;
+  if (0 == cutest_tests_to_run.cnt) {
+    return 1;
+  }
+  while (i < cutest_tests_to_run.cnt) {
+    if (0 == strcmp(test_name, cutest_tests_to_run.test_name[i])) {
+      return 1;
+    }
+    i++;
+  }
+  return 0;
+}
+
 static void cutest_startup(int argc, char* argv[],
                            const char* suite_name)
 {
   int i;
+
+  memset(&cutest_tests_to_run, 0, sizeof(cutest_tests_to_run));
+
   cutest_opts.verbose = 0;
   cutest_opts.junit = 0;
+  cutest_opts.segfault_recovery = 0;
   for (i = 1; i < argc; i++) {
     if ((0 == strcmp(argv[i], "-v")) ||
         (0 == strcmp(argv[i], "--verbose"))) {
@@ -835,14 +861,29 @@ static void cutest_startup(int argc, char* argv[],
         (0 == strcmp(argv[i], "--no-linefeed"))) {
       cutest_opts.no_linefeed = 1;
     }
+    /*
+    if ((0 == strcmp(argv[i], "-s")) ||
+        (0 == strcmp(argv[i], "--segfault-recovery"))) {
+      cutest_opts.segfault_recovery = 1;
+    }
+    */
+
+    strcpy(cutest_tests_to_run.test_name[cutest_tests_to_run.cnt++], argv[i]);
   }
+
   memset(cutest_junit_report, 0, sizeof(cutest_junit_report));
   memset(cutest_junit_report_tmp, 0, sizeof(cutest_junit_report_tmp));
   memset(&cutest_stats, 0, sizeof(cutest_stats));
   strcpy(cutest_stats.suite_name, suite_name);
   strcpy(cutest_stats.design_under_test, suite_name);
 
+  /*
+  if (1 == cutest_opts.segfault_recovery) {
+  */
   signal(SIGSEGV, cutest_segfault_handler);
+  /*
+  }
+  */
 }
 
 /*
@@ -2929,8 +2970,11 @@ int main(int argc, char* argv[]) {
           char *start = &buf[5];
           int name_len = i - name_pos;
           buf[name_pos + name_len] = '\0';
-          printf("  cutest_execute_test(cutest_%s, \"%s\", 0);\n",
+          printf("  if (1 == cutest_test_name_argument_given(\"%s\")) {\n",
+                 start);
+          printf("    cutest_execute_test(cutest_%s, \"%s\", 0);\n",
                  start, start);
+          printf("  }\n");
           break;
         }
       }
@@ -2954,8 +2998,11 @@ int main(int argc, char* argv[]) {
           char *start = &buf[12];
           int name_len = i - name_pos;
           buf[name_pos + name_len] = '\0';
-          printf("  cutest_execute_test(cutest_module_%s, \"%s\", 1);\n",
+          printf("  if (1 == cutest_test_name_argument_given(\"%s\")) {\n",
+                 start);
+          printf("    cutest_execute_test(cutest_module_%s, \"%s\", 1);\n",
                  start, start);
+          printf("  }\n");
           break;
         }
       }
