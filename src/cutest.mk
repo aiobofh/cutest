@@ -170,7 +170,7 @@ check:: missing toomany $(subst .c,,$(wildcard $(CUTEST_TEST_DIR)/*_test.c))
 	processors=`cat /proc/cpuinfo | grep processor | wc -l`; \
 	for i in $(filter-out toomany,$(filter-out missing,$^)); do \
 	  while [ `ps xa | grep -v grep | grep '_test ' | wc -l` -gt $$processors ]; do sleep 0.1; done; \
-	  ./$$i $V -j || rm $$i || R=false & \
+	  ./$$i $V -j -s || rm $$i || R=false & \
 	done; \
 	while [ `ps xa | grep -v grep | grep '_test ' | wc -l` -gt 0 ]; do \
 	  sleep 1; \
@@ -186,7 +186,7 @@ valgrind:: missing toomany $(subst .c,,$(wildcard $(CUTEST_TEST_DIR)/*_test.c))
 	processors=`cat /proc/cpuinfo | grep processor | wc -l`; \
 	for i in $(filter-out toomany,$(filter-out missing,$^)); do \
 	  while [ `ps xa | grep -v grep | grep '_test ' | wc -l` -gt $$processors ]; do sleep 0.1; done; \
-	  valgrind -q ./$$i -v -j || rm $$i || R=false & \
+	  valgrind -q ./$$i -v -j -s || rm $$i || R=false & \
 	done; \
 	while [ `ps xa | grep -v grep | grep '_test ' | wc -l` -gt 0 ]; do \
 	  sleep 1; \

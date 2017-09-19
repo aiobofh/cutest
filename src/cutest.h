@@ -852,21 +852,23 @@ static void cutest_startup(int argc, char* argv[],
     if ((0 == strcmp(argv[i], "-v")) ||
         (0 == strcmp(argv[i], "--verbose"))) {
       cutest_opts.verbose = 1;
+      continue;
     }
     if ((0 == strcmp(argv[i], "-j")) ||
         (0 == strcmp(argv[i], "--junit"))) {
       cutest_opts.junit = 1;
+      continue;
     }
     if ((0 == strcmp(argv[i], "-n")) ||
         (0 == strcmp(argv[i], "--no-linefeed"))) {
       cutest_opts.no_linefeed = 1;
+      continue;
     }
-    /*
     if ((0 == strcmp(argv[i], "-s")) ||
         (0 == strcmp(argv[i], "--segfault-recovery"))) {
       cutest_opts.segfault_recovery = 1;
+      continue;
     }
-    */
 
     strcpy(cutest_tests_to_run.test_name[cutest_tests_to_run.cnt++], argv[i]);
   }
@@ -877,13 +879,9 @@ static void cutest_startup(int argc, char* argv[],
   strcpy(cutest_stats.suite_name, suite_name);
   strcpy(cutest_stats.design_under_test, suite_name);
 
-  /*
   if (1 == cutest_opts.segfault_recovery) {
-  */
-  signal(SIGSEGV, cutest_segfault_handler);
-  /*
+    signal(SIGSEGV, cutest_segfault_handler);
   }
-  */
 }
 
 /*
