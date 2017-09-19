@@ -647,7 +647,7 @@ int cutest_assert_eq_default(const unsigned long long a,
               __FILE__,                                                 \
               __LINE__,                                                 \
               cutest_o);                                                \
-      strcat(cutest_stats.error_output, error_output_buf);              \
+      strcat(cutest_stats.current_error_output, error_output_buf);      \
       cutest_assert_fail_cnt++;                                         \
     }                                                                   \
   }
@@ -665,7 +665,7 @@ int cutest_assert_eq_default(const unsigned long long a,
               __FILE__,                                                 \
               __LINE__,                                                 \
               cutest_o);                                                \
-      strcat(cutest_stats.error_output, error_output_buf);              \
+      strcat(cutest_stats.current_error_output, error_output_buf);      \
       cutest_assert_fail_cnt++;                                         \
     }                                                                   \
   }
@@ -679,7 +679,7 @@ int cutest_assert_eq_default(const unsigned long long a,
             " %s:%d assert_eq(" #EXP ", " #REF ", " STR ") "       \
             "failed\n",                                            \
             __FILE__, __LINE__);                                   \
-    strcat(cutest_stats.error_output, error_output_buf);           \
+    strcat(cutest_stats.current_error_output, error_output_buf);   \
     cutest_assert_fail_cnt++;                                      \
   }
 
@@ -690,7 +690,7 @@ int cutest_assert_eq_default(const unsigned long long a,
             " %s:%d assert_eq(" #EXP ", " #REF ") "                \
             "failed\n",                                            \
             __FILE__, __LINE__);                                   \
-    strcat(cutest_stats.error_output, error_output_buf);           \
+    strcat(cutest_stats.current_error_output, error_output_buf);   \
     cutest_assert_fail_cnt++;                                      \
   }
 
@@ -703,7 +703,7 @@ int cutest_assert_eq_default(const unsigned long long a,
             " %s:%d assert_eq(" #EXP ") "                          \
             "failed\n",                                            \
             __FILE__, __LINE__);                                   \
-    strcat(cutest_stats.error_output, error_output_buf);           \
+    strcat(cutest_stats.current_error_output, error_output_buf);   \
     cutest_assert_fail_cnt++;                                      \
   }
 
@@ -759,6 +759,7 @@ struct {
   char suite_name[128];
   char design_under_test[128];
   char error_output[1024*1024*10];
+  char current_error_output[1024];
   int test_cnt;
   int fail_cnt;
   int error_cnt;
@@ -924,6 +925,7 @@ static void cutest_execute_test(void (*func)(), const char *name,
   time_t start_time = time(NULL);
   time_t end_time;
   double elapsed_time;
+  cutest_stats.current_error_output[0] = 0;
   memset(&cutest_mock, 0, sizeof(cutest_mock));
   cutest_stats.skip_reason = NULL;
   if (1 == do_mock) {
@@ -935,7 +937,7 @@ static void cutest_execute_test(void (*func)(), const char *name,
   else {
     char buf[1024];
     sprintf(buf, " Segmentation fault! Caught in: %s\n", name);
-    strcat(cutest_stats.error_output, buf);
+    strcat(cutest_stats.current_error_output, buf);
     sprintf(buf, "gdb --batch -ex \"r -v %s\" -ex \"bt\" %s", name, prog_name);
     FILE* fp = popen(buf, "r");
     if (NULL == fp) {
@@ -945,12 +947,12 @@ static void cutest_execute_test(void (*func)(), const char *name,
       while (!feof(fp)) {
         char b[1024];
         if (NULL != fgets(b, sizeof(b), fp)) {
-          strcat(cutest_stats.error_output, "  ");
-          strcat(cutest_stats.error_output, b);
+          strcat(cutest_stats.current_error_output, "  ");
+          strcat(cutest_stats.current_error_output, b);
         }
       }
       pclose(fp);
-      strcat(cutest_stats.error_output, "\n");
+      strcat(cutest_stats.current_error_output, "\n");
     }
     cutest_error_cnt++;
   }
@@ -960,17 +962,15 @@ static void cutest_execute_test(void (*func)(), const char *name,
     }
     else if (cutest_error_cnt != 0) {
       printf("[ERROR]: %s\n", name);
-      printf("%s", cutest_stats.error_output);
+      printf("%s", cutest_stats.current_error_output);
     }
     else if (cutest_assert_fail_cnt == 0) {
       printf("[PASS]: %s\n", name);
     }
     else {
       printf("[FAIL]: %s\n", name);
-      printf("%s", cutest_stats.error_output);
+      printf("%s", cutest_stats.current_error_output);
     }
-    memset(cutest_stats.error_output, 0,
-           sizeof(cutest_stats.error_output));
   }
   else {
     if (NULL != cutest_stats.skip_reason) {
@@ -1018,13 +1018,13 @@ static void cutest_execute_test(void (*func)(), const char *name,
     strcpy(cutest_junit_report_tmp, cutest_junit_report);
     sprintf(cutest_junit_report,
             "%s      <error message=\"segfault\">%s</failure>\n",
-            cutest_junit_report_tmp, cutest_stats.error_output);
+            cutest_junit_report_tmp, cutest_stats.current_error_output);
   }
   if (cutest_assert_fail_cnt != 0) {
     strcpy(cutest_junit_report_tmp, cutest_junit_report);
     sprintf(cutest_junit_report,
             "%s      <failure message=\"test failure\">%s</failure>\n",
-            cutest_junit_report_tmp, cutest_stats.error_output);
+            cutest_junit_report_tmp, cutest_stats.current_error_output);
   }
   strcpy(cutest_junit_report_tmp, cutest_junit_report);
   sprintf(cutest_junit_report, "%s    </testcase>\n",
@@ -1032,8 +1032,8 @@ static void cutest_execute_test(void (*func)(), const char *name,
 
   cutest_assert_fail_cnt = 0;
   cutest_error_cnt = 0;
-  memset(cutest_stats.error_output, 0,
-         sizeof(cutest_stats.error_output));
+  strcat(cutest_stats.error_output, cutest_stats.current_error_output);
+  memset(cutest_stats.current_error_output, 0, sizeof(cutest_stats.current_error_output));
 }
 
 /*
