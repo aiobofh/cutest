@@ -400,6 +400,7 @@
 #include <signal.h>
 #include <setjmp.h>
 #include <string.h>
+#include <stdio.h>
 
 extern struct tm *localtime_r(const time_t *timep, struct tm *result);
 
@@ -913,7 +914,7 @@ static void cutest_startup(int argc, char* argv[],
  *
  */
 static void cutest_execute_test(void (*func)(), const char *name,
-                                int do_mock)
+                                int do_mock, const char *prog_name)
 {
   time_t start_time = time(NULL);
   time_t end_time;
@@ -930,6 +931,22 @@ static void cutest_execute_test(void (*func)(), const char *name,
     char buf[1024];
     sprintf(buf, " Segmentation fault! Caught in: %s\n", name);
     strcat(cutest_stats.error_output, buf);
+    sprintf(buf, "gdb --batch -ex \"r -v %s\" -ex \"bt\" %s", name, prog_name);
+    FILE* fp = popen(buf, "r");
+    if (NULL == fp) {
+      fprintf(stderr, "ERROR: Unable to execute '%s' to investigate segfault\n", buf);
+    }
+    else {
+      while (!feof(fp)) {
+        char b[1024];
+        if (NULL != fgets(b, sizeof(b), fp)) {
+          strcat(cutest_stats.error_output, "  ");
+          strcat(cutest_stats.error_output, b);
+        }
+      }
+      pclose(fp);
+      strcat(cutest_stats.error_output, "\n");
+    }
     cutest_error_cnt++;
   }
   if (cutest_opts.verbose) {
@@ -1010,6 +1027,8 @@ static void cutest_execute_test(void (*func)(), const char *name,
 
   cutest_assert_fail_cnt = 0;
   cutest_error_cnt = 0;
+  memset(cutest_stats.error_output, 0,
+         sizeof(cutest_stats.error_output));
 }
 
 /*
@@ -2916,6 +2935,7 @@ int main(int argc, char* argv[]) {
          " * Compile this program to get a test-case executor.\n"
          " *\n"
          " */\n\n", argv[0], argv[1], argv[2]);
+  printf("#define _XOPEN_SOURCE\n");
   printf("#include <stdlib.h>\n");
   printf("#include <stdio.h>\n");
   printf("#include <string.h>\n");
@@ -2970,7 +2990,7 @@ int main(int argc, char* argv[]) {
           buf[name_pos + name_len] = '\0';
           printf("  if (1 == cutest_test_name_argument_given(\"%s\")) {\n",
                  start);
-          printf("    cutest_execute_test(cutest_%s, \"%s\", 0);\n",
+          printf("    cutest_execute_test(cutest_%s, \"%s\", 0, argv[0]);\n",
                  start, start);
           printf("  }\n");
           break;
@@ -2998,7 +3018,7 @@ int main(int argc, char* argv[]) {
           buf[name_pos + name_len] = '\0';
           printf("  if (1 == cutest_test_name_argument_given(\"%s\")) {\n",
                  start);
-          printf("    cutest_execute_test(cutest_module_%s, \"%s\", 1);\n",
+          printf("    cutest_execute_test(cutest_module_%s, \"%s\", 1, argv[0]);\n",
                  start, start);
           printf("  }\n");
           break;
