@@ -2736,7 +2736,8 @@ int main(int argc, char* argv[]) {
           continue;
         }
         const int end = pos + mocklen - 1;
-        if ((buf[pos - 1] == '\t') && (buf[end + 1] == '\t')) {
+        if (((buf[pos - 1] == '\t') || (buf[pos - 1] == ' ')) &&
+            (buf[end + 1] == '\t')) {
           char newbuf[1024];
           /* This might be a keeper... If run on something else than x64.
           fprintf(stderr, "DEBUG: found '%s' on '%s'\n", mockable[i],
