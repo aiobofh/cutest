@@ -369,9 +369,14 @@
 #define _CUTEST_H_
 
 #ifdef CUTEST_LENIENT_ASSERTS
+/* Since the lenient asserts do some int-magic casting */
 #pragma GCC diagnostic ignored "-Wint-conversion"
 #endif
 
+#ifdef CUTEST_CLANG
+/* Since __VA_ARGS__ are used in a GNU:ish way */
+#pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
+#endif
 /*
  * Test-runner
  * -----------
@@ -2725,6 +2730,13 @@ int main(int argc, char* argv[]) {
       fprintf(stderr, "ERROR: Unable to read file '%s'\n", argv[1]);
       exit(EXIT_FAILURE);
     }
+    int branch = 0;
+    if ((strstr(buf, "\tcall")) ||
+        (strstr(buf, " call")) ||
+        (strstr(buf, "\tbl")) ||
+        (strstr(buf, " bl"))) {
+      branch = 1;
+    }
     buf[strlen(buf) - 1] = 0;
     for (i = 0; i < mockable_cnt; i++) {
       int found = 0;
@@ -2737,7 +2749,7 @@ int main(int argc, char* argv[]) {
         }
         const int end = pos + mocklen - 1;
         if (((buf[pos - 1] == '\t') || (buf[pos - 1] == ' ')) &&
-            (buf[end + 1] == '\t')) {
+            ((buf[end + 1] == '\t') || ((branch && buf[end + 1] == 0)))) {
           char newbuf[1024];
           /* This might be a keeper... If run on something else than x64.
           fprintf(stderr, "DEBUG: found '%s' on '%s'\n", mockable[i],

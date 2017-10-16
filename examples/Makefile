@@ -21,6 +21,9 @@
 # with make Q= if i would change my mind.
 Q=@
 
+# Uncomment this if you prefer clang as compiler
+# CC=clang
+
 # Disable all implicit rules
 .SUFFIXES:
 

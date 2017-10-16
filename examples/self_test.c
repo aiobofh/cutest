@@ -2,6 +2,10 @@
 #include <float.h>
 #include <stdio.h>
 
+extern int float_compare(float a, float b);
+extern int double_compare(double a, double b);
+extern int long_double_compare(long double a, long double b);
+
 /*
  * Used for testing user-defined types
  */

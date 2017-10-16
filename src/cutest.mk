@@ -33,18 +33,35 @@ CUTEST_SRC_DIR ?=./
 CUTEST_TEST_DIR ?=./
 
 # Some nice flags for compiling cutest-tests with good quality
-CUTEST_CFLAGS?=-g -pedantic -Wall -Wextra -std=c11
+ifneq ($(CC),clang)
+	CUTEST_CFLAGS?=-g -pedantic -Wall -Wextra -std=c11
+else
+	CUTEST_CFLAGS?=-pedantic -Wall -Wextra -std=c11
+endif
 # This makes valgrind work with long double values, should suffice for
 # most applications as well.
-CUTEST_CFLAGS+= -mlong-double-64
+ifneq ($(CC),clang)
+	CUTEST_CFLAGS+= -mlong-double-64
+endif
 
 ifneq (${LENIENT},0)
 	CUTEST_CFLAGS+=-D"CUTEST_LENIENT_ASSERTS=1"
 endif
 
+
+
+ifeq ($(findstring gcc,$(CC))),gcc)
+	CUTEST_CFLAGS+=-D"CUTEST_GCC=1"
+endif
+ifeq ($(findstring clang,$(CC)),clang)
+	CUTEST_CFLAGS+=-D"CUTEST_CLANG=1"
+endif
+
+
 cutest_info:
-	@echo "Test-folder: $(CUTEST_TEST_DIR)"
-	@echo "CUTest-path: $(CUTEST_PATH)"
+	@echo "Test-folder  : $(CUTEST_TEST_DIR)"
+	@echo "CUTest-path  : $(CUTEST_PATH)"
+	@echo "CC           : $(CC) $(findstring gcc,$(CC))"
 
 cutest_turead: $(CUTEST_PATH)/cutest_turead.c
 	$(Q)$(CC) $< $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -o $@
