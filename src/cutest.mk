@@ -23,6 +23,10 @@ Q ?=@
 
 CUTEST_PATH := $(subst /cutest.mk,,$(abspath $(lastword $(MAKEFILE_LIST))))
 
+ifeq ($(MAKECMDGOALS),sanitize)
+	CC=clang
+endif
+
 ifneq (${Q},@)
 	V=-v
 else
@@ -48,7 +52,8 @@ ifneq (${LENIENT},0)
 	CUTEST_CFLAGS+=-D"CUTEST_LENIENT_ASSERTS=1"
 endif
 
-
+export ASAN_OPTIONS=strict_string_checks=1:detect_stack_use_after_return=1:check_initialization_order=1
+export UBSAN_OPTIONS=print_stacktrace=1
 
 ifeq ($(findstring gcc,$(CC))),gcc)
 	CUTEST_CFLAGS+=-D"CUTEST_GCC=1"
@@ -57,6 +62,9 @@ ifeq ($(findstring clang,$(CC)),clang)
 	CUTEST_CFLAGS+=-D"CUTEST_CLANG=1"
 endif
 
+ifeq ($(MAKECMDGOALS),sanitize)
+	CUTEST_CFLAGS+=-fsanitize=address,leak,undefined -fno-omit-frame-pointer
+endif
 
 cutest_info:
 	@echo "Test-folder  : $(CUTEST_TEST_DIR)"
@@ -193,6 +201,8 @@ check:: missing toomany $(subst .c,,$(wildcard $(CUTEST_TEST_DIR)/*_test.c))
 	  sleep 1; \
 	done; \
 	echo "	"; `$$R`
+
+sanitize: check
 
 # Perform a memcheck on any test suite
 memcheck:: $(subst .c,.memcheck,$(wildcard $(CUTEST_TEST_DIR)/*_test.c))

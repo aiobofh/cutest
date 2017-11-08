@@ -6,6 +6,7 @@
 #include "cutest.h"
 
 #define FOPEN_OK_RETVAL (FILE*)1234
+#define FPUTS_NOK_RETVAL EOF
 #define FPUTS_OK_RETVAL 1
 #define FCLOSE_NOT_OK_RETVAL 1
 
@@ -27,6 +28,7 @@ void pretend_that_fopen_will_fail()
 void pretend_that_fputs_will_fail()
 {
   /* CUTest will automaticall set fputs's retval to 0 */
+  cutest_mock.fputs.retval = FPUTS_NOK_RETVAL;
 }
 
 void pretend_that_fputs_will_go_well()

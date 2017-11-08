@@ -31,6 +31,9 @@ check:
 valgrind:
 	@$(MAKE) -r --no-print-directory -C test valgrind
 
+sanitize:
+	@$(MAKE) -r --no-print-directory -C test sanitize
+
 clean::
 	@rm -f *~ obj; \
 	$(MAKE) -r --no-print-directory -C src clean; \

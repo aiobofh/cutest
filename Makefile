@@ -7,17 +7,34 @@ VERSION=$(shell grep 'CUTEST_VERSION' src/cutest.h | cut -d'"' -f2)
 DATE=$(shell /bin/date +"%Y-%m-%d")
 
 all:
-	@echo "======================================" && \
-	echo "Running regression tests with valgrind" && \
-	echo "======================================" && \
-	echo "" && \
+	@$(MAKE) -r --no-print-directory sanitize_tests && \
 	$(MAKE) -r --no-print-directory regression_tests && \
 	$(MAKE) -r --no-print-directory README.rst && \
 	$(MAKE) -r --no-print-directory clean && \
 	$(MAKE) -r --no-print-directory release
 
+sanitize_tests:
+	@echo "==================================================" && \
+	echo "Running regression tests with -fsanitize and clang" && \
+	echo "==================================================" && \
+	echo "" && \
+	echo "examples:" && \
+	$(MAKE) -r --no-print-directory -C examples sanitize >/dev/null && echo "OK" && \
+	echo "my_project_with_a_test_folder_inside_the_src_folder:" && \
+	$(MAKE) -r --no-print-directory -C examples/complex_directory_structure/my_project_with_a_test_folder_inside_the_src_folder/src sanitize >/dev/null && echo "OK" && \
+	echo "my_project_with_separate_src_and_test_folders:" && \
+	$(MAKE) -r --no-print-directory -C examples/complex_directory_structure/my_project_with_separate_src_and_test_folders sanitize >/dev/null && echo "OK" && \
+	$(MAKE) -r --no-print-directory -C examples clean && \
+	$(MAKE) -r --no-print-directory -C examples/complex_directory_structure/my_project_with_a_test_folder_inside_the_src_folder/src clean && \
+	$(MAKE) -r --no-print-directory -C examples/complex_directory_structure/my_project_with_separate_src_and_test_folders clean && \
+	echo ""
+
 regression_tests:
-	@echo "examples:" && \
+	@echo "==============================================" && \
+	echo "Running regression tests with valgrind and gcc" && \
+	echo "==============================================" && \
+	echo "" && \
+	echo "examples:" && \
 	$(MAKE) -r --no-print-directory -C examples valgrind >/dev/null && echo "OK" && \
 	echo "my_project_with_a_test_folder_inside_the_src_folder:" && \
 	$(MAKE) -r --no-print-directory -C examples/complex_directory_structure/my_project_with_a_test_folder_inside_the_src_folder/src valgrind >/dev/null && echo "OK" && \
