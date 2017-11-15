@@ -44,8 +44,11 @@ else
 endif
 # This makes valgrind work with long double values, should suffice for
 # most applications as well.
+HAS_LONGOPT=$(shell $(CC) -mlong-double-64 2>&1 | grep 'unrecognized' >/dev/null && echo "yes")
 ifneq ($(CC),clang)
-	CUTEST_CFLAGS+= -mlong-double-64
+	ifneq ($(HAS_LONGOPT),yes)
+		CUTEST_CFLAGS+= -mlong-double-64
+	endif
 endif
 
 ifneq (${LENIENT},0)
@@ -54,6 +57,8 @@ endif
 
 export ASAN_OPTIONS=strict_string_checks=1:detect_stack_use_after_return=1:check_initialization_order=1
 export UBSAN_OPTIONS=print_stacktrace=1
+
+CUTEST_CFLAGS+=-Wno-pragmas
 
 ifeq ($(findstring gcc,$(CC))),gcc)
 	CUTEST_CFLAGS+=-D"CUTEST_GCC=1"
