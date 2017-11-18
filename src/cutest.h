@@ -2305,9 +2305,12 @@ static void cproto(const int argc, const char* argv[])
  * Mock-ups
  * --------
  *
- * The cutest_mock tool scans the design under test for call() macros,
+ * The cutest_mock tool scans the design under test for function calls,
  * and create a mock-up control structure, unique for every callable
- * mockable function, so that tests can be fully controlled.
+ * mockable function, so that tests can be fully controlled. This being
+ * true for most cases, functions with variadic arguments (printf, sprintf
+ * fprintf) are not handled very well. So do not count on them to be
+ * monitored the same way as most argumements to other functions.
  *
  * The control structures are encapsulated in the global struct
  * instance called 'mocks'.
@@ -2505,7 +2508,46 @@ static void print_mock(cutest_mock_t* mock)
   if (0 != strcmp(mock->return_type.name, "void")) {
     printf("  if (NULL != cutest_mock.%s.func) {\n", mock->name);
     if (1 == has_variadic_arg(mock)) {
-      printf("    /* Setting .func on mocks that have variadic arguments (printf etc.) will not call the function you refer to */\n");
+      printf("    /*\n"
+             "     * Setting .func on mocks that have variadic arguments (printf etc.) will\n"
+             "     * not call the function you refer to\n"
+             "     */\n");
+      if (0 == strcmp("printf", mock->name)) {
+        printf("    /* Cutest can 'guess' how you want to call the original printf */\n");
+        printf("    va_list arg;\n"
+               "    int done;\n"
+               "    va_start (arg, arg0);\n"
+               "    done = vprintf(arg0, arg);\n"
+               "    va_end (arg);\n"
+               "    return done;\n");
+      }
+      else if (0 == strcmp("sprintf", mock->name)) {
+        printf("    /* Cutest can 'guess' how you want to call the original sprintf */\n");
+        printf("    va_list arg;\n"
+               "    int done;\n"
+               "    va_start (arg, arg1);\n"
+               "    done = vsprintf(arg0, arg1, arg);\n"
+               "    va_end (arg);\n"
+               "    return done;\n");
+      }
+      else if (0 == strcmp("snprintf", mock->name)) {
+        printf("    /* Cutest can 'guess' how you want to call the original snprintf */\n");
+        printf("    va_list arg;\n"
+               "    int done;\n"
+               "    va_start (arg, arg1);\n"
+               "    done = vsprintf(arg0, arg1, arg2, arg);\n"
+               "    va_end (arg);\n"
+               "    return done;\n");
+      }
+      else if (0 == strcmp("fprintf", mock->name)) {
+        printf("    /* Cutest can 'guess' how you want to call the original fprintf */\n");
+        printf("    va_list arg;\n"
+               "    int done;\n"
+               "    va_start (arg, arg1);\n"
+               "    done = vfsprintf(arg0, arg1, arg);\n"
+               "    va_end (arg);\n"
+               "    return done;\n");
+      }
     }
     else {
       printf("    return cutest_mock.%s.func(", mock->name);
