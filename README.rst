@@ -29,6 +29,19 @@ naive, simple and realistic examples of various CUTest usages.
 Version history
 ---------------
 
+* v1.0.3 2017-11-18 Portability improvements and ease-of-use
+
+  - Add warnings for files that are missing test cases
+  - Add warnings for left-over test cases for removed files
+  - Segfault-recovery (error-status)
+  - Support for automatic stubbing/mocking on PowerPC
+  - Clang support
+  - Bug-fix for error/fail output in the JUnit format
+  - Support for -fsanitize (works best for clang, currently)
+  - GCC 4 portability
+  - Aproximate calls to real functions with variadic arguments, like
+    printf, sprintf, fprintf in module tests
+
 * v1.0.2 2017-08-30 Release work flow fix, skipping and output fix
 
   - Fixed the documentation generator to be run before release
@@ -1141,9 +1154,12 @@ searching for a comma ',' or a right-parentheis;
 Mock-ups
 --------
 
-The cutest_mock tool scans the design under test for call() macros,
+The cutest_mock tool scans the design under test for function calls,
 and create a mock-up control structure, unique for every callable
-mockable function, so that tests can be fully controlled.
+mockable function, so that tests can be fully controlled. This being
+true for most cases, functions with variadic arguments (printf, sprintf
+fprintf) are not handled very well. So do not count on them to be
+monitored the same way as most argumements to other functions.
 
 The control structures are encapsulated in the global struct
 instance called 'mocks'.

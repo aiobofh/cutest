@@ -16,7 +16,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define CUTEST_VERSION "1.0.2"
+#define CUTEST_VERSION "1.0.3"
 
 /*********************************************************************
  *::
@@ -49,6 +49,19 @@
  *
  * Version history
  * ---------------
+ *
+ * * v1.0.3 2017-11-18 Portability improvements and ease-of-use
+ *
+ *   - Add warnings for files that are missing test cases
+ *   - Add warnings for left-over test cases for removed files
+ *   - Segfault-recovery (error-status)
+ *   - Support for automatic stubbing/mocking on PowerPC
+ *   - Clang support
+ *   - Bug-fix for error/fail output in the JUnit format
+ *   - Support for -fsanitize (works best for clang, currently)
+ *   - GCC 4 portability
+ *   - Aproximate calls to real functions with variadic arguments, like
+ *     printf, sprintf, fprintf in module tests
  *
  * * v1.0.2 2017-08-30 Release work flow fix, skipping and output fix
  *
