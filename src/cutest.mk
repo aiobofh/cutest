@@ -231,6 +231,7 @@ clean::
 	$(CUTEST_TEST_DIR)/*_mocks.h \
 	$(CUTEST_TEST_DIR)/*.junit_report.xml \
 	$(CUTEST_SRC_DIR)/*.junit_report.xml \
+	$(CUTEST_SRC_DIR)/default.profraw \
 	$(CUTEST_TEST_DIR)/*.memcheck \
 	$(CUTEST_TEST_DIR)/*_test \
 	$(CUTEST_TEST_DIR)/*_test.exe \
