@@ -79,12 +79,8 @@ cutest_info:
 cutest_turead: $(CUTEST_PATH)/cutest_turead.c
 	$(Q)$(CC) $< $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -o $@
 
-# Generate a very strange C-program including cutest.h for int main().
-$(CUTEST_TEST_DIR)/cutest_run.c: $(CUTEST_PATH)/cutest.h Makefile
-	$(Q)echo "#include \"cutest.h\"" > $@
-
 # Build a tool to generate a test suite runner.
-$(CUTEST_TEST_DIR)/cutest_run: $(CUTEST_TEST_DIR)/cutest_run.c
+$(CUTEST_TEST_DIR)/cutest_run: $(CUTEST_PATH)/cutest_run.c Makefile
 	$(Q)$(CC) $< $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -DCUTEST_RUN_MAIN -o $@
 
 # Generate a very strange C-program including cutest.h for int main().
@@ -226,8 +222,7 @@ valgrind:: missing toomany $(subst .c,,$(wildcard $(CUTEST_TEST_DIR)/*_test.c))
 	`$$R`
 
 clean::
-	$(Q)$(RM) -f $(CUTEST_TEST_DIR)/cutest_* \
-	$(CUTEST_TEST_DIR)/*_test_run.c \
+	$(Q)$(RM) -f $(CUTEST_TEST_DIR)/*_test_run.c \
 	$(CUTEST_TEST_DIR)/*_mocks.h \
 	$(CUTEST_TEST_DIR)/*.junit_report.xml \
 	$(CUTEST_SRC_DIR)/*.junit_report.xml \
