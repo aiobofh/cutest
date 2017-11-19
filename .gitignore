@@ -1,3 +1,7 @@
+cutest*.gz
+cutest_run
+cutest_mock
+cutest_prox
 *_mocks.h
 *_test
 *.gcda
