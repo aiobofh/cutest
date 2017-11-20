@@ -219,6 +219,12 @@ valgrind:: missing toomany $(subst .c,,$(wildcard $(CUTEST_TEST_DIR)/*_test.c))
 
 clean::
 	$(Q)$(RM) -f $(CUTEST_TEST_DIR)/*_test_run.c \
+	$(CUTEST_TEST_DIR)/cutest_run \
+	$(CUTEST_TEST_DIR)/cutest_mock \
+	$(CUTEST_TEST_DIR)/cutest_prox \
+	$(CUTEST_TEST_DIR)/cutest_filt \
+	$(CUTEST_TEST_DIR)/cutest_mock.c \
+	$(CUTEST_TEST_DIR)/cutest_filt.c \
 	$(CUTEST_TEST_DIR)/*_mocks.h \
 	$(CUTEST_TEST_DIR)/*.junit_report.xml \
 	$(CUTEST_SRC_DIR)/*.junit_report.xml \
