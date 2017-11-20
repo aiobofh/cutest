@@ -187,6 +187,16 @@ static void replace_assembler_jumps(mockable_node* node,
   fclose(fd);
 }
 
+static void free_mockables_list(mockable_node* node)
+{
+  while (node) {
+    mockable_node* next = node->next;
+    free(node->name);
+    free(node);
+    node = next;
+  }
+}
+
 int main(int argc, char* argv[]) {
   const char* program_name = argv[0];
 
@@ -208,6 +218,8 @@ int main(int argc, char* argv[]) {
   read_mockables_list_file(&m, mockables_list_file_name);
 
   replace_assembler_jumps(m.next, dut_asm_source_file_name);
+
+  free_mockables_list(m.next);
 
   return 0;
 }

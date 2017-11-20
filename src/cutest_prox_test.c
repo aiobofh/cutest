@@ -452,6 +452,18 @@ test(replace_assembler_jumps_shall_call_traverse_all_nodes_if_valid_char)
 }
 
 /*****************************************************************************
+ * free_mockables_list()
+ */
+test(free_mockables_list_shall_free_name_and_node_for_every_node) {
+  mockable_node node[3];
+  node[0].next = &node[1];
+  node[1].next = &node[2];
+  node[2].next = NULL;
+  free_mockables_list(&node[0]);
+  assert_eq(6, m.free.call_count);
+}
+
+/*****************************************************************************
  * main()
  */
 test(main_shall_do_a_sanity_check_of_argument_count_print_an_error_wrong_cnt)
