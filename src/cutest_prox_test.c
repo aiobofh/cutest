@@ -347,21 +347,18 @@ test(traverse_all_nodes_shall_not_call_replace_jump_destination_if_no_pos)
 /*****************************************************************************
  * row_starts_with_valid_char()
  */
-test(row_starts_with_valid_char_shall_return_0_if_row_start_is_punktiation)
+module_test(row_starts_with_valid_char_shall_return_0_if_start_w_punktiation)
 {
-  m.strlen.func = strlen;
   assert_eq(0, row_starts_with_valid_char("    ."));
 }
 
-test(row_starts_with_valid_char_shall_return_0_if_row_is_empty)
+module_test(row_starts_with_valid_char_shall_return_0_if_row_is_empty)
 {
-  m.strlen.func = strlen;
   assert_eq(0, row_starts_with_valid_char("  "));
 }
 
-test(row_starts_with_valid_char_shall_return_1_if_row_start_is_good)
+module_test(row_starts_with_valid_char_shall_return_1_if_row_start_is_good)
 {
-  m.strlen.func = strlen;
   assert_eq(1, row_starts_with_valid_char("    call"));
 }
 

@@ -56,3 +56,19 @@ module_test(file_exists_shall_return_0_if_a_file_does_not_exists_physically)
   m.fprintf.func = NULL;
   assert_eq(0, file_exists("oogabooga"));
 }
+
+/*****************************************************************************
+ * count_white_spaces()
+ */
+test(count_white_spaces_shall_return_the_number_of_white_spaces_in_begining)
+{
+  m.strlen.retval = 5;
+  assert_eq(4, count_white_spaces("    f"));
+  assert_eq(4, count_white_spaces("\t\t\t\tf"));
+}
+
+test(count_white_spaces_shall_return_max_length_if_overrun)
+{
+  m.strlen.retval = 5;
+  assert_eq(5, count_white_spaces("        f"));
+}

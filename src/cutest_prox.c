@@ -162,11 +162,8 @@ static void traverse_all_nodes(char* buf, mockable_node* node)
 
 static int row_starts_with_valid_char(const char* buf)
 {
-  size_t i = 0;
   const size_t len = strlen(buf);
-  while (((buf[i] == ' ') || (buf[i] == '\t')) && (i < len)) {
-    i++;
-  }
+  const size_t i = count_white_spaces(buf);
   if ((i == len) || (buf[i] == '.')) {
     return 0;
   }
