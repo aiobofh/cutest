@@ -80,8 +80,8 @@ cutest_turead: $(CUTEST_PATH)/cutest_turead.c
 	$(Q)$(CC) $< $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -o $@
 
 # Build a tool to generate a test suite runner.
-$(CUTEST_TEST_DIR)/cutest_run: $(CUTEST_PATH)/cutest_run.c Makefile
-	$(Q)$(CC) $< $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -DCUTEST_RUN_MAIN -o $@
+$(CUTEST_TEST_DIR)/cutest_run: $(CUTEST_PATH)/cutest_run.c $(CUTEST_PATH)/helpers.c
+	$(Q)$(CC) $^ $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -DCUTEST_RUN_MAIN -o $@
 
 # Generate a very strange C-program including cutest.h for int main().
 $(CUTEST_TEST_DIR)/cutest_mock.c: $(CUTEST_PATH)/cutest.h Makefile

@@ -46,22 +46,12 @@
 #define CHUNK_SIZE 1024
 
 #include "cutest_run.h"
+#include "helpers.h"
 
 static void usage(const char* program_name)
 {
   printf("USAGE: %s <test-c-source-file> <c-mock-header-file>\n",
          program_name);
-}
-
-static int file_exists(const char *filename)
-{
-  FILE *fd = fopen(filename, "r");
-  if (NULL == fd) {
-    fprintf(stderr, "ERROR: File '%s' does not exist\n", filename);
-    return 0;
-  }
-  fclose(fd);
-  return 1;
 }
 
 static void replace_last_parenthesis_with_0(char *buf, int start)
