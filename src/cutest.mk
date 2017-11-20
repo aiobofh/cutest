@@ -93,13 +93,9 @@ $(CUTEST_TEST_DIR)/cutest_mock: $(CUTEST_TEST_DIR)/cutest_mock.c
 	(echo "ERROR: cproto is not installed in your path"; false) && \
 	$(CC) $< $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -DCUTEST_MOCK_MAIN -o $@
 
-# Generate a very strange C-program including cutest.h for int main().
-$(CUTEST_TEST_DIR)/cutest_prox.c: $(CUTEST_PATH)/cutest.h Makefile
-	$(Q)echo "#include \"cutest.h\"" > $@
-
-# Build a tool to generate a test suite runner.
-$(CUTEST_TEST_DIR)/cutest_prox: $(CUTEST_TEST_DIR)/cutest_prox.c
-	$(Q)$(CC) $< $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -DCUTEST_PROX_MAIN -o $@
+# Build a tool to generate an assembler file with replaced branches/calls.
+$(CUTEST_TEST_DIR)/cutest_prox: $(CUTEST_PATH)/cutest_prox.c $(CUTEST_PATH)/helpers.c
+	$(Q)$(CC) $^ $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -DCUTEST_PROX_MAIN -o $@
 
 # Generate a very strange C-program including cutest.h for int main().
 $(CUTEST_TEST_DIR)/cutest_filt.c: $(CUTEST_PATH)/cutest.h Makefile
