@@ -285,8 +285,13 @@ test(main_shall_do_a_sanity_check_of_argument_count_print_an_error_wrong_cnt)
 {
   char* argv[] = {"program_name"};
   main(1, argv);
+#ifdef CUTEST_GCC
   assert_eq(1, m.fwrite.call_count);
   assert_eq(stderr, m.fwrite.args.arg3);
+#else
+  assert_eq(1, m.fprintf.call_count);
+  assert_eq(stderr, m.fprintf.args.arg0);
+#endif
 }
 
 test(main_shall_print_usage_if_argument_count_is_not_3)

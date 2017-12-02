@@ -25,12 +25,14 @@ test(usage_shall_print_something)
  */
 test(add_new_mockable_node_shall_return_NULL_if_out_of_memory)
 {
-  assert_eq(NULL, add_new_mockable_node(NULL, NULL));
+  mockable_node node;
+  assert_eq(NULL, add_new_mockable_node(&node, 0x5678));
 }
 
 test(add_new_mockable_node_shall_allocate_a_new_node_for_each_file_item)
 {
-  add_new_mockable_node(NULL, "foo");
+  mockable_node node;
+  add_new_mockable_node(&node, "foo");
 
   assert_eq(1, m.malloc.call_count);
   assert_eq(sizeof(mockable_node), m.malloc.args.arg0);
@@ -49,6 +51,32 @@ test(add_new_mockable_node_shall_allocate_bytes_for_mockable_name)
   assert_eq(2, m.malloc.call_count); /* Also for the node it self */
   assert_eq(strlen("testing") + 1, m.malloc.args.arg0);
   assert_eq(&new_node, new_node.name);
+}
+
+int malloc_twice_stub_cnt = 0;
+static void* malloc_twice_stub(size_t size)
+{
+  (void)size;
+  if (malloc_twice_stub_cnt == 1) {
+    return NULL;
+  }
+  malloc_twice_stub_cnt++;
+  return m.malloc.retval;
+}
+
+test(add_new_mockable_node_shall_return_NULL_if_out_of_mem_for_mockable_name)
+{
+  mockable_node node;
+  mockable_node new_node;
+  malloc_twice_stub_cnt = 0;
+
+  m.malloc.func = malloc_twice_stub;
+  m.malloc.retval = &new_node;
+  m.strlen.func = strlen;
+
+  assert_eq(NULL, add_new_mockable_node(&node, "testing"));
+
+  malloc_twice_stub_cnt = 0;
 }
 
 test(add_new_mockable_node_shall_copy_the_mockable_name_to_the_node)
@@ -138,6 +166,7 @@ test(read_mockables_list_file_shall_return_0_if_out_of_memory)
   mockable_node node;
   fgets_only_once_stub_cnt = 0;
 
+  m.strcmp.retval = 1;
   m.fopen.retval = 0x1234;
   m.fgets.func = fgets_only_once_stub;
   m.fgets.retval = 0x5678;
@@ -155,6 +184,7 @@ test(read_mockables_list_file_shall_return_count_if_all_is_ok)
   m.fopen.retval = 0x1234;
   m.fgets.func = fgets_only_once_stub;
   m.fgets.retval = 0x5678;
+  m.strcmp.retval = 1;
   m.add_new_mockable_node.retval = 0x8765;
 
   assert_eq(1, read_mockables_list_file(&node, "file_name"));
@@ -168,10 +198,11 @@ test(read_mockables_list_file_shall_return_count_if_all_is_ok)
 test(rstrip_shall_make_string_one_byte_shorter)
 {
   m.strlen.func = strlen;
-  char string[strlen("a string\n")];
+  char* string = malloc(strlen("a string\n") + 1);
   strcpy(string, "a string\n");
   rstrip(string);
   assert_eq("a string", string);
+  free(string);
 }
 
 /*****************************************************************************
@@ -470,8 +501,13 @@ test(main_shall_do_a_sanity_check_of_argument_count_print_an_error_wrong_cnt)
 {
   char* argv[] = {"program_name"};
   main(1, argv);
+#ifdef CUTEST_GCC
   assert_eq(1, m.fwrite.call_count);
   assert_eq(stderr, m.fwrite.args.arg3);
+#else
+  assert_eq(1, m.fprintf.call_count);
+  assert_eq(stderr, m.fprintf.args.arg0);
+#endif
 }
 
 test(main_shall_print_usage_if_argument_count_is_not_3)
@@ -500,6 +536,7 @@ test(main_shall_check_if_mockables_list_file_name_exists)
 {
   char* argv[] = {"program_name", "test_file", "mockables_file"};
   m.file_exists.retval = 1;
+  m.malloc.func = malloc;
   main(3, argv);
   assert_eq(2, m.file_exists.call_count);
   assert_eq("mockables_file", m.file_exists.args.arg0);
@@ -544,6 +581,7 @@ test(main_shall_return_EXIT_FAILURE_if_mockables_file_could_not_be_found)
 test(main_shall_call_read_mockables_list_correctly)
 {
   char* argv[] = {"program_name", "dut_asm_file", "mockables_file"};
+  m.malloc.func = malloc;
   m.file_exists.retval = 1;
   main(3, argv);
   assert_eq(1, m.read_mockables_list_file.call_count);
@@ -553,6 +591,7 @@ test(main_shall_call_read_mockables_list_correctly)
 test(main_shall_call_replace_assembler_jumps_correctly)
 {
   char* argv[] = {"program_name", "dut_asm_file", "mockables_file"};
+  m.malloc.func = malloc;
   m.file_exists.retval = 1;
   main(3, argv);
   assert_eq(1, m.read_mockables_list_file.call_count);
@@ -562,6 +601,7 @@ test(main_shall_call_replace_assembler_jumps_correctly)
 test(main_shall_return_EXIT_SUCCESS_if_all_is_ok)
 {
   char* argv[] = {"program_name", "test_file", "mockables_file"};
+  m.malloc.func = malloc;
   m.file_exists.retval = 1;
   assert_eq(EXIT_SUCCESS, main(3, argv));
 }

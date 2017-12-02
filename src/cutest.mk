@@ -60,7 +60,7 @@ export UBSAN_OPTIONS=print_stacktrace=1
 
 CUTEST_CFLAGS+=-Wno-pragmas
 
-ifeq ($(findstring gcc,$(CC))),gcc)
+ifeq ($(findstring gcc,$(CC)),gcc)
 	CUTEST_CFLAGS+=-D"CUTEST_GCC=1"
 endif
 ifeq ($(findstring clang,$(CC)),clang)
@@ -69,52 +69,37 @@ endif
 
 ifeq ($(MAKECMDGOALS),sanitize)
 	CUTEST_CFLAGS+=-fsanitize=address,leak,undefined -fno-omit-frame-pointer
+	ASAN_OPTIONS=detect_leaks=1
+	export ASAN_OPTIONS
 endif
 
 cutest_info:
 	@echo "Test-folder  : $(CUTEST_TEST_DIR)"
+	@echo "Source-folder: $(CUTEST_SRC_DIR)"
 	@echo "CUTest-path  : $(CUTEST_PATH)"
+	@echo "CUTest-CFLAGS: $(CUTEST_CFLAGS)"
 	@echo "CC           : $(CC) $(findstring gcc,$(CC))"
+	@echo "Detected CC  : $(findstring gcc,$(CC)))"
 
 cutest_turead: $(CUTEST_PATH)/cutest_turead.c
 	$(Q)$(CC) $< $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -o $@
 
 # Build a tool to generate a test suite runner.
-$(CUTEST_TEST_DIR)/cutest_run: $(CUTEST_PATH)/cutest_run.c $(CUTEST_PATH)/helpers.c
-	$(Q)$(CC) $^ $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -DCUTEST_RUN_MAIN -o $@
-
-# Generate a very strange C-program including cutest.h for int main().
-$(CUTEST_TEST_DIR)/cutest_mock.c: $(CUTEST_PATH)/cutest.h Makefile
-	$(Q)echo "#include \"cutest.h\"" > $@
-
-# Build a tool to generate a test runner program.
-$(CUTEST_TEST_DIR)/cutest_mock: $(CUTEST_TEST_DIR)/cutest_mock.c
-	$(Q)which cproto >/dev/null || \
-	(echo "ERROR: cproto is not installed in your path"; false) && \
-	$(CC) $< $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -DCUTEST_MOCK_MAIN -o $@
-
-# Build a tool to generate an assembler file with replaced branches/calls.
-$(CUTEST_TEST_DIR)/cutest_prox: $(CUTEST_PATH)/cutest_prox.c $(CUTEST_PATH)/helpers.c
-	$(Q)$(CC) $^ $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -DCUTEST_PROX_MAIN -o $@
-
-# Generate a very strange C-program including cutest.h for int main().
-$(CUTEST_TEST_DIR)/cutest_filt.c: $(CUTEST_PATH)/cutest.h Makefile
-	$(Q)echo "#include \"cutest.h\"" > $@
+$(CUTEST_PATH)/cutest_run: $(CUTEST_PATH)/cutest_run.c $(CUTEST_PATH)/helpers.c
+	$(Q)$(CC) $^ -O2 $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -o $@
 
 # Build a tool to generate a test suite runner.
-$(CUTEST_TEST_DIR)/cutest_filt: $(CUTEST_TEST_DIR)/cutest_filt.c
-	$(Q)$(CC) $< $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -DCUTEST_FILT_MAIN -o $@
+$(CUTEST_PATH)/cutest_mock: $(CUTEST_PATH)/cutest_mock.c $(CUTEST_PATH)/helpers.c $(CUTEST_PATH)/mockable.c $(CUTEST_PATH)/arg.c
+	$(Q)$(CC) $^ -O2 $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -o $@
 
-# Extract all functions called by the design under test.
-$(CUTEST_TEST_DIR)/%.tu: $(subst _test,,$(CUTEST_TEST_DIR)/%_test.c)
-	$(Q)g++ -fdump-translation-unit -c $< && \
-	cat $<.*.tu | c++filt > $@ && \
-	rm -f $<.*.tu
+# Build a tool to generate an assembler file with replaced branches/calls.
+$(CUTEST_PATH)/cutest_prox: $(CUTEST_PATH)/cutest_prox.c $(CUTEST_PATH)/helpers.c
+	$(Q)$(CC) $^ -O2 $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -o $@
 
 # Produce an object file to be processed to search for mockable functions
 .PRECIOUS: $(CUTEST_TEST_DIR)/%_mockables.o
 $(CUTEST_TEST_DIR)/%_mockables.o: $(CUTEST_SRC_DIR)/%.c
-	$(Q)$(CC) -o $@ -c $< $(CFLAGS) $(CUTEST_IFLAGS) -I$(CUTEST_SRC_DIR) $(CUTEST_DEFINES)
+	$(Q)$(CC) -o $@ -c $< $(CFLAGS) $(CUTEST_IFLAGS) -I$(CUTEST_SRC_DIR) $(CUTEST_DEFINES) -fvisibility=hidden -fno-inline -g -D"inline="
 
 # Generate a list of all posible mockable functions
 .PRECIOUS: $(CUTEST_TEST_DIR)/%_mockables.lst
@@ -129,23 +114,23 @@ $(CUTEST_TEST_DIR)/%_mockables.s: $(CUTEST_SRC_DIR)/%.c
 
 # Generate an assembler output with all function calls replaced to cutest mocks/stubs
 .PRECIOUS: $(CUTEST_TEST_DIR)/%_proxified.s
-$(CUTEST_TEST_DIR)/%_proxified.s: $(CUTEST_TEST_DIR)/%_mockables.s $(CUTEST_TEST_DIR)/%_mockables.lst $(CUTEST_TEST_DIR)/cutest_prox $(CUTEST_TEST_DIR)/cutest_filt
-	$(Q)$(CUTEST_TEST_DIR)//cutest_prox $< $(subst .s,.lst,$<) > $@
+$(CUTEST_TEST_DIR)/%_proxified.s: $(CUTEST_TEST_DIR)/%_mockables.s $(CUTEST_TEST_DIR)/%_mockables.lst $(CUTEST_PATH)/cutest_prox
+	$(Q)$(CUTEST_PATH)/cutest_prox $< $(subst .s,.lst,$<) > $@
 
 .PRECIOUS: $(CUTEST_TEST_DIR)/%_mocks.h
 # Generate mocks from the call()-macro in a source-file.
-$(CUTEST_TEST_DIR)/%_mocks.h: $(CUTEST_SRC_DIR)/%.c $(CUTEST_TEST_DIR)/%_mockables.lst $(CUTEST_PATH)/cutest.h $(CUTEST_TEST_DIR)/cutest_mock
-	$(Q)$(CUTEST_TEST_DIR)/cutest_mock $< $(addprefix $(CUTEST_TEST_DIR)/,$(notdir $(subst .c,_mockables.lst,$<))) $(CUTEST_PATH) \
+$(CUTEST_TEST_DIR)/%_mocks.h: $(CUTEST_SRC_DIR)/%.c $(CUTEST_TEST_DIR)/%_mockables.lst $(CUTEST_PATH)/cutest.h $(CUTEST_PATH)/cutest_mock
+	$(Q)$(CUTEST_PATH)/cutest_mock $< $(addprefix $(CUTEST_TEST_DIR)/,$(notdir $(subst .c,_mockables.lst,$<))) $(CUTEST_PATH) \
 	$(CUTEST_IFLAGS) > $@; \
 
 .PRECIOUS: $(CUTEST_TEST_DIR)/%_test_run.c
 # Generate a test-runner program code from a test-source-file
-$(CUTEST_TEST_DIR)/%_test_run.c: $(CUTEST_TEST_DIR)/%_test.c $(CUTEST_TEST_DIR)/%_mocks.h $(CUTEST_PATH)/cutest.h $(CUTEST_TEST_DIR)/cutest_run
-	$(Q)cd $(CUTEST_TEST_DIR) && ./cutest_run $(filter-out cutest.h,$(notdir $^)) > $(notdir $@)
+$(CUTEST_TEST_DIR)/%_test_run.c: $(CUTEST_TEST_DIR)/%_test.c $(CUTEST_TEST_DIR)/%_mocks.h $(CUTEST_PATH)/cutest.h $(CUTEST_PATH)/cutest_run
+	$(Q)cd $(CUTEST_TEST_DIR) && $(CUTEST_PATH)/cutest_run $(filter-out cutest.h,$(notdir $^)) > $(notdir $@)
 
 # Compile a test-runner from the generate test-runner program code
 $(CUTEST_TEST_DIR)/%_test: $(CUTEST_TEST_DIR)/%_proxified.s $(CUTEST_TEST_DIR)/%_test_run.c
-	$(Q)$(CC) -o $@ $^ $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -I$(abspath $(CUTEST_TEST_DIR)) -I$(abspath $(CUTEST_SRC_DIR)) $(CUTEST_IFLAGS) -DNDEBUG -D"inline=" $(CUTEST_DEFINES) 3>&1 1>&2 2>&3 3>&- # | $(CUTEST_TEST_DIR)/cutest_filt
+	$(Q)$(CC) -o $@ $^ $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -I$(abspath $(CUTEST_TEST_DIR)) -I$(abspath $(CUTEST_SRC_DIR)) $(CUTEST_IFLAGS) -DNDEBUG -D"inline=" $(CUTEST_DEFINES) 3>&1 1>&2 2>&3 3>&-
 
 # Print the CUTest manual
 $(CUTEST_TEST_DIR)/cutest_help.rst: $(CUTEST_PATH)/cutest.h
@@ -210,12 +195,17 @@ valgrind:: missing toomany $(subst .c,,$(wildcard $(CUTEST_TEST_DIR)/*_test.c))
 	processors=`cat /proc/cpuinfo | grep processor | wc -l`; \
 	for i in $(filter-out toomany,$(filter-out missing,$^)); do \
 	  while [ `ps xa | grep -v grep | grep '_test ' | wc -l` -gt $$processors ]; do sleep 0.1; done; \
-	  valgrind -q ./$$i -v -j -s || rm $$i || R=false & \
+	  valgrind --track-origins=yes -q ./$$i -v -j -s || rm $$i || R=false & \
 	done; \
 	while [ `ps xa | grep -v grep | grep '_test ' | wc -l` -gt 0 ]; do \
 	  sleep 1; \
 	done; \
 	`$$R`
+
+clean_cutest:
+	$(Q)$(RM) $(CUTEST_PATH)/cutest_run \
+	$(CUTEST_PATH)/cutest_prox \
+	$(CUTEST_PATH)/cutest_mock
 
 clean::
 	$(Q)$(RM) -f $(CUTEST_TEST_DIR)/*_test_run.c \
@@ -223,7 +213,6 @@ clean::
 	$(CUTEST_TEST_DIR)/cutest_mock \
 	$(CUTEST_TEST_DIR)/cutest_prox \
 	$(CUTEST_TEST_DIR)/cutest_filt \
-	$(CUTEST_TEST_DIR)/cutest_mock.c \
 	$(CUTEST_TEST_DIR)/cutest_filt.c \
 	$(CUTEST_TEST_DIR)/*_mocks.h \
 	$(CUTEST_TEST_DIR)/*.junit_report.xml \

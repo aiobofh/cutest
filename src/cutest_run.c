@@ -117,8 +117,10 @@ static void print_header(const char* program_name,
          "#include <string.h>\n"
          "\n"
          "#define main MAIN /* To make sure we can test main() */\n"
+         "#define inline\n"
          "#include \"%s\" /* Mock-up functions and design under test */\n"
          "#include \"%s\" /* Test-cases */\n"
+         "#undef inline\n"
          "#undef main\n"
          "\n",
          program_name,
@@ -181,6 +183,39 @@ static void print_test_case_executions(const char* test_source_file_name)
   fclose(fd);
 }
 
+static void print_test_names_printer(const char* test_source_file_name)
+{
+  FILE *fd = fopen(test_source_file_name, "r");
+
+  int still_inside_a_comment = 0;
+
+  printf("  if (cutest_opts.print_tests) {\n");
+
+  while (!feof(fd)) {
+
+    char buf[CHUNK_SIZE];
+    if (NULL == fgets(buf, CHUNK_SIZE, fd)) {
+      break;
+    }
+
+    still_inside_a_comment += skip_comments(buf);
+    if (still_inside_a_comment > 0) {
+      continue;
+    }
+
+    struct test_s t = next_test(buf);
+    if (NULL == t.name) {
+      continue;
+    }
+
+    printf("    puts(\"%s\");\n", t.name);
+  }
+
+  printf("    exit(EXIT_SUCCESS);\n"
+         "  }\n");
+
+  fclose(fd);
+}
 /*
  * The test runner program
  * -----------------------
@@ -211,6 +246,7 @@ int main(int argc, char* argv[]) {
 
   print_header(program_name, test_source_file_name, mock_header_file_name);
   print_main_function_prologue(test_source_file_name);
+  print_test_names_printer(test_source_file_name);
   print_test_case_executions(test_source_file_name);
   print_main_function_epilogue(test_source_file_name);
 

@@ -15,6 +15,8 @@ include ../src/coverage.mk
 
 cutest_run_test:: helpers.c
 cutest_prox_test:: helpers.c
+cutest_mock_test:: helpers.c arg.c mockable.c
+mockable_test:: arg.c
 
 clean::
 	$(Q)$(RM) *~ *.o *.d cutest_run

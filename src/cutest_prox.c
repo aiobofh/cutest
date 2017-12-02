@@ -53,13 +53,17 @@ static void usage(const char* program_name)
 static mockable_node* add_new_mockable_node(mockable_node* node,
                                             const char* mockable_name)
 {
-  mockable_node *n;
+  mockable_node *n = NULL;
   n = malloc(sizeof(mockable_node));
   if (NULL == n) {
     return NULL;
   }
+  memset(n, 0, sizeof(*n));
   const size_t len = strlen(mockable_name);
   n->name = malloc(len + 1);
+  if (NULL == n->name) {
+    return NULL;
+  }
   memset(n->name, 0, len + 1);
   strcpy(n->name, mockable_name);
 
@@ -85,6 +89,9 @@ static size_t read_mockables_list_file(mockable_node* node,
   char buf[CHUNK_SIZE];
   while (fgets(buf, sizeof(buf), fd)) {
     rstrip(buf);
+    if (0 == strcmp(buf, "stderr")) {
+      continue;
+    }
     if (NULL == (node = add_new_mockable_node(node, buf))) {
       cnt = 0;
       break;
@@ -214,12 +221,15 @@ int main(int argc, char* argv[]) {
     return EXIT_FAILURE;
   }
 
-  mockable_node m = {"First item is not a mock", NULL};
-  read_mockables_list_file(&m, mockables_list_file_name);
+  mockable_node* node = malloc(sizeof(mockable_node));
+  memset(node, 0, sizeof(*node));
 
-  replace_assembler_jumps(m.next, dut_asm_source_file_name);
+  //  mockable_node m = {NULL, NULL};
+  read_mockables_list_file(node, mockables_list_file_name);
 
-  free_mockables_list(m.next);
+  replace_assembler_jumps(node->next, dut_asm_source_file_name);
+
+  free_mockables_list(node);
 
   return 0;
 }
