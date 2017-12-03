@@ -30,8 +30,9 @@ test(allocate_arg_node_shall_output_an_error_if_allocation_failed)
 
 test(allocate_arg_node_shall_return_pointer_to_new_node_if_all_is_ok)
 {
-  m.malloc.retval = 0x1234;
-  assert_eq(0x1234, allocate_arg_node());
+  arg_node_t node;
+  m.malloc.retval = &node;
+  assert_eq(&node, allocate_arg_node());
 }
 
 test(allocate_arg_node_shall_return_null_if_something_wrong)
@@ -65,14 +66,14 @@ test(new_arg_shall_grab_the_string_length_of_the_input_arg)
 test(new_arg_shall_allocate_correct_amount_of_memory_for_name)
 {
   m.strlen.retval = 10;
-  new_arg(NULL);
+  new_arg(0x1234);
   assert_eq(1, m.malloc.call_count);
   assert_eq(10 + 1, m.malloc.args.arg0); // plus \0
 }
 
 test(new_arg_shall_output_an_error_if_allocation_failed)
 {
-  new_arg(NULL);
+  new_arg(0x1234);
 #ifdef CUTEST_GCC
   assert_eq(1, m.fwrite.call_count);
   assert_eq(stderr, m.fwrite.args.arg3);
@@ -95,13 +96,14 @@ test(new_arg_shall_new_the_full_string)
 
 test(new_arg_shall_return_pointer_to_the_new_string_if_all_is_ok)
 {
-  m.malloc.retval = 0x1234;
-  assert_eq(0x1234, new_arg(NULL));
+  arg_node_t node;
+  m.malloc.retval = &node;
+  assert_eq(&node, new_arg(0x1234));
 }
 
 test(new_arg_shall_return_null_if_something_went_wrong)
 {
-  assert_eq(NULL, new_arg(NULL));
+  assert_eq(NULL, new_arg(0x1234));
 }
 
 /*****************************************************************************

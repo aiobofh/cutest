@@ -278,6 +278,113 @@ test(print_test_case_executions_shall_read_next_test_not_print_it_if_no_test)
 }
 
 /*****************************************************************************
+ * print_test_names_printer()
+ */
+test(print_test_names_printer_shall_open_the_correct_file_for_reading)
+{
+  m.feof.retval = 1;
+  print_test_names_printer("some_file");
+  assert_eq("some_file", m.fopen.args.arg0);
+  assert_eq("r", m.fopen.args.arg1);
+}
+
+test(print_test_names_printer_shall_call_feof_correctly)
+{
+  m.fopen.retval = 0x1234;
+  m.feof.retval = 1;
+  print_test_names_printer("some_file");
+  assert_eq(1, m.feof.call_count);
+  assert_eq(0x1234, m.feof.args.arg0);
+}
+
+test(print_test_names_printer_shall_close_the_correct_file)
+{
+  m.fopen.retval = 0x1234;
+  m.feof.retval = 1;
+  print_test_names_printer("some_file");
+  assert_eq(1, m.fclose.call_count);
+  assert_eq(0x1234, m.fclose.args.arg0);
+}
+
+test(print_test_names_printer_shall_call_fgets_correctly)
+{
+  m.fopen.retval = 0x1234;
+  m.feof.retval = 0;
+  print_test_names_printer("some_file");
+  assert_eq(1, m.fgets.call_count);
+  assert_eq(0x1234, m.fgets.args.arg2);
+}
+
+test(print_test_names_printer_shall_read_file_rows_until_eof)
+{
+  m.feof.func = feof_stub;
+  m.fgets.retval = 0x1234;
+  feof_cnt = 0;
+  print_test_names_printer("some_file");
+  feof_cnt = 0;
+  assert_eq(10, m.feof.call_count);
+  assert_eq(9, m.fgets.call_count);
+}
+
+test(print_test_names_printer_shall_quit_reading_file_if_fgets_fails)
+{
+  m.feof.func = feof_stub;
+  m.fgets.retval = 0;
+  feof_cnt = 0;
+  print_test_names_printer("some_file");
+  feof_cnt = 0;
+  assert_eq(1, m.feof.call_count);
+  assert_eq(1, m.fgets.call_count);
+}
+
+test(print_test_names_printer_shall_call_skip_comments_correctly)
+{
+  m.feof.func = feof_stub;
+  m.fgets.retval = 0x1234;
+  feof_cnt = 0;
+  print_test_names_printer("some_file");
+  feof_cnt = 0;
+  assert_eq(9, m.skip_comments.call_count);
+}
+
+test(print_test_names_printer_shall_not_read_next_test_or_print_if_comment)
+{
+  m.feof.func = feof_stub;
+  m.fgets.retval = 0x1234;
+  m.skip_comments.retval = 1;
+  feof_cnt = 0;
+  print_test_names_printer("some_file");
+  feof_cnt = 0;
+  assert_eq(9, m.skip_comments.call_count);
+  assert_eq(0, m.next_test.call_count);
+  assert_eq(0, m.printf.call_count);
+}
+
+test(print_test_names_printer_shall_read_next_test_and_print_it)
+{
+  struct test_s t = {"foo", 0};
+  m.feof.func = feof_stub;
+  m.fgets.retval = 0x1234;
+  m.next_test.retval = t;
+  feof_cnt = 0;
+  print_test_names_printer("some_file");
+  feof_cnt = 0;
+  assert_eq(9, m.printf.call_count);
+}
+
+test(print_test_names_printer_shall_read_next_test_not_print_it_if_no_test)
+{
+  struct test_s t = {NULL, 0};
+  m.feof.func = feof_stub;
+  m.fgets.retval = 0x1234;
+  m.next_test.retval = t;
+  feof_cnt = 0;
+  print_test_names_printer("some_file");
+  feof_cnt = 0;
+  assert_eq(0, m.printf.call_count);
+}
+
+/*****************************************************************************
  * main()
  */
 
