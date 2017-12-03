@@ -73,13 +73,23 @@ ifeq ($(MAKECMDGOALS),sanitize)
 	export ASAN_OPTIONS
 endif
 
+SOURCES=$(filter-out %_test.c,$(wildcard $(CUTEST_SRC_DIR)/*.c))
+EXPECTED_TEST_SUITES=$(sort $(subst .c,_test.c,$(SOURCES)))
+FOUND_TEST_SUITES=$(sort $(wildcard $(CUTEST_SRC_DIR)/*_test.c))
+MISSING_TEST_SUITES=$(filter-out $(FOUND_TEST_SUITES),$(EXPECTED_TEST_SUITES))
+MISSING_SOURCES=$(subst _test.c,.c,$(filter-out $(EXPECTED_TEST_SUITES),$(FOUND_TEST_SUITES)))
+
 cutest_info:
-	@echo "Test-folder  : $(CUTEST_TEST_DIR)"
-	@echo "Source-folder: $(CUTEST_SRC_DIR)"
-	@echo "CUTest-path  : $(CUTEST_PATH)"
-	@echo "CUTest-CFLAGS: $(CUTEST_CFLAGS)"
-	@echo "CC           : $(CC) $(findstring gcc,$(CC))"
-	@echo "Detected CC  : $(findstring gcc,$(CC)))"
+	@echo "Test-folder          : $(CUTEST_TEST_DIR)"
+	@echo "Source-folder        : $(CUTEST_SRC_DIR)"
+	@echo "CUTest-path          : $(CUTEST_PATH)"
+	@echo "CUTest-CFLAGS        : $(CUTEST_CFLAGS)"
+	@echo "CC                   : $(CC) $(findstring gcc,$(CC))"
+	@echo "Sources to test      : $(SOURCES)"
+	@echo "Expected tests suites: $(EXPECTED_TEST_SUITES)"
+	@echo "Found tests suites   : $(FOUND_TEST_SUITES)"
+	@echo "Missing sources      : $(MISSING_SOURCES)"
+	@echo "Missing test suites  : $(MISSING_TEST_SUITES)"
 
 cutest_turead: $(CUTEST_PATH)/cutest_turead.c
 	$(Q)$(CC) $< $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -o $@
@@ -120,13 +130,12 @@ $(CUTEST_TEST_DIR)/%_proxified.s: $(CUTEST_TEST_DIR)/%_mockables.s $(CUTEST_TEST
 .PRECIOUS: $(CUTEST_TEST_DIR)/%_mocks.h
 # Generate mocks from the call()-macro in a source-file.
 $(CUTEST_TEST_DIR)/%_mocks.h: $(CUTEST_SRC_DIR)/%.c $(CUTEST_TEST_DIR)/%_mockables.lst $(CUTEST_PATH)/cutest.h $(CUTEST_PATH)/cutest_mock
-	$(Q)$(CUTEST_PATH)/cutest_mock $< $(addprefix $(CUTEST_TEST_DIR)/,$(notdir $(subst .c,_mockables.lst,$<))) $(CUTEST_PATH) \
-	$(CUTEST_IFLAGS) > $@; \
+	$(Q)$(CUTEST_PATH)/cutest_mock $(wordlist 1,3,$^) $(CUTEST_PATH) $(CUTEST_IFLAGS) > $@
 
 .PRECIOUS: $(CUTEST_TEST_DIR)/%_test_run.c
 # Generate a test-runner program code from a test-source-file
 $(CUTEST_TEST_DIR)/%_test_run.c: $(CUTEST_TEST_DIR)/%_test.c $(CUTEST_TEST_DIR)/%_mocks.h $(CUTEST_PATH)/cutest.h $(CUTEST_PATH)/cutest_run
-	$(Q)cd $(CUTEST_TEST_DIR) && $(CUTEST_PATH)/cutest_run $(filter-out cutest.h,$(notdir $^)) > $(notdir $@)
+	$(Q)$(CUTEST_PATH)/cutest_run $(wordlist 1,2,$^) > $@
 
 # Compile a test-runner from the generate test-runner program code
 $(CUTEST_TEST_DIR)/%_test: $(CUTEST_TEST_DIR)/%_proxified.s $(CUTEST_TEST_DIR)/%_test_run.c
@@ -151,31 +160,11 @@ cutest_help: $(CUTEST_TEST_DIR)/cutest_help.rst
 $(CUTEST_TEST_DIR)/%_test.memcheck: $(CUTEST_TEST_DIR)/%_test
 	$(Q)valgrind -q --xml=yes --xml-file=$@ ./$< > /dev/null
 
-# Produce a list of potential test-suite file names
-$(CUTEST_TEST_DIR)/cutest_sources.lst: $(CUTEST_SRC_DIR)
-	$(Q)ls -1 $(CUTEST_SRC_DIR)/*.c | grep -v '_test.c' | grep -v 'cutest_' | grep -v '_test_run.c' | sed -e 's/^.*\///g;s/\.c/_test\.c/g' > $@
-
-# Produce a list of actual test-suite file names
-$(CUTEST_TEST_DIR)/cutest_testsuites.lst: $(CUTEST_TEST_DIR)
-	$(Q)ls -1 $(CUTEST_TEST_DIR)/*_test.c | sed -e 's/^.*\///g' > $@
-
-# Compare the potential and actual list to determine if any test-suites are missing
-missing: $(CUTEST_TEST_DIR)/cutest_sources.lst $(CUTEST_TEST_DIR)/cutest_testsuites.lst
-	$(Q)for i in `cat $(CUTEST_TEST_DIR)/cutest_sources.lst`; do \
-	  grep $$i $(CUTEST_TEST_DIR)/cutest_testsuites.lst >/dev/null || echo "WARNING: Missing testsuite $$i" >&2; \
-	done
-
-# Compare the potential and actual list to determine if there are too many test-suites
-toomany: $(CUTEST_TEST_DIR)/cutest_sources.lst $(CUTEST_TEST_DIR)/cutest_testsuites.lst
-	$(Q)for i in `cat $(CUTEST_TEST_DIR)/cutest_testsuites.lst`; do \
-	  grep $$i $(CUTEST_TEST_DIR)/cutest_sources.lst >/dev/null || echo "WARNING: Unused testsuite $$i" >&2; \
-	done
-
 # Run all test-suites on as many threads as needed
-check:: missing toomany $(subst .c,,$(wildcard $(CUTEST_TEST_DIR)/*_test.c))
+check:: $(subst .c,,$(wildcard $(CUTEST_TEST_DIR)/*_test.c))
 	@R=true; \
 	processors=`cat /proc/cpuinfo | grep processor | wc -l`; \
-	for i in $(filter-out toomany,$(filter-out missing,$^)); do \
+	for i in $^; do \
 	  while [ `ps xa | grep -v grep | grep '_test ' | wc -l` -gt $$processors ]; do sleep 0.1; done; \
 	  ./$$i $V -j -s || rm $$i || R=false & \
 	done; \
@@ -183,6 +172,12 @@ check:: missing toomany $(subst .c,,$(wildcard $(CUTEST_TEST_DIR)/*_test.c))
 	  sleep 1; \
 	done; \
 	echo "	"; `$$R`
+ifneq ($(MISSING_SOURCES),)
+	$(warning "Missing source(s) $(MISSING_SOURCES) - Did you delete the test?")
+endif
+ifneq ($(MISSING_TEST_SUITES),)
+	$(warning "Missing test-suite(s) $(MISSING_TEST_SUITES) - Did you forget to write the test suites?")
+endif
 
 sanitize: check
 
@@ -190,10 +185,10 @@ sanitize: check
 memcheck:: $(subst .c,.memcheck,$(wildcard $(CUTEST_TEST_DIR)/*_test.c))
 
 # Run all test-suites on as many threads as needed and verify with valgrind
-valgrind:: missing toomany $(subst .c,,$(wildcard $(CUTEST_TEST_DIR)/*_test.c))
+valgrind:: $(subst .c,,$(wildcard $(CUTEST_TEST_DIR)/*_test.c))
 	@R=true; \
 	processors=`cat /proc/cpuinfo | grep processor | wc -l`; \
-	for i in $(filter-out toomany,$(filter-out missing,$^)); do \
+	for i in $^; do \
 	  while [ `ps xa | grep -v grep | grep '_test ' | wc -l` -gt $$processors ]; do sleep 0.1; done; \
 	  valgrind --track-origins=yes -q ./$$i -v -j -s || rm $$i || R=false & \
 	done; \
