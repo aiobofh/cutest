@@ -73,7 +73,7 @@ ifeq ($(MAKECMDGOALS),sanitize)
 	export ASAN_OPTIONS
 endif
 
-SOURCES=$(filter-out %_test.c,$(wildcard $(CUTEST_SRC_DIR)/*.c))
+SOURCES=$(filter-out %_test_run.c,$(filter-out %_test.c,$(wildcard $(CUTEST_SRC_DIR)/*.c)))
 EXPECTED_TEST_SUITES=$(sort $(subst .c,_test.c,$(SOURCES)))
 FOUND_TEST_SUITES=$(sort $(wildcard $(CUTEST_SRC_DIR)/*_test.c))
 MISSING_TEST_SUITES=$(filter-out $(FOUND_TEST_SUITES),$(EXPECTED_TEST_SUITES))
@@ -105,6 +105,10 @@ $(CUTEST_PATH)/cutest_mock: $(CUTEST_PATH)/cutest_mock.c $(CUTEST_PATH)/helpers.
 # Build a tool to generate an assembler file with replaced branches/calls.
 $(CUTEST_PATH)/cutest_prox: $(CUTEST_PATH)/cutest_prox.c $(CUTEST_PATH)/helpers.c
 	$(Q)$(CC) $^ -O2 $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -o $@
+
+# Build a tool to generate an assembler file with replaced branches/calls.
+$(CUTEST_PATH)/cutest_work: $(CUTEST_PATH)/cutest_work.c $(CUTEST_PATH)/helpers.c
+	$(Q)$(CC) $^ -g $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -o $@
 
 # Produce an object file to be processed to search for mockable functions
 .PRECIOUS: $(CUTEST_TEST_DIR)/%_mockables.o
@@ -159,25 +163,36 @@ cutest_help: $(CUTEST_TEST_DIR)/cutest_help.rst
 # Produce a valgrind report
 $(CUTEST_TEST_DIR)/%_test.memcheck: $(CUTEST_TEST_DIR)/%_test
 	$(Q)valgrind -q --xml=yes --xml-file=$@ ./$< > /dev/null
-
-# Run all test-suites on as many threads as needed
-check:: $(subst .c,,$(wildcard $(CUTEST_TEST_DIR)/*_test.c))
-	@R=true; \
-	processors=`cat /proc/cpuinfo | grep processor | wc -l`; \
-	for i in $^; do \
-	  while [ `ps xa | grep -v grep | grep '_test ' | wc -l` -gt $$processors ]; do sleep 0.1; done; \
-	  ./$$i $V -j -s || rm $$i || R=false & \
-	done; \
-	while [ `ps xa | grep -v grep | grep '_test ' | wc -l` -gt 0 ]; do \
-	  sleep 1; \
-	done; \
-	echo "	"; `$$R`
 ifneq ($(MISSING_SOURCES),)
 	$(warning "Missing source(s) $(MISSING_SOURCES) - Did you delete the test?")
 endif
 ifneq ($(MISSING_TEST_SUITES),)
 	$(warning "Missing test-suite(s) $(MISSING_TEST_SUITES) - Did you forget to write the test suites?")
 endif
+
+# If using CUTest without the cutest_work program to parallelize
+$(CUTEST_TEST_DIR)/%_test.junit_report.xml: $(CUTEST_TEST_DIR)/%_test
+	$(Q)$^ $V -j -s 1> $(subst _test,_test.stdout,$^) 2> $(subst _test,_test.stderr,$^)
+
+# Run all test-suites on as many threads as needed gnu make
+makecheck:: $(subst .c,.junit_report.xml,$(wildcard $(CUTEST_TEST_DIR)/*_test.c))
+ifneq ($(MISSING_SOURCES),)
+	$(warning "Missing source(s) $(MISSING_SOURCES) - Did you delete the test?")
+endif
+ifneq ($(MISSING_TEST_SUITES),)
+	$(warning "Missing test-suite(s) $(MISSING_TEST_SUITES) - Did you forget to write the test suites?")
+endif
+	$(Q)echo
+
+# Run all test-suites on as many threads as needed using cutest_work
+check:: $(subst .c,,$(wildcard $(CUTEST_TEST_DIR)/*_test.c)) $(CUTEST_PATH)/cutest_work
+ifneq ($(MISSING_SOURCES),)
+	$(warning "Missing source(s) $(MISSING_SOURCES) - Did you delete the test?")
+endif
+ifneq ($(MISSING_TEST_SUITES),)
+	$(warning "Missing test-suite(s) $(MISSING_TEST_SUITES) - Did you forget to write the test suites?")
+endif
+	$(Q)$(CUTEST_PATH)/cutest_work $V $(addprefix $(CUTEST_TEST_DIR)/,$(filter-out $(CUTEST_PATH)/cutest_work,$^))
 
 sanitize: check
 
@@ -207,6 +222,7 @@ clean::
 	$(CUTEST_TEST_DIR)/cutest_run \
 	$(CUTEST_TEST_DIR)/cutest_mock \
 	$(CUTEST_TEST_DIR)/cutest_prox \
+	$(CUTEST_TEST_DIR)/cutest_work \
 	$(CUTEST_TEST_DIR)/cutest_filt \
 	$(CUTEST_TEST_DIR)/cutest_filt.c \
 	$(CUTEST_TEST_DIR)/*_mocks.h \
@@ -215,6 +231,8 @@ clean::
 	$(CUTEST_SRC_DIR)/default.profraw \
 	$(CUTEST_TEST_DIR)/*.memcheck \
 	$(CUTEST_TEST_DIR)/*_test \
+	$(CUTEST_TEST_DIR)/*_test.stderr \
+	$(CUTEST_TEST_DIR)/*_test.stdout \
 	$(CUTEST_TEST_DIR)/*_test.exe \
 	$(CUTEST_TEST_DIR)/*.tu \
 	$(CUTEST_TEST_DIR)/*_mockables.* \
