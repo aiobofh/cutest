@@ -37,15 +37,17 @@ CUTEST_SRC_DIR ?=./
 CUTEST_TEST_DIR ?=./
 
 # Some nice flags for compiling cutest-tests with good quality
-ifneq ($(CC),clang)
+ifneq ($(findstring clang,$(CC)),clang)
 	CUTEST_CFLAGS?=-g -pedantic -Wall -Wextra -std=c11
+	LTO=-flto
 else
 	CUTEST_CFLAGS?=-pedantic -Wall -Wextra -std=c11
+	LTO=
 endif
 # This makes valgrind work with long double values, should suffice for
 # most applications as well.
 HAS_LONGOPT=$(shell $(CC) -mlong-double-64 2>&1 | grep 'unrecognized' >/dev/null && echo "yes")
-ifneq ($(CC),clang)
+ifneq ($(findstring clang,$(CC)),clang)
 	ifneq ($(HAS_LONGOPT),yes)
 		CUTEST_CFLAGS+= -mlong-double-64
 	endif
@@ -73,13 +75,14 @@ ifeq ($(MAKECMDGOALS),sanitize)
 	export ASAN_OPTIONS
 endif
 
-SOURCES=$(filter-out %_test_run.c,$(filter-out %_test.c,$(wildcard $(CUTEST_SRC_DIR)/*.c)))
-EXPECTED_TEST_SUITES=$(sort $(subst .c,_test.c,$(SOURCES)))
-FOUND_TEST_SUITES=$(sort $(wildcard $(CUTEST_SRC_DIR)/*_test.c))
+SOURCES=$(notdir $(filter-out %_test_run.c,$(filter-out %_test.c,$(wildcard $(CUTEST_SRC_DIR)/*.c))))
+EXPECTED_TEST_SUITES=$(sort $(notdir $(subst .c,_test.c,$(filter-out cutest.c,$(SOURCES)))))
+FOUND_TEST_SUITES=$(sort $(notdir $(wildcard $(CUTEST_TEST_DIR)/*_test.c)))
 MISSING_TEST_SUITES=$(filter-out $(FOUND_TEST_SUITES),$(EXPECTED_TEST_SUITES))
 MISSING_SOURCES=$(subst _test.c,.c,$(filter-out $(EXPECTED_TEST_SUITES),$(FOUND_TEST_SUITES)))
 
 cutest_info:
+	@echo "Current path         : $(abspath .)"
 	@echo "Test-folder          : $(CUTEST_TEST_DIR)"
 	@echo "Source-folder        : $(CUTEST_SRC_DIR)"
 	@echo "CUTest-path          : $(CUTEST_PATH)"
@@ -94,21 +97,27 @@ cutest_info:
 cutest_turead: $(CUTEST_PATH)/cutest_turead.c
 	$(Q)$(CC) $< $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -o $@
 
-# Build a tool to generate a test suite runner.
-$(CUTEST_PATH)/cutest_run: $(CUTEST_PATH)/cutest_run.c $(CUTEST_PATH)/helpers.c
-	$(Q)$(CC) $^ -O2 $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -o $@
+$(CUTEST_PATH)/%.o: $(CUTEST_PATH)/%.c
+	$(Q)$(CC) -c $^ -O2 $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -o $@
+
+$(CUTEST_PATH)/cutest.o: $(CUTEST_PATH)/cutest.c
+	$(Q)$(CC) -c $^ $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -I$(abspath $(CUTEST_SRC_DIR)) $(CUTEST_IFLAGS) -DNDEBUG -D"inline=" $(CUTEST_DEFINES) -o $@
 
 # Build a tool to generate a test suite runner.
-$(CUTEST_PATH)/cutest_mock: $(CUTEST_PATH)/cutest_mock.c $(CUTEST_PATH)/helpers.c $(CUTEST_PATH)/mockable.c $(CUTEST_PATH)/arg.c
-	$(Q)$(CC) $^ -O2 $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -o $@
+$(CUTEST_PATH)/cutest_run: $(CUTEST_PATH)/cutest_run.o $(CUTEST_PATH)/helpers.o $(CUTEST_PATH)/testcase.o
+	$(Q)$(CC) $^ -O2 $(LTO) $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -o $@
+
+# Build a tool to generate a test suite runner.
+$(CUTEST_PATH)/cutest_mock: $(CUTEST_PATH)/cutest_mock.o $(CUTEST_PATH)/helpers.o $(CUTEST_PATH)/mockable.o $(CUTEST_PATH)/arg.o
+	$(Q)$(CC) $^ -O2 $(LTO) $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -o $@
 
 # Build a tool to generate an assembler file with replaced branches/calls.
-$(CUTEST_PATH)/cutest_prox: $(CUTEST_PATH)/cutest_prox.c $(CUTEST_PATH)/helpers.c
-	$(Q)$(CC) $^ -O2 $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -o $@
+$(CUTEST_PATH)/cutest_prox: $(CUTEST_PATH)/cutest_prox.o $(CUTEST_PATH)/helpers.o
+	$(Q)$(CC) $^ -O2 $(LTO) $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -o $@
 
 # Build a tool to generate an assembler file with replaced branches/calls.
-$(CUTEST_PATH)/cutest_work: $(CUTEST_PATH)/cutest_work.c $(CUTEST_PATH)/helpers.c
-	$(Q)$(CC) $^ -g $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -o $@
+$(CUTEST_PATH)/cutest_work: $(CUTEST_PATH)/cutest_work.o $(CUTEST_PATH)/helpers.o
+	$(Q)$(CC) $^ -O2 $(LTO) $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -o $@
 
 # Produce an object file to be processed to search for mockable functions
 .PRECIOUS: $(CUTEST_TEST_DIR)/%_mockables.o
@@ -142,8 +151,8 @@ $(CUTEST_TEST_DIR)/%_test_run.c: $(CUTEST_TEST_DIR)/%_test.c $(CUTEST_TEST_DIR)/
 	$(Q)$(CUTEST_PATH)/cutest_run $(wordlist 1,2,$^) > $@
 
 # Compile a test-runner from the generate test-runner program code
-$(CUTEST_TEST_DIR)/%_test: $(CUTEST_TEST_DIR)/%_proxified.s $(CUTEST_TEST_DIR)/%_test_run.c
-	$(Q)$(CC) -o $@ $^ $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -I$(abspath $(CUTEST_TEST_DIR)) -I$(abspath $(CUTEST_SRC_DIR)) $(CUTEST_IFLAGS) -DNDEBUG -D"inline=" $(CUTEST_DEFINES) 3>&1 1>&2 2>&3 3>&-
+$(CUTEST_TEST_DIR)/%_test: $(CUTEST_TEST_DIR)/%_proxified.s $(CUTEST_TEST_DIR)/%_test_run.c $(CUTEST_PATH)/cutest.o
+	$(Q)$(CC) -o $@ $^ $(LTO) $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -I$(abspath $(CUTEST_TEST_DIR)) -I$(abspath $(CUTEST_SRC_DIR)) $(CUTEST_IFLAGS) -DNDEBUG -D"inline=" $(CUTEST_DEFINES) 3>&1 1>&2 2>&3 3>&-
 
 # Print the CUTest manual
 $(CUTEST_TEST_DIR)/cutest_help.rst: $(CUTEST_PATH)/cutest.h
@@ -192,15 +201,26 @@ endif
 ifneq ($(MISSING_TEST_SUITES),)
 	$(warning "Missing test-suite(s) $(MISSING_TEST_SUITES) - Did you forget to write the test suites?")
 endif
-	$(Q)$(CUTEST_PATH)/cutest_work $V $(addprefix $(CUTEST_TEST_DIR)/,$(filter-out $(CUTEST_PATH)/cutest_work,$^))
+#	$(Q)$(CUTEST_PATH)/cutest_work $V $(addprefix $(CUTEST_TEST_DIR)/,$(filter-out $(CUTEST_PATH)/cutest_work,$^))
+	$(Q)$(CUTEST_PATH)/cutest_work $V $(filter-out $(CUTEST_PATH)/cutest_work,$^)
 
 sanitize: check
 
 # Perform a memcheck on any test suite
 memcheck:: $(subst .c,.memcheck,$(wildcard $(CUTEST_TEST_DIR)/*_test.c))
 
+valgrind:: $(subst .c,,$(wildcard $(CUTEST_TEST_DIR)/*_test.c)) $(CUTEST_PATH)/cutest_work
+ifneq ($(MISSING_SOURCES),)
+	$(warning "Missing source(s) $(MISSING_SOURCES) - Did you delete the test?")
+endif
+ifneq ($(MISSING_TEST_SUITES),)
+	$(warning "Missing test-suite(s) $(MISSING_TEST_SUITES) - Did you forget to write the test suites?")
+endif
+#	$(Q)$(CUTEST_PATH)/cutest_work -V $(addprefix $(CUTEST_TEST_DIR)/,$(filter-out $(CUTEST_PATH)/cutest_work,$^))
+	$(Q)$(CUTEST_PATH)/cutest_work -V $(filter-out $(CUTEST_PATH)/cutest_work,$^)
+
 # Run all test-suites on as many threads as needed and verify with valgrind
-valgrind:: $(subst .c,,$(wildcard $(CUTEST_TEST_DIR)/*_test.c))
+makevalgrind:: $(subst .c,,$(wildcard $(CUTEST_TEST_DIR)/*_test.c))
 	@R=true; \
 	processors=`cat /proc/cpuinfo | grep processor | wc -l`; \
 	for i in $^; do \
@@ -213,9 +233,12 @@ valgrind:: $(subst .c,,$(wildcard $(CUTEST_TEST_DIR)/*_test.c))
 	`$$R`
 
 clean_cutest:
-	$(Q)$(RM) $(CUTEST_PATH)/cutest_run \
+	$(Q)$(RM) -f $(CUTEST_PATH)/cutest_run \
 	$(CUTEST_PATH)/cutest_prox \
-	$(CUTEST_PATH)/cutest_mock
+	$(CUTEST_PATH)/cutest_mock \
+	$(CUTEST_PATH)/*.o \
+	$(CUTEST_PATH)/*.gcda \
+	$(CUTEST_PATH)/*.gcno
 
 clean::
 	$(Q)$(RM) -f $(CUTEST_TEST_DIR)/*_test_run.c \
@@ -241,4 +264,5 @@ clean::
 	$(CUTEST_TEST_DIR)/cutest_help.html \
 	$(CUTEST_TEST_DIR)/cutest_sources.lst \
 	$(CUTEST_TEST_DIR)/cutest_testsuites.lst \
+	$(CUTEST_TEST_DIR)/*_test.log \
 	$(CUTEST_TEST_DIR)/*~

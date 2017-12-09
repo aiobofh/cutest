@@ -137,7 +137,7 @@ test(print_header_shall_print_something)
  */
 test(print_main_function_prologue_shall_print_something)
 {
-  print_main_function_prologue("foo");
+  print_main_function_prologue("foo", 1);
   assert_eq(1, m.printf.call_count);
 }
 
@@ -146,7 +146,7 @@ test(print_main_function_prologue_shall_print_something)
  */
 test(print_test_case_executor_shall_print_something)
 {
-  print_test_case_executor("foo", "bar");
+  print_test_case_executor("foo", 1, 1);
   assert_eq(1, m.printf.call_count);
 }
 
@@ -155,44 +155,44 @@ test(print_test_case_executor_shall_print_something)
  */
 test(print_main_function_epilogue_shall_print_something)
 {
-  print_main_function_epilogue("foo");
+  print_main_function_epilogue("foo", 1);
   assert_eq(1, m.printf.call_count);
 }
 
 /*****************************************************************************
- * print_test_case_executions()
+ * parse_test_cases()
  */
-test(print_test_case_executions_shall_open_the_correct_file_for_reading)
+test(parse_test_cases_shall_open_the_correct_file_for_reading)
 {
   m.feof.retval = 1;
-  print_test_case_executions("some_file");
+  parse_test_cases(0x5678, "some_file");
   assert_eq("some_file", m.fopen.args.arg0);
   assert_eq("r", m.fopen.args.arg1);
 }
 
-test(print_test_case_executions_shall_call_feof_correctly)
+test(parse_test_cases_shall_call_feof_correctly)
 {
   m.fopen.retval = 0x1234;
   m.feof.retval = 1;
-  print_test_case_executions("some_file");
+  parse_test_cases(0x5678, "some_file");
   assert_eq(1, m.feof.call_count);
   assert_eq(0x1234, m.feof.args.arg0);
 }
 
-test(print_test_case_executions_shall_close_the_correct_file)
+test(parse_test_cases_shall_close_the_correct_file)
 {
   m.fopen.retval = 0x1234;
   m.feof.retval = 1;
-  print_test_case_executions("some_file");
+  parse_test_cases(0x5678, "some_file");
   assert_eq(1, m.fclose.call_count);
   assert_eq(0x1234, m.fclose.args.arg0);
 }
 
-test(print_test_case_executions_shall_call_fgets_correctly)
+test(parse_test_cases_shall_call_fgets_correctly)
 {
   m.fopen.retval = 0x1234;
   m.feof.retval = 0;
-  print_test_case_executions("some_file");
+  parse_test_cases(0x5678, "some_file");
   assert_eq(1, m.fgets.call_count);
   assert_eq(0x1234, m.fgets.args.arg2);
 }
@@ -208,180 +208,118 @@ static int feof_stub(FILE *stream)
   return 1;
 }
 
-test(print_test_case_executions_shall_read_file_rows_until_eof)
+test(parse_test_cases_shall_read_file_rows_until_eof)
 {
   m.feof.func = feof_stub;
   m.fgets.retval = 0x1234;
   feof_cnt = 0;
-  print_test_case_executions("some_file");
+  parse_test_cases(0x5678, "some_file");
   feof_cnt = 0;
   assert_eq(10, m.feof.call_count);
   assert_eq(9, m.fgets.call_count);
 }
 
-test(print_test_case_executions_shall_quit_reading_file_if_fgets_fails)
+test(parse_test_cases_shall_quit_reading_file_if_fgets_fails)
 {
   m.feof.func = feof_stub;
   m.fgets.retval = 0;
   feof_cnt = 0;
-  print_test_case_executions("some_file");
+  parse_test_cases(0x5678, "some_file");
   feof_cnt = 0;
   assert_eq(1, m.feof.call_count);
   assert_eq(1, m.fgets.call_count);
 }
 
-test(print_test_case_executions_shall_call_skip_comments_correctly)
+test(parse_test_cases_shall_call_skip_comments_correctly)
 {
   m.feof.func = feof_stub;
   m.fgets.retval = 0x1234;
   feof_cnt = 0;
-  print_test_case_executions("some_file");
+  parse_test_cases(0x5678, "some_file");
   feof_cnt = 0;
   assert_eq(9, m.skip_comments.call_count);
 }
 
-test(print_test_case_executions_shall_not_read_next_test_or_print_if_comment)
+test(parse_test_cases_shall_not_read_next_test_nor_store_a_node_if_comment)
 {
   m.feof.func = feof_stub;
   m.fgets.retval = 0x1234;
   m.skip_comments.retval = 1;
   feof_cnt = 0;
-  print_test_case_executions("some_file");
+  parse_test_cases(0x5678, "some_file");
   feof_cnt = 0;
   assert_eq(9, m.skip_comments.call_count);
   assert_eq(0, m.next_test.call_count);
-  assert_eq(0, m.print_test_case_executor.call_count);
+  assert_eq(0, m.new_testcase_node.call_count);
 }
 
-test(print_test_case_executions_shall_read_next_test_and_print_it)
+test(parse_test_cases_shall_read_next_test_and_allocate_a_new_testcase_node)
 {
   struct test_s t = {"foo", 0};
   m.feof.func = feof_stub;
   m.fgets.retval = 0x1234;
   m.next_test.retval = t;
   feof_cnt = 0;
-  print_test_case_executions("some_file");
+  parse_test_cases(0x5678, "some_file");
   feof_cnt = 0;
-  assert_eq(9, m.print_test_case_executor.call_count);
+  assert_eq(9, m.new_testcase_node.call_count);
 }
 
-test(print_test_case_executions_shall_read_next_test_not_print_it_if_no_test)
+test(parse_test_cases_shall_read_next_test_and_add_the_node_to_testcase_list)
+{
+  struct test_s t = {"foo", 0};
+  m.feof.func = feof_stub;
+  m.fgets.retval = 0x1234;
+  m.next_test.retval = t;
+  m.new_testcase_node.retval = 0x4321;
+  feof_cnt = 0;
+  parse_test_cases(0x5678, "some_file");
+  feof_cnt = 0;
+  assert_eq(9, m.testcase_list_add_node.call_count);
+  assert_eq(0x5678, m.testcase_list_add_node.args.arg0);
+  assert_eq(0x4321, m.testcase_list_add_node.args.arg1);
+}
+
+test(parse_test_cases_shall_read_next_test_not_store_a_node_it_if_no_test)
 {
   struct test_s t = {NULL, 0};
   m.feof.func = feof_stub;
   m.fgets.retval = 0x1234;
   m.next_test.retval = t;
   feof_cnt = 0;
-  print_test_case_executions("some_file");
+  parse_test_cases(0x5678, "some_file");
   feof_cnt = 0;
-  assert_eq(0, m.print_test_case_executor.call_count);
+  assert_eq(0, m.new_testcase_node.call_count);
+}
+
+/*****************************************************************************
+ * print_test_case_executions()
+ */
+test(print_test_executions_shall_traverse_the_list_of_testcases_and_print)
+{
+  testcase_list_t list;
+  testcase_node_t node[3];
+  list.first = &node[0];
+  node[0].next = &node[1];
+  node[1].next = &node[2];
+  node[2].next = NULL;
+  print_test_case_executions(&list);
+  assert_eq(3, m.print_test_case_executor.call_count);
 }
 
 /*****************************************************************************
  * print_test_names_printer()
  */
-test(print_test_names_printer_shall_open_the_correct_file_for_reading)
+test(print_test_names_printer_shall_traverse_the_list_of_testcases_and_print)
 {
-  m.feof.retval = 1;
-  print_test_names_printer("some_file");
-  assert_eq("some_file", m.fopen.args.arg0);
-  assert_eq("r", m.fopen.args.arg1);
-}
-
-test(print_test_names_printer_shall_call_feof_correctly)
-{
-  m.fopen.retval = 0x1234;
-  m.feof.retval = 1;
-  print_test_names_printer("some_file");
-  assert_eq(1, m.feof.call_count);
-  assert_eq(0x1234, m.feof.args.arg0);
-}
-
-test(print_test_names_printer_shall_close_the_correct_file)
-{
-  m.fopen.retval = 0x1234;
-  m.feof.retval = 1;
-  print_test_names_printer("some_file");
-  assert_eq(1, m.fclose.call_count);
-  assert_eq(0x1234, m.fclose.args.arg0);
-}
-
-test(print_test_names_printer_shall_call_fgets_correctly)
-{
-  m.fopen.retval = 0x1234;
-  m.feof.retval = 0;
-  print_test_names_printer("some_file");
-  assert_eq(1, m.fgets.call_count);
-  assert_eq(0x1234, m.fgets.args.arg2);
-}
-
-test(print_test_names_printer_shall_read_file_rows_until_eof)
-{
-  m.feof.func = feof_stub;
-  m.fgets.retval = 0x1234;
-  feof_cnt = 0;
-  print_test_names_printer("some_file");
-  feof_cnt = 0;
-  assert_eq(10, m.feof.call_count);
-  assert_eq(9, m.fgets.call_count);
-}
-
-test(print_test_names_printer_shall_quit_reading_file_if_fgets_fails)
-{
-  m.feof.func = feof_stub;
-  m.fgets.retval = 0;
-  feof_cnt = 0;
-  print_test_names_printer("some_file");
-  feof_cnt = 0;
-  assert_eq(1, m.feof.call_count);
-  assert_eq(1, m.fgets.call_count);
-}
-
-test(print_test_names_printer_shall_call_skip_comments_correctly)
-{
-  m.feof.func = feof_stub;
-  m.fgets.retval = 0x1234;
-  feof_cnt = 0;
-  print_test_names_printer("some_file");
-  feof_cnt = 0;
-  assert_eq(9, m.skip_comments.call_count);
-}
-
-test(print_test_names_printer_shall_not_read_next_test_or_print_if_comment)
-{
-  m.feof.func = feof_stub;
-  m.fgets.retval = 0x1234;
-  m.skip_comments.retval = 1;
-  feof_cnt = 0;
-  print_test_names_printer("some_file");
-  feof_cnt = 0;
-  assert_eq(9, m.skip_comments.call_count);
-  assert_eq(0, m.next_test.call_count);
-  assert_eq(0, m.printf.call_count);
-}
-
-test(print_test_names_printer_shall_read_next_test_and_print_it)
-{
-  struct test_s t = {"foo", 0};
-  m.feof.func = feof_stub;
-  m.fgets.retval = 0x1234;
-  m.next_test.retval = t;
-  feof_cnt = 0;
-  print_test_names_printer("some_file");
-  feof_cnt = 0;
-  assert_eq(9, m.printf.call_count);
-}
-
-test(print_test_names_printer_shall_read_next_test_not_print_it_if_no_test)
-{
-  struct test_s t = {NULL, 0};
-  m.feof.func = feof_stub;
-  m.fgets.retval = 0x1234;
-  m.next_test.retval = t;
-  feof_cnt = 0;
-  print_test_names_printer("some_file");
-  feof_cnt = 0;
-  assert_eq(0, m.printf.call_count);
+  testcase_list_t list;
+  testcase_node_t node[3];
+  list.first = &node[0];
+  node[0].next = &node[1];
+  node[1].next = &node[2];
+  node[2].next = NULL;
+  print_test_names_printer(&list);
+  assert_eq(3, m.printf.call_count);
 }
 
 /*****************************************************************************
@@ -468,10 +406,37 @@ test(main_shall_return_EXIT_FAILURE_if_mock_header_file_could_not_be_found)
   assert_eq(EXIT_FAILURE, main(3, argv));
 }
 
+test(main_shall_allocate_a_testcase_list_for_use_to_other_functions)
+{
+  char* argv[] = {"program_name", "test_file", "mock_file"};
+  m.file_exists.retval = 1;
+  main(3, argv);
+  assert_eq(1, m.new_testcase_list.call_count);
+}
+
+test(main_shall_return_EXIT_FAILURE_if_testcase_list_could_not_be_allocated)
+{
+  char* argv[] = {"program_name", "test_file", "mock_file"};
+  m.file_exists.retval = 1;
+  assert_eq(EXIT_FAILURE, main(3, argv));
+}
+
+test(main_shall_call_parse_test_cases_to_fill_the_list)
+{
+  char* argv[] = {"program_name", "test_file", "mock_file"};
+  m.file_exists.retval = 1;
+  m.new_testcase_list.retval = 0x1234;
+  main(3, argv);
+  assert_eq(1, m.parse_test_cases.call_count);
+  assert_eq(0x1234, m.parse_test_cases.args.arg0);
+  assert_eq("test_file", m.parse_test_cases.args.arg1);
+}
+
 test(main_shall_print_header)
 {
   char* argv[] = {"program_name", "test_file", "mock_file"};
   m.file_exists.retval = 1;
+  m.new_testcase_list.retval = 0x1234;
   main(3, argv);
   assert_eq(1, m.print_header.call_count);
   assert_eq("program_name", m.print_header.args.arg0);
@@ -483,33 +448,49 @@ test(main_shall_print_main_function_prologue)
 {
   char* argv[] = {"program_name", "test_file", "mock_file"};
   m.file_exists.retval = 1;
+  m.new_testcase_list.retval = 0x1234;
+  m.parse_test_cases.retval = 5678;
   main(3, argv);
   assert_eq(1, m.print_main_function_prologue.call_count);
   assert_eq("test_file", m.print_main_function_prologue.args.arg0);
+  assert_eq(5678, m.print_main_function_prologue.args.arg1);
 }
 
 test(main_shall_print_test_case_executions)
 {
   char* argv[] = {"program_name", "test_file", "mock_file"};
   m.file_exists.retval = 1;
+  m.new_testcase_list.retval = 0x1234;
   main(3, argv);
   assert_eq(1, m.print_test_case_executions.call_count);
-  assert_eq("test_file", m.print_test_case_executions.args.arg0);
+  assert_eq(0x1234, m.print_test_case_executions.args.arg0);
 }
 
 test(main_shall_print_main_function_epilogue)
 {
   char* argv[] = {"program_name", "test_file", "mock_file"};
   m.file_exists.retval = 1;
+  m.new_testcase_list.retval = 0x1234;
   main(3, argv);
   assert_eq(1, m.print_main_function_epilogue.call_count);
   assert_eq("test_file", m.print_main_function_epilogue.args.arg0);
+}
+
+test(main_shall_delete_testcase_list)
+{
+  char* argv[] = {"program_name", "test_file", "mock_file"};
+  m.file_exists.retval = 1;
+  m.new_testcase_list.retval = 0x1234;
+  main(3, argv);
+  assert_eq(1, m.delete_testcase_list.call_count);
+  assert_eq(0x1234, m.delete_testcase_list.args.arg0);
 }
 
 test(main_shall_return_EXIT_SUCCESS_if_all_went_well)
 {
   char* argv[] = {"program_name", "test_file", "mock_file"};
   m.file_exists.retval = 1;
+  m.new_testcase_list.retval = 0x1234;
   assert_eq(EXIT_SUCCESS, main(3, argv));
 }
 

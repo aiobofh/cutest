@@ -13,7 +13,7 @@ all:
 include ../src/cutest.mk
 include ../src/coverage.mk
 
-cutest_run_test:: helpers.c
+cutest_run_test:: helpers.c testcase.c
 cutest_prox_test:: helpers.c
 cutest_mock_test:: helpers.c arg.c mockable.c
 cutest_work_test:: helpers.c

@@ -45,6 +45,7 @@
 
 #define CHUNK_SIZE 1024
 
+#include "testcase.h"
 #include "cutest_run.h"
 #include "helpers.h"
 
@@ -130,32 +131,42 @@ static void print_header(const char* program_name,
          test_source_file_name);
 }
 
-static void print_main_function_prologue(const char* test_source_file_name)
+static void print_main_function_prologue(const char* test_source_file_name,
+                                         const size_t test_cnt)
 {
   printf("int main(int argc, char* argv[])\n"
          "{\n"
-         "  cutest_startup(argc, argv, \"%s\");\n\n",
-         test_source_file_name);
+         "  cutest_junit_report_t junit_report[%lu];\n"
+         "  cutest_startup(argc, argv, \"%s\", junit_report, %lu);\n\n",
+         test_cnt,
+         test_source_file_name,
+         test_cnt);
 }
 
-static void print_test_case_executor(const char* name, int reset_mocks)
+static void print_test_case_executor(const char* name, size_t idx,
+                                     int reset_mocks)
 {
   printf("  if (1 == cutest_test_name_argument_given(\"%s\")) {\n"
-         "    cutest_execute_test(cutest_%s, \"%s\", %d, argv[0]);\n"
+         "    memset(&cutest_mock, 0, sizeof(cutest_mock));\n"
+         "    cutest_execute_test(&junit_report[%lu], cutest_%s, \"%s\", %d, argv[0]);\n"
          "  }\n",
-         name, name, name, reset_mocks);
+         name, idx, name, name, reset_mocks);
 }
 
-static void print_main_function_epilogue(const char* test_source_file_name)
+static void print_main_function_epilogue(const char* test_source_file_name,
+                                         const size_t test_cnt)
 {
-  printf("  cutest_shutdown(\"%s\");\n\n"
+  printf("  cutest_shutdown(\"%s\", junit_report, %lu);\n\n"
          "  return cutest_exit_code;\n"
          "}\n",
-         test_source_file_name);
+         test_source_file_name,
+         test_cnt);
 }
 
-static void print_test_case_executions(const char* test_source_file_name)
+static size_t parse_test_cases(testcase_list_t* list,
+                               const char* test_source_file_name)
 {
+  size_t test_cnt = 0;
   FILE *fd = fopen(test_source_file_name, "r");
 
   int still_inside_a_comment = 0;
@@ -177,45 +188,38 @@ static void print_test_case_executions(const char* test_source_file_name)
       continue;
     }
 
-    print_test_case_executor(t.name, t.reset_mocks);
+    testcase_node_t* node = new_testcase_node(t.name, t.reset_mocks);
+    testcase_list_add_node(list, node);
+
+    test_cnt++;
   }
 
   fclose(fd);
+
+  return test_cnt;
 }
 
-static void print_test_names_printer(const char* test_source_file_name)
+static void print_test_case_executions(testcase_list_t* list)
 {
-  FILE *fd = fopen(test_source_file_name, "r");
+  testcase_node_t* node;
+  size_t idx = 0;
+  for (node = list->first; NULL != node; node = node->next) {
+    print_test_case_executor(node->testcase, idx++, node->reset);
+  }
+}
 
-  int still_inside_a_comment = 0;
+static void print_test_names_printer(testcase_list_t* list)
+{
+  testcase_node_t* node;
 
   printf("  if (cutest_opts.print_tests) {\n");
-
-  while (!feof(fd)) {
-
-    char buf[CHUNK_SIZE];
-    if (NULL == fgets(buf, CHUNK_SIZE, fd)) {
-      break;
-    }
-
-    still_inside_a_comment += skip_comments(buf);
-    if (still_inside_a_comment > 0) {
-      continue;
-    }
-
-    struct test_s t = next_test(buf);
-    if (NULL == t.name) {
-      continue;
-    }
-
-    printf("    puts(\"%s\");\n", t.name);
+  for (node = list->first; NULL != node; node = node->next) {
+    printf("    puts(\"%s\");\n", node->testcase);
   }
-
   printf("    exit(EXIT_SUCCESS);\n"
          "  }\n");
-
-  fclose(fd);
 }
+
 /*
  * The test runner program
  * -----------------------
@@ -244,11 +248,20 @@ int main(int argc, char* argv[]) {
     return EXIT_FAILURE;
   }
 
+  testcase_list_t* list = new_testcase_list();
+  if (NULL == list) {
+    return EXIT_FAILURE;
+  }
+
+  const size_t test_cnt = parse_test_cases(list, test_source_file_name);
+
   print_header(program_name, test_source_file_name, mock_header_file_name);
-  print_main_function_prologue(test_source_file_name);
-  print_test_names_printer(test_source_file_name);
-  print_test_case_executions(test_source_file_name);
-  print_main_function_epilogue(test_source_file_name);
+  print_main_function_prologue(test_source_file_name, test_cnt);
+  print_test_names_printer(list);
+  print_test_case_executions(list);
+  print_main_function_epilogue(test_source_file_name, test_cnt);
+
+  delete_testcase_list(list);
 
   return EXIT_SUCCESS;
 }

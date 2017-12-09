@@ -20,13 +20,16 @@ sanitize_tests:
 	echo "" && \
 	echo "examples:" && \
 	$(MAKE) -r --no-print-directory -C examples sanitize >/dev/null && echo "OK" && \
+	$(MAKE) -r --no-print-directory -C examples clean && \
+	$(MAKE) -r --no-print-directory -C examples clean_cutest && \
 	echo "my_project_with_a_test_folder_inside_the_src_folder:" && \
 	$(MAKE) -r --no-print-directory -C examples/complex_directory_structure/my_project_with_a_test_folder_inside_the_src_folder/src sanitize >/dev/null && echo "OK" && \
+	$(MAKE) -r --no-print-directory -C examples/complex_directory_structure/my_project_with_a_test_folder_inside_the_src_folder/src clean && \
+	$(MAKE) -r --no-print-directory -C examples/complex_directory_structure/my_project_with_a_test_folder_inside_the_src_folder/src clean_cutest && \
 	echo "my_project_with_separate_src_and_test_folders:" && \
 	$(MAKE) -r --no-print-directory -C examples/complex_directory_structure/my_project_with_separate_src_and_test_folders sanitize >/dev/null && echo "OK" && \
-	$(MAKE) -r --no-print-directory -C examples clean && \
-	$(MAKE) -r --no-print-directory -C examples/complex_directory_structure/my_project_with_a_test_folder_inside_the_src_folder/src clean && \
 	$(MAKE) -r --no-print-directory -C examples/complex_directory_structure/my_project_with_separate_src_and_test_folders clean && \
+	$(MAKE) -r --no-print-directory -C examples/complex_directory_structure/my_project_with_separate_src_and_test_folders clean_cutest && \
 	echo ""
 
 regression_tests:
@@ -36,10 +39,16 @@ regression_tests:
 	echo "" && \
 	echo "examples:" && \
 	$(MAKE) -r --no-print-directory -C examples valgrind >/dev/null && echo "OK" && \
+	$(MAKE) -r --no-print-directory -C examples clean && \
+	$(MAKE) -r --no-print-directory -C examples clean_cutest && \
 	echo "my_project_with_a_test_folder_inside_the_src_folder:" && \
 	$(MAKE) -r --no-print-directory -C examples/complex_directory_structure/my_project_with_a_test_folder_inside_the_src_folder/src valgrind >/dev/null && echo "OK" && \
+	$(MAKE) -r --no-print-directory -C examples/complex_directory_structure/my_project_with_a_test_folder_inside_the_src_folder/src clean && \
+	$(MAKE) -r --no-print-directory -C examples/complex_directory_structure/my_project_with_a_test_folder_inside_the_src_folder/src clean_cutest && \
 	echo "my_project_with_separate_src_and_test_folders:" && \
 	$(MAKE) -r --no-print-directory -C examples/complex_directory_structure/my_project_with_separate_src_and_test_folders valgrind >/dev/null && echo "OK" && \
+	$(MAKE) -r --no-print-directory -C examples/complex_directory_structure/my_project_with_separate_src_and_test_folders clean && \
+	$(MAKE) -r --no-print-directory -C examples/complex_directory_structure/my_project_with_separate_src_and_test_folders clean_cutest && \
 	echo ""
 
 release: cutest-$(VERSION).tar.gz
@@ -95,5 +104,8 @@ README.rst: examples/cutest_help.rst
 clean:
 	@rm -rf tmp cutest-* *~ && \
 	$(MAKE) -r --no-print-directory -C examples clean && \
+	$(MAKE) -r --no-print-directory -C examples clean_cutest && \
 	$(MAKE) -r --no-print-directory -C examples/complex_directory_structure/my_project_with_a_test_folder_inside_the_src_folder/src clean && \
-	$(MAKE) -r --no-print-directory -C examples/complex_directory_structure/my_project_with_separate_src_and_test_folders clean
+	$(MAKE) -r --no-print-directory -C examples/complex_directory_structure/my_project_with_a_test_folder_inside_the_src_folder/src clean_cutest && \
+	$(MAKE) -r --no-print-directory -C examples/complex_directory_structure/my_project_with_separate_src_and_test_folders clean && \
+	$(MAKE) -r --no-print-directory -C examples/complex_directory_structure/my_project_with_separate_src_and_test_folders clean_cutest

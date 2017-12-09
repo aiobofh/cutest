@@ -2,6 +2,7 @@
 # with make Q= if i would change my mind.
 Q=@
 
+CUTEST_TEST_DIR=./
 CUTEST_SRC_DIR=../src
 
 # Disable all implicit rules

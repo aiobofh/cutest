@@ -381,6 +381,8 @@
 #ifndef _CUTEST_H_
 #define _CUTEST_H_
 
+#include "stdlib.h"
+
 #ifdef CUTEST_LENIENT_ASSERTS
 /* Since the lenient asserts do some int-magic casting */
 #pragma GCC diagnostic ignored "-Wint-conversion"
@@ -390,6 +392,7 @@
 /* Since __VA_ARGS__ are used in a GNU:ish way */
 #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
 #endif
+
 /*
  * Test-runner
  * -----------
@@ -407,18 +410,33 @@
  * generator* respectively.
  *
  */
+typedef enum cutest_verdict_e {
+  CUTEST_TEST_SKIPPED,
+  CUTEST_TEST_ERROR,
+  CUTEST_TEST_FAILED,
+  CUTEST_TEST_OK
+} cutest_verdict_t;
 
-#define _XOPEN_SOURCE
-#include <time.h>
-#include <math.h>
-#include <signal.h>
-#include <setjmp.h>
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
+typedef struct cutest_junit_report_s {
+  cutest_verdict_t verdict;
+  const char* name;
+  char* message;
+  float time;
+} cutest_junit_report_t;
 
-extern struct tm *localtime_r(const time_t *timep, struct tm *result);
+void cutest_startup(int argc, char* argv[], const char* suite_name,
+                    cutest_junit_report_t* junit_report, size_t test_cnt);
+void cutest_execute_test(cutest_junit_report_t* junit_report,
+                         void (*func)(), const char *name,
+                         int do_mock, const char *prog_name);
+void cutest_shutdown(const char* filename,
+                     cutest_junit_report_t* junit_report, size_t test_cnt);
 
+/*
+ * These functions are generated
+ */
+void cutest_set_mocks_to_original_functions();
+int cutest_test_name_argument_given(const char* test_name);
 /*
  * The test() macro
  * ----------------
@@ -492,92 +510,6 @@ extern struct tm *localtime_r(const time_t *timep, struct tm *result);
  * and more understandable print-outs on what differs.
  *
  */
-#ifdef CUTEST_LENIENT_ASSERTS
-
-int cutest_assert_eq_char(const char a, const char b, char* output)
-{
-  if (a == b) {
-    return 0;
-  }
-  sprintf(output, "'%c' (%d), '%c' (%d)", a, a, b, b);
-  return 1;
-}
-
-int cutest_assert_eq_str(const char* a, const char *b, char* output)
-{
-  if (0 == strcmp(a, b)) {
-    return 0;
-  }
-  sprintf(output, "\"%s\", \"%s\"", a, b);
-  return 1;
-}
-
-int cutest_compare_float(float f1, float f2)
-{
-  float epsilon = 0.00001;
-  if (fabsf(f1 - f2) <= epsilon) {
-    return 1;
-  }
-  return 0;
-}
-
-int cutest_compare_double(double f1, double f2)
-{
-  double epsilon = 0.00001;
-  if (fabs(f1 - f2) <= epsilon) {
-    return 1;
-  }
-  return 0;
-}
-
-int cutest_compare_long_double(long double f1, long double f2)
-{
-  long double epsilon = 0.00001;
-  if (fabsl(f1 - f2) <= epsilon) {
-    return 1;
-  }
-  return 0;
-}
-
-
-int cutest_assert_eq_float(const float a, const float b, char* output)
-{
-  if (cutest_compare_float(a, b)) {
-    return 0;
-  }
-  sprintf(output, "%f, %f", a, b);
-  return 1;
-}
-
-int cutest_assert_eq_double(const double a, const double b, char* output)
-{
-  if (cutest_compare_double(a, b)) {
-    return 0;
-  }
-  sprintf(output, "%f, %f", a, b);
-  return 1;
-}
-
-int cutest_assert_eq_long_double(const long double a, const long double b,
-                                 char* output)
-{
-  if (cutest_compare_long_double(a, b)) {
-    return 0;
-  }
-  sprintf(output, "%Lf, %Lf", a, b);
-  return 1;
-}
-
-int cutest_assert_eq_default(const unsigned long long a,
-                             const unsigned long long b,
-                             char* output)
-{
-  if (a == b) {
-    return 0;
-  }
-  sprintf(output, "%lld, %lld", a, b);
-  return 1;
-}
 
 /*
  * When using ``CUTEST_LENIENT_ASSERTS`` you can also write your own compare
@@ -625,9 +557,25 @@ int cutest_assert_eq_default(const unsigned long long a,
  *  }
  *
  */
+
+#ifdef CUTEST_LENIENT_ASSERTS
+
 #ifndef CUTEST_MY_OWN_EQ_COMPARATORS
 #define CUTEST_MY_OWN_EQ_COMPARATORS(EXP, REF)
 #endif
+
+int cutest_assert_eq_char(const char a, const char b, char* output);
+int cutest_assert_eq_str(const char* a, const char *b, char* output);
+int cutest_compare_float(float f1, float f2);
+int cutest_compare_double(double d1, double d2);
+int cutest_compare_long_double(long double ld1, long double ld2);
+int cutest_assert_eq_float(const float a, const float b, char* output);
+int cutest_assert_eq_double(const double a, const double b, char* output);
+int cutest_assert_eq_long_double(const long double a, const long double b,
+                                 char* output);
+int cutest_assert_eq_default(const unsigned long long a,
+                             const unsigned long long b,
+                             char* output);
 
 #define assert_eq_comp(EXP, REF)                             \
   _Generic((EXP),                                            \
@@ -752,21 +700,21 @@ int cutest_assert_eq_default(const unsigned long long a,
   cutest_stats.skip_cnt++;                      \
   return
 
-
 static int cutest_assert_fail_cnt = 0;
-static int cutest_error_cnt = 0;
-static struct {
+typedef struct cutest_opts_s {
   int verbose;
+  int log_errors;
   int junit;
   int no_linefeed;
   int segfault_recovery;
   int print_tests;
-} cutest_opts;
+} cutest_opts_t;
+static cutest_opts_t cutest_opts;
 static int cutest_exit_code = EXIT_SUCCESS;
 
 #define CUTEST_MAX_JUNIT_BUFFER_SIZE 1024*1024
 
-struct {
+typedef struct cutest_stats_s {
   char suite_name[128];
   char design_under_test[128];
   char error_output[1024*1024*10];
@@ -777,15 +725,11 @@ struct {
   int skip_cnt;
   char* skip_reason;
   float elapsed_time;
-} cutest_stats;
+} cutest_stats_t;
 
-static struct {
-  int cnt;
-  char test_name[1024][1024];
-} cutest_tests_to_run;
+cutest_stats_t cutest_stats;
 
-static char cutest_junit_report[CUTEST_MAX_JUNIT_BUFFER_SIZE + 1];
-static char cutest_junit_report_tmp[CUTEST_MAX_JUNIT_BUFFER_SIZE + 1];
+extern int cutest_error_cnt;
 
 /*
  * Phases in the test-build and -execution
@@ -827,86 +771,6 @@ static char cutest_junit_report_tmp[CUTEST_MAX_JUNIT_BUFFER_SIZE + 1];
  * state, if your code require such things.
  *
  */
-jmp_buf buf;
-
-static void cutest_segfault_handler(int s)
-{
-  switch(s) {
-  case SIGSEGV:
-    signal(SIGSEGV, cutest_segfault_handler);
-    longjmp(buf, 1);
-    break;
-  default:
-    fprintf(stderr, "ERROR: Misconfigured CUTest version\n");
-  }
-}
-
-static int cutest_test_name_argument_given(const char* test_name)
-{
-  int i = 0;
-  if (0 == cutest_tests_to_run.cnt) {
-    return 1;
-  }
-  while (i < cutest_tests_to_run.cnt) {
-    if (0 == strcmp(test_name, cutest_tests_to_run.test_name[i])) {
-      return 1;
-    }
-    i++;
-  }
-  return 0;
-}
-
-static void cutest_startup(int argc, char* argv[],
-                           const char* suite_name)
-{
-  int i;
-
-  memset(&cutest_tests_to_run, 0, sizeof(cutest_tests_to_run));
-
-  cutest_opts.verbose = 0;
-  cutest_opts.junit = 0;
-  cutest_opts.segfault_recovery = 0;
-  cutest_opts.print_tests = 0;
-  for (i = 1; i < argc; i++) {
-    if ((0 == strcmp(argv[i], "-v")) ||
-        (0 == strcmp(argv[i], "--verbose"))) {
-      cutest_opts.verbose = 1;
-      continue;
-    }
-    if ((0 == strcmp(argv[i], "-j")) ||
-        (0 == strcmp(argv[i], "--junit"))) {
-      cutest_opts.junit = 1;
-      continue;
-    }
-    if ((0 == strcmp(argv[i], "-n")) ||
-        (0 == strcmp(argv[i], "--no-linefeed"))) {
-      cutest_opts.no_linefeed = 1;
-      continue;
-    }
-    if ((0 == strcmp(argv[i], "-s")) ||
-        (0 == strcmp(argv[i], "--segfault-recovery"))) {
-      cutest_opts.segfault_recovery = 1;
-      continue;
-    }
-    if ((0 == strcmp(argv[i], "-p")) ||
-        (0 == strcmp(argv[i], "--print-tests"))) {
-      cutest_opts.print_tests = 1;
-      continue;
-    }
-
-    strcpy(cutest_tests_to_run.test_name[cutest_tests_to_run.cnt++], argv[i]);
-  }
-
-  memset(cutest_junit_report, 0, sizeof(cutest_junit_report));
-  memset(cutest_junit_report_tmp, 0, sizeof(cutest_junit_report_tmp));
-  memset(&cutest_stats, 0, sizeof(cutest_stats));
-  strcpy(cutest_stats.suite_name, suite_name);
-  strcpy(cutest_stats.design_under_test, suite_name);
-
-  if (1 == cutest_opts.segfault_recovery) {
-    signal(SIGSEGV, cutest_segfault_handler);
-  }
-}
 
 /*
  * Test execution
@@ -936,122 +800,6 @@ static void cutest_startup(int argc, char* argv[],
  * (``make check Q=``). This will make the console output more verbose.
  *
  */
-static void cutest_execute_test(void (*func)(), const char *name,
-                                int do_mock, const char *prog_name)
-{
-  time_t start_time = time(NULL);
-  time_t end_time;
-  double elapsed_time;
-  cutest_stats.current_error_output[0] = 0;
-  memset(&cutest_mock, 0, sizeof(cutest_mock));
-  cutest_stats.skip_reason = NULL;
-  if (1 == do_mock) {
-    cutest_set_mocks_to_original_functions();
-  }
-  if ((0 == cutest_opts.segfault_recovery) || (!setjmp(buf))) { /* To be able to recover from segfaults */
-    func();
-  }
-  else {
-    char buf[1024];
-    sprintf(buf, " Segmentation fault! Caught in: %s\n", name);
-    strcat(cutest_stats.current_error_output, buf);
-    sprintf(buf, "gdb --batch -ex \"r -v %s\" -ex \"bt\" %s", name, prog_name);
-    FILE* fp = popen(buf, "r");
-    if (NULL == fp) {
-      fprintf(stderr, "ERROR: Unable to execute '%s' to investigate segfault\n", buf);
-    }
-    else {
-      while (!feof(fp)) {
-        char b[1024];
-        if (NULL != fgets(b, sizeof(b), fp)) {
-          strcat(cutest_stats.current_error_output, "  ");
-          strcat(cutest_stats.current_error_output, b);
-        }
-      }
-      pclose(fp);
-      strcat(cutest_stats.current_error_output, "\n");
-    }
-    cutest_error_cnt++;
-  }
-  if (cutest_opts.verbose) {
-    if (NULL != cutest_stats.skip_reason) {
-      printf("[SKIP]: %s\n", name);
-    }
-    else if (cutest_error_cnt != 0) {
-      printf("[ERROR]: %s\n", name);
-      printf("%s", cutest_stats.current_error_output);
-    }
-    else if (cutest_assert_fail_cnt == 0) {
-      printf("[PASS]: %s\n", name);
-    }
-    else {
-      printf("[FAIL]: %s\n", name);
-      printf("%s", cutest_stats.current_error_output);
-    }
-  }
-  else {
-    if (NULL != cutest_stats.skip_reason) {
-      printf("S");
-    }
-    else if (cutest_error_cnt != 0) {
-      printf("E");
-    }
-    else if (cutest_assert_fail_cnt == 0) {
-      printf(".");
-    }
-    else {
-      printf("F");
-    }
-    fflush(stdout);
-  }
-
-  if (cutest_assert_fail_cnt != 0) {
-    cutest_exit_code = EXIT_FAILURE;
-  }
-
-  cutest_stats.test_cnt++;
-  cutest_stats.fail_cnt += (cutest_assert_fail_cnt != 0);
-  cutest_stats.error_cnt += (cutest_error_cnt != 0 );
-
-  end_time = time(NULL);
-
-  elapsed_time = (double)(end_time - start_time) / (double)1000;
-
-  cutest_stats.elapsed_time += elapsed_time;
-
-  strcpy(cutest_junit_report_tmp, cutest_junit_report);
-  /* Ugly-output some JUnit XML for each test-case */
-  sprintf(cutest_junit_report,
-          "%s    <testcase classname=\"%s\" name=\"%s\" time=\"%f\">\n",
-          cutest_junit_report_tmp, cutest_stats.design_under_test,
-          name, elapsed_time);
-  if (NULL != cutest_stats.skip_reason) {
-    strcpy(cutest_junit_report_tmp, cutest_junit_report);
-    sprintf(cutest_junit_report,
-            "%s      <skipped />\n",
-            cutest_junit_report_tmp);
-  }
-  if (cutest_error_cnt != 0) {
-    strcpy(cutest_junit_report_tmp, cutest_junit_report);
-    sprintf(cutest_junit_report,
-            "%s      <error message=\"segfault\">%s</failure>\n",
-            cutest_junit_report_tmp, cutest_stats.current_error_output);
-  }
-  if (cutest_assert_fail_cnt != 0) {
-    strcpy(cutest_junit_report_tmp, cutest_junit_report);
-    sprintf(cutest_junit_report,
-            "%s      <failure message=\"test failure\">%s</failure>\n",
-            cutest_junit_report_tmp, cutest_stats.current_error_output);
-  }
-  strcpy(cutest_junit_report_tmp, cutest_junit_report);
-  sprintf(cutest_junit_report, "%s    </testcase>\n",
-          cutest_junit_report_tmp);
-
-  cutest_assert_fail_cnt = 0;
-  cutest_error_cnt = 0;
-  strcat(cutest_stats.error_output, cutest_stats.current_error_output);
-  memset(cutest_stats.current_error_output, 0, sizeof(cutest_stats.current_error_output));
-}
 
 /*
  * Shutdown process
@@ -1062,70 +810,6 @@ static void cutest_execute_test(void (*func)(), const char *name,
  * option.
  *
  */
-static void cutest_shutdown(const char* filename)
-{
-  char junit_report_name[1024];
-  char timestamp[40];
-  time_t current_time;
-  int i;
-  struct tm tm;
-
-  if (0 == cutest_opts.verbose) {
-    /*
-     * Add an enter if not running in verbose, to line break after
-     * the ...
-     */
-    if ((0 == cutest_opts.no_linefeed) ||
-        (0 != strlen(cutest_stats.error_output))) {
-      printf("\n");
-    }
-    printf("%s", cutest_stats.error_output);
-  }
-  else {
-    /* Print a simple summary. */
-    printf("%d passed, %d failed.\n",
-           cutest_stats.test_cnt - cutest_stats.fail_cnt,
-           cutest_stats.fail_cnt);
-  }
-
-  memset(junit_report_name, 0, sizeof(junit_report_name));
-
-  for (i = strlen(filename); i > 0; i--) {
-    if ('.' == filename[i]) {
-      strncpy(junit_report_name, filename, i);
-      strcat(junit_report_name, ".junit_report.xml");
-      break;
-    }
-  }
-
-  /* Create a textual timestamp */
-  current_time = time(NULL);
-  localtime_r(&current_time, &tm);
-  strftime(timestamp, sizeof(timestamp), "%Y-%m-%dT%H:%M:%S", &tm);
-
-  if (cutest_opts.junit) {
-    FILE *stream = fopen(junit_report_name, "w+");
-    /* Ugly-output a JUnit XML-report. */
-    fprintf(stream,
-            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-            "<testsuites>\n"
-            "  <testsuite name=\"%s\"\n"
-            "             errors=\"%d\"\n"
-            "             tests=\"%d\"\n"
-            "             failures=\"%d\"\n"
-            "             skipped=\"%d\"\n"
-            "             time=\"%f\"\n"
-            "             timestamp=\"%s\">\n"
-            "%s"
-            "  </testsuite>\n"
-            "</testsuites>\n",
-            filename, 0, cutest_stats.test_cnt, cutest_stats.fail_cnt,
-            cutest_stats.skip_cnt,
-            (double)cutest_stats.elapsed_time / (double)1000, timestamp,
-            cutest_junit_report);
-    fclose(stream);
-  }
-}
 
 /*
  * Work-flow using test-driven design

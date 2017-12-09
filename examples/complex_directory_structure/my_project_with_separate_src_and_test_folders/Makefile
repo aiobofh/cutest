@@ -25,6 +25,9 @@ info:
 src:
 	@mkdir obj >/dev/null; make -s -C src
 
+cutest_info:
+	@$(MAKE) -r --no-print-directory -C test cutest_info
+
 check:
 	@$(MAKE) -r --no-print-directory -C test
 
@@ -33,6 +36,9 @@ valgrind:
 
 sanitize:
 	@$(MAKE) -r --no-print-directory -C test sanitize
+
+clean_cutest:
+	@$(MAKE) -r --no-print-directory -C test clean_cutest
 
 clean::
 	@rm -f *~ obj; \

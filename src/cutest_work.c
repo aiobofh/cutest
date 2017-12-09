@@ -4,6 +4,17 @@
    ---  / /_ / / /  / / / __//_  /  / /   / / / // / //   \/  <'  ---
    --- /___//___/  /_/ /___//___/  /_/    \____//___//_/_//_/_/   ---
    ---                                                            ---
+    .-----.
+  .:  _ _  :.
+  ::   _ _ ::
+ ..---._.---..
+  '__.' '.__'
+  :   ( )   :
+  ':.'''''.:'
+   ':::::::'
+     |'''| [AiO]
+   -'     '-
+
  *
  * CUTest worker
  * =============
@@ -24,7 +35,10 @@
 
 static void usage(const char* program_name)
 {
-  printf("USAGE: %s <-v|-n> suite1 suite2 .. suiteN\n", program_name);
+  printf("USAGE: %s <-V|-v|-n> suite1 suite2 .. suiteN\n\n"
+         "  -v  Be verbose naming all test names and pass/fail\n"
+         "  -n  No line-feed after non-verbos to get '.' from all suites on one line\n"
+         "  -V  Invoke the test suites through valgrind\n\n", program_name);
 }
 
 static int get_number_of_cores()
@@ -49,36 +63,76 @@ static int all_input_files_exist(int argc, char* argv[])
   return retval;
 }
 
-static int run_test_suite(const char* executable_file_name, int verbose)
+static int run_test_suite(const char* executable_file_name, int verbose, int stderr_log)
 {
+  int valgrindlen = 0;
   int retval;
   int optlen = 0;
+  int prefix_len = 0;
+  if (NULL == executable_file_name) {
+    fprintf(stderr, "ERROR: Internal error, suite executable is NULL pointer\n");
+    return -1;
+  }
+  if (executable_file_name != strstr(executable_file_name, "./")) {
+    prefix_len = 2;
+  }
   if (0 == verbose) {
     optlen = strlen(" -j -s");
+  }
+  else if (2 == verbose) {
+    optlen = strlen(" -v -j -s");
+    valgrindlen = strlen("valgrind --track-origins=yes -q ");
   }
   else {
     optlen = strlen(" -? -j -s");
   }
-  char* command = malloc(strlen(executable_file_name) + optlen + 1);
-  strcpy(command, executable_file_name);
+  if (1 == stderr_log) {
+    optlen += strlen(" -l");
+  }
+  char* command = malloc(valgrindlen + prefix_len + strlen(executable_file_name) + optlen + 1);
+  if (NULL == command) {
+    fprintf(stderr, "ERROR: Out of memory while allocating suite command.\n");
+    return -1;
+  }
+  command[0] = 0;
+  if (2 == verbose) {
+    strcat(command, "valgrind --track-origins=yes -q ");
+  }
+  if (2 == prefix_len) {
+    strcat(command, "./");
+  }
+  strcat(command, executable_file_name);
   if (1 == verbose) {
+    strcat(command, " -v");
+  }
+  else if (2 == verbose) {
     strcat(command, " -v");
   }
   else if (-1 == verbose) {
     strcat(command, " -n");
   }
   strcat(command, " -j -s");
+  if (1 == stderr_log) {
+    strcat(command, " -l");
+  }
+
   retval = system(command);
+
   free(command);
   return retval;
 }
 
-static int run_test_suites(int core_idx, int cores, int argc, char* argv[], int verbose) {
+static int run_test_suites(int core_idx, int cores, int argc, char* argv[],
+                           int verbose, int stderr_log) {
   int suite_idx = core_idx + 1;
   int retval = 0;
 
-  while (suite_idx < argc) {
-    retval |= run_test_suite(argv[suite_idx + 1], verbose);
+  while (suite_idx < argc - 1) {
+    const int r = run_test_suite(argv[suite_idx + 1], verbose, stderr_log);
+    if (-1 == r) {
+      return -1;
+    }
+    retval |= r;
     suite_idx += cores;
   }
 
@@ -102,6 +156,9 @@ static int handle_args(int argc, char* argv[]) {
   else if (0 == strcmp("-n", argv[1])) {
     verbose = -1;
   }
+  else if (0 == strcmp("-V", argv[1])) {
+    verbose = 2;
+  }
   else {
     usage(program_name);
     exit(EXIT_FAILURE);
@@ -124,7 +181,13 @@ static void launch_child_processes(int allocated_cores, int argc,
       exit(EXIT_FAILURE);
     }
     else if (pid[idx] == 0) {
-      int r = run_test_suites(idx, allocated_cores, argc, argv, verbose);
+      int r = run_test_suites(idx, allocated_cores, argc, argv, verbose, 1);
+      if (0 != r) {
+        r = EXIT_FAILURE;
+      }
+      else {
+        r = EXIT_SUCCESS;
+      }
       exit(r);
     }
   }
@@ -143,24 +206,61 @@ static int slight_delay()
 static int wait_for_child_processes(int allocated_cores, int verbose)
 {
   int retval = 0;
-  while (allocated_cores > 1) {
+  while (allocated_cores > 0) {
     int status;
     pid_t pid;
-    pid = waitpid(-1, &status, 0);
+    pid = waitpid(0, &status, 0);
     (void)pid;
     --allocated_cores;
-    retval |= status;
+    retval |= WEXITSTATUS(status);
   }
   slight_delay();
   if (-1 == verbose) {
     puts("");
   }
+
   return retval;
+}
+
+static void print_log(const char* suite_name)
+{
+  const size_t log_name_len = strlen(suite_name) + strlen(".log") + 1;
+  char* log_name = malloc(log_name_len);
+  if (NULL == log_name) {
+    fprintf(stderr, "ERROR: Out of memory while allocating log file name\n");
+    return;
+  }
+  memset(log_name, 0, log_name_len);
+  strcpy(log_name, suite_name);
+  strcat(log_name, ".log");
+  FILE *fd = fopen(log_name, "r");
+  if (NULL == fd) {
+    free(log_name);
+    return;
+  }
+  char buf[1024];
+  while (NULL != fgets(buf, sizeof(buf), fd)) {
+    buf[strlen(buf)] = 0;
+    fputs(buf, stderr);
+  }
+  fclose(fd);
+  unlink(log_name);
+  free(log_name);
+}
+
+static void print_logs(int argc, char* argv[])
+{
+  int suite_idx = 2;
+
+  while (suite_idx < argc) {
+    print_log(argv[suite_idx]);
+    suite_idx++;
+  }
 }
 
 static int launch_process(int argc, char* argv[], int verbose)
 {
-  int r = run_test_suites(0, 1, argc, argv, verbose);
+  int r = run_test_suites(0, 1, argc, argv, verbose, 0);
   if (-1 == verbose) {
     puts("");
   }
@@ -181,9 +281,16 @@ int main(int argc, char* argv[]) {
   if (allocated_cores > 1) {
     launch_child_processes(allocated_cores, argc, argv, verbose);
     retval = wait_for_child_processes(allocated_cores, verbose);
+    print_logs(argc, argv);
   }
   else {
     retval = launch_process(argc, argv, verbose);
+    if (0 != retval) {
+      retval = EXIT_FAILURE;
+    }
+    else {
+      retval = EXIT_SUCCESS;
+    }
   }
 
   return retval;

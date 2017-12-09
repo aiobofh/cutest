@@ -1012,7 +1012,8 @@ static void print_mock_control_struct_args(arg_list_t* list)
     }
     if ((0 == node->pointer) && /* void-arguments can't be stored */
         (NULL != node->args_control.type) &&
-        (0 == strcmp(node->args_control.type, "void"))) {
+        (0 == strcmp(node->args_control.type, "void")) &&
+        (0 == node->function_pointer)) {
       printf("      /* Skipping void arguments */\n");
       continue;
     }

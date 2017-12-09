@@ -68,16 +68,59 @@ test(all_input_files_exist_shall_return_0_some_files_are_missing)
 /*****************************************************************************
  * run_test_suite()
  */
+test(run_test_suite_shall_output_an_error_if_executable_name_is_null)
+{
+  run_test_suite(NULL, 0, 0);
+#ifdef CUTEST_GCC
+  assert_eq(1, m.fwrite.call_count);
+  assert_eq(stderr, m.fwrite.args.arg3);
+#else
+  assert_eq(1, m.fprintf.call_count);
+  assert_eq(stderr, m.fprintf.args.arg0);
+#endif
+}
+
 test(run_test_suite_shall_allocate_correct_amount_of_memory_for_cmd)
 {
   char buf[1024];
   memset(buf, 0, sizeof(buf));
   m.strlen.func = strlen;
+  m.strstr.func = strstr;
   m.malloc.retval = buf;
-  run_test_suite("bogus_suite_runner", 0);
+  run_test_suite("bogus_suite_runner", 0, 0);
   assert_eq(1, m.malloc.call_count);
-  assert_eq(strlen("bogus_suite_runner -j -s") + 1, m.malloc.args.arg0);
+  assert_eq(strlen("./bogus_suite_runner -j -s") + 1, m.malloc.args.arg0);
 }
+
+test(run_test_suite_shall_allocate_correct_amount_of_memory_for_cmd_with_pfx)
+{
+  char buf[1024];
+  memset(buf, 0, sizeof(buf));
+  m.strlen.func = strlen;
+  m.strstr.func = strstr;
+  m.malloc.retval = buf;
+  run_test_suite("./bogus_suite_runner", 0, 0);
+  assert_eq(1, m.malloc.call_count);
+  assert_eq(strlen("./bogus_suite_runner -j -s") + 1, m.malloc.args.arg0);
+}
+
+test(run_test_suite_shall_output_an_error_if_out_of_memory)
+{
+  char buf[1024];
+  memset(buf, 0, sizeof(buf));
+  m.strlen.func = strlen;
+  m.strstr.func = strstr;
+  m.malloc.retval = NULL;
+  run_test_suite("./bogus_suite_runner", 0, 0);
+#ifdef CUTEST_GCC
+  assert_eq(1, m.fwrite.call_count);
+  assert_eq(stderr, m.fwrite.args.arg3);
+#else
+  assert_eq(1, m.fprintf.call_count);
+  assert_eq(stderr, m.fprintf.args.arg0);
+#endif
+}
+
 
 test(run_test_suite_shall_allocate_correct_amount_of_memory_for_verbose_cmd)
 {
@@ -85,9 +128,31 @@ test(run_test_suite_shall_allocate_correct_amount_of_memory_for_verbose_cmd)
   memset(buf, 0, sizeof(buf));
   m.strlen.func = strlen;
   m.malloc.retval = buf;
-  run_test_suite("bogus_suite_runner", 1);
+  run_test_suite("bogus_suite_runner", 1, 0);
   assert_eq(1, m.malloc.call_count);
-  assert_eq(strlen("bogus_suite_runner -v -j -s") + 1, m.malloc.args.arg0);
+  assert_eq(strlen("./bogus_suite_runner -v -j -s") + 1, m.malloc.args.arg0);
+}
+
+test(run_test_suite_shall_allocate_correct_amount_of_memory_for_logging_cmd)
+{
+  char buf[1024];
+  memset(buf, 0, sizeof(buf));
+  m.strlen.func = strlen;
+  m.malloc.retval = buf;
+  run_test_suite("bogus_suite_runner", 1, 1);
+  assert_eq(1, m.malloc.call_count);
+  assert_eq(strlen("./bogus_suite_runner -v -j -s -l") + 1, m.malloc.args.arg0);
+}
+
+test(run_test_suite_shall_allocate_correct_amount_of_memory_for_valgrind_cmd)
+{
+  char buf[1024];
+  memset(buf, 0, sizeof(buf));
+  m.strlen.func = strlen;
+  m.malloc.retval = buf;
+  run_test_suite("bogus_suite_runner", 2, 0);
+  assert_eq(1, m.malloc.call_count);
+  assert_eq(strlen("valgrind --track-origins=yes -q ./bogus_suite_runner -v -j -s") + 1, m.malloc.args.arg0);
 }
 
 test(run_test_suite_shall_free_cmd)
@@ -96,7 +161,7 @@ test(run_test_suite_shall_free_cmd)
   memset(buf, 0, sizeof(buf));
   m.strlen.func = strlen;
   m.malloc.retval = buf;
-  run_test_suite("bogus_suite_runner", 0);
+  run_test_suite("bogus_suite_runner", 0, 0);
   assert_eq(1, m.free.call_count);
   assert_eq(buf, m.free.args.arg0);
 }
@@ -110,23 +175,31 @@ int system_stub(const char* command) {
 module_test(run_test_suite_shall_execute_correct_command)
 {
   m.system.func = system_stub;
-  assert_eq(1234, run_test_suite("suite_runner", 0))
-  assert_eq("suite_runner -j -s", system_stub_arg);
+  assert_eq(1234, run_test_suite("suite_runner", 0, 0))
+  assert_eq("./suite_runner -j -s", system_stub_arg);
 }
 
 module_test(run_test_suite_shall_execute_correct_command_verbose)
 {
   m.system.func = system_stub;
-  assert_eq(1234, run_test_suite("suite_runner", 1))
-  assert_eq("suite_runner -v -j -s", system_stub_arg);
+  assert_eq(1234, run_test_suite("suite_runner", 1, 0))
+  assert_eq("./suite_runner -v -j -s", system_stub_arg);
 }
 
 module_test(run_test_suite_shall_execute_correct_command_no_line_feed)
 {
   m.system.func = system_stub;
-  assert_eq(1234, run_test_suite("suite_runner", -1))
-  assert_eq("suite_runner -n -j -s", system_stub_arg);
+  assert_eq(1234, run_test_suite("suite_runner", -1, 0))
+  assert_eq("./suite_runner -n -j -s", system_stub_arg);
 }
+
+module_test(run_test_suite_shall_execute_correct_command_logging)
+{
+  m.system.func = system_stub;
+  assert_eq(1234, run_test_suite("suite_runner", -1, 1))
+  assert_eq("./suite_runner -n -j -s -l", system_stub_arg);
+}
+
 
 /*****************************************************************************
  * run_test_suites()
@@ -134,7 +207,7 @@ module_test(run_test_suite_shall_execute_correct_command_no_line_feed)
 test(run_test_suites_shall_run_test_suite_for_every_suite)
 {
   char* argv[] = {"program", "-v", "suite1", "suite2"};
-  run_test_suites(0, 1, 3, argv, 123);
+  run_test_suites(0, 1, 4, argv, 123, 0);
   assert_eq(2, m.run_test_suite.call_count);
   assert_eq("suite2", m.run_test_suite.args.arg0);
   assert_eq(123, m.run_test_suite.args.arg1);
@@ -143,10 +216,17 @@ test(run_test_suites_shall_run_test_suite_for_every_suite)
 test(run_test_suites_shall_run_test_suite_for_every_one_suite)
 {
   char* argv[] = {"program", "-v", "suite1"};
-  run_test_suites(0, 1, 2, argv, 123);
+  run_test_suites(0, 1, 3, argv, 123, 0);
   assert_eq(1, m.run_test_suite.call_count);
   assert_eq("suite1", m.run_test_suite.args.arg0);
   assert_eq(123, m.run_test_suite.args.arg1);
+}
+
+test(run_test_suites_shall_return_negative_1_if_run_test_suite_fails)
+{
+  char* argv[] = {"program", "-v", "suite1"};
+  m.run_test_suite.retval = -1;
+  assert_eq(-1, run_test_suites(0, 1, 3, argv, 123, 0));
 }
 
 /*****************************************************************************
@@ -169,7 +249,7 @@ test(handle_args_shall_exit_with_EXIT_FAILURE_if_arg_count_is_off)
   assert_eq(EXIT_FAILURE, m.exit.args.arg0);
 }
 
-test(handle_args_shall_exit_with_EXIT_FAILURE_if_not_verbose_nor_no_line_feed)
+test(handle_args_shall_exit_with_EXIT_FAILURE_if_not_verbose_nor_nor_valgrind_no_line_feed)
 {
   char* argv[] = {"program_name", "test_suite1", "test_suite2"};
   handle_args(3, argv);
@@ -203,12 +283,38 @@ test(handle_args_shall_return_1_if_verbose)
   assert_eq(1, handle_args(3, argv));
 }
 
+test(handle_args_shall_return_2_if_valgrind)
+{
+  char* argv[] = {"program_name", "-V", "test_suite"};
+  m.strcmp.func = strcmp;
+  m.all_input_files_exist.retval = 1;
+  assert_eq(2, handle_args(3, argv));
+}
+
 test(handle_args_shall_return_negative_1_if_no_line_feed)
 {
   char* argv[] = {"program_name", "-n", "test_suite"};
   m.strcmp.func = strcmp;
   m.all_input_files_exist.retval = 1;
   assert_eq(-1, handle_args(3, argv));
+}
+
+test(handle_args_shall_print_usage_if_none_of_the_nVv_flags_are_provided)
+{
+  char* argv[] = {"program_name", "-?", "test_suite"};
+  m.strcmp.retval = 1;
+  handle_args(3, argv);
+  assert_eq(1, m.usage.call_count);
+}
+
+test(handle_args_shall_exit_with_EXIT_FAILURE_if_none_of_the_nVv_flags)
+{
+  char* argv[] = {"program_name", "-?", "test_suite"};
+  m.strcmp.retval = 1;
+  m.all_input_files_exist.retval = 1;
+  handle_args(3, argv);
+  assert_eq(1, m.exit.call_count);
+  assert_eq(EXIT_FAILURE, m.exit.call_count);
 }
 
 /*****************************************************************************
@@ -224,7 +330,11 @@ test(launch_child_processes_shall_output_errors_if_fork_fails)
 {
   m.fork.retval = -1;
   launch_child_processes(8, 10, 0x1234, 0);
+#ifdef CUTEST_GCC
   assert_eq(8, m.fwrite.call_count);
+#else
+  assert_eq(8, m.fprintf.call_count);
+#endif
 }
 
 test(launch_child_processes_shall_exit_with_EXIT_FAILURE_if_fork_fails)
@@ -241,12 +351,20 @@ test(launch_child_processes_shall_call_run_test_suites_for_each_fork)
   assert_eq(8, m.run_test_suites.call_count);
 }
 
-test(launch_child_processes_shall_exit_with_retval_from_run_test_suites)
+test(launch_child_processes_shall_exit_with_EXIT_SUCCESS_from_run_test_suites)
+{
+  m.run_test_suites.retval = 0;
+  launch_child_processes(8, 10, 0x1234, 0);
+  assert_eq(8, m.exit.call_count);
+  assert_eq(EXIT_SUCCESS, m.exit.args.arg0);
+}
+
+test(launch_child_processes_shall_exit_with_EXIT_FAILURE_from_run_test_suites)
 {
   m.run_test_suites.retval = 1234;
   launch_child_processes(8, 10, 0x1234, 0);
   assert_eq(8, m.exit.call_count);
-  assert_eq(1234, m.exit.args.arg0);
+  assert_eq(EXIT_FAILURE, m.exit.args.arg0);
 }
 
 /*****************************************************************************
@@ -263,7 +381,7 @@ test(slight_delay_shall_perform_a_simple_mathematical_calculation_to_delay)
 test(wait_for_child_processes_shall_wait_for_all_child_processes_forked)
 {
   wait_for_child_processes(8, 0);
-  assert_eq(7, m.waitpid.call_count);
+  assert_eq(8, m.waitpid.call_count);
 }
 
 test(wait_for_child_processes_shall_output_a_line_feed_if_not_verbose)
@@ -289,7 +407,114 @@ pid_t waitpid_stub(pid_t pid, int* status, int options)
 test(wait_for_child_processes_shall_return_a_ored_status)
 {
   m.waitpid.func = waitpid_stub;
-  assert_eq(3, wait_for_child_processes(3, 1));
+  assert_eq(EXIT_SUCCESS, wait_for_child_processes(3, 1));
+}
+
+/*****************************************************************************
+ * print_log()
+ */
+test(print_log_shall_allocate_correct_number_of_bytes_for_log_file_name)
+{
+  m.strlen.func = strlen;
+  print_log("command");
+  assert_eq(1, m.malloc.call_count);
+  assert_eq(strlen("command.log") + 1, m.malloc.args.arg0);
+}
+
+test(print_log_shall_output_an_error_message_if_allocation_failed)
+{
+  print_log("command");
+#ifdef CUTEST_GCC
+  assert_eq(1, m.fwrite.call_count);
+  assert_eq(stderr, m.fwrite.args.arg3);
+#else
+  assert_eq(1, m.fprintf.call_count);
+  assert_eq(stderr, m.fprintf.args.arg0);
+#endif
+}
+
+test(print_log_shall_append_log_suffix_to_suite_name)
+{
+  char buf[128];
+  m.memset.func = memset;
+  m.strcpy.func = strcpy;
+  m.strcat.func = strcat;
+  m.malloc.retval = buf;
+  print_log("suite_name");
+  assert_eq("suite_name.log", buf);
+}
+
+test(print_log_shall_open_the_correct_file_for_reading)
+{
+  char buf[128];
+  m.memset.func = memset;
+  m.strcpy.func = strcpy;
+  m.strcat.func = strcat;
+  m.malloc.retval = buf;
+  print_log("suite_name");
+  assert_eq(1, m.fopen.call_count);
+  assert_eq(buf, m.fopen.args.arg0);
+  assert_eq("r", m.fopen.args.arg1);
+}
+
+test(print_log_shall_free_the_memory_if_a_file_could_not_be_opened)
+{
+  char buf[128];
+  m.memset.func = memset;
+  m.strcpy.func = strcpy;
+  m.strcat.func = strcat;
+  m.malloc.retval = buf;
+  print_log("suite_name");
+  assert_eq(1, m.free.call_count);
+  assert_eq(buf, m.free.args.arg0);
+}
+
+static char* fgets_stub(char* s, int size, FILE *stream)
+{
+  (void)stream;
+  (void)size;
+  if (m.fgets.call_count >= 2) {
+    return NULL;
+  }
+  return s;
+}
+
+test(print_log_shall_fgets_all_lines_in_a_file_to_fputs)
+{
+  char buf[128];
+  m.memset.func = memset;
+  m.strcpy.func = strcpy;
+  m.strcat.func = strcat;
+  m.malloc.retval = buf;
+  m.fopen.retval = 0x1234;
+  m.fgets.func = fgets_stub;
+  print_log("suite_name");
+  assert_eq(2, m.fgets.call_count);
+  assert_eq(0x1234, m.fgets.args.arg2);
+}
+
+test(print_log_shall_fputs_all_lines_in_a_file_to_stderr)
+{
+  char buf[128];
+  m.memset.func = memset;
+  m.strcpy.func = strcpy;
+  m.strcat.func = strcat;
+  m.malloc.retval = buf;
+  m.fopen.retval = 0x1234;
+  m.fgets.func = fgets_stub;
+  print_log("suite_name");
+  assert_eq(1, m.fputs.call_count);
+  assert_eq(stderr, m.fputs.args.arg1);
+}
+
+/*****************************************************************************
+ * print_logs()
+ */
+test(print_logs_shall_call_print_log_for_every_suite)
+{
+  char* argv[5] = {"ignore", "ingore", "take0", "take1", "take2"};
+  print_logs(5, argv);
+  assert_eq(3, m.print_log.call_count);
 }
 
 /*****************************************************************************
@@ -371,6 +596,22 @@ test(main_shall_call_launch_processes_if_one_suite)
   assert_eq(1, m.launch_process.args.arg0);
   assert_eq(0x2, m.launch_process.args.arg1);
   assert_eq(3, m.launch_process.args.arg2);
+}
+
+test(main_shall_return_EXIT_FAILURE_if_launch_process_fails)
+{
+  m.get_number_of_cores.retval = 4;
+  m.handle_args.retval = 3;
+  m.launch_process.retval = -1;
+  assert_eq(EXIT_FAILURE, main(1, 0x2));
+}
+
+test(main_shall_return_EXIT_SUCCESS_if_launch_process_fails)
+{
+  m.get_number_of_cores.retval = 4;
+  m.handle_args.retval = 3;
+  m.launch_process.retval = 0;
+  assert_eq(EXIT_SUCCESS, main(1, 0x2));
 }
 
 #undef main
