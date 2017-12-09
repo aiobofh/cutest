@@ -302,6 +302,7 @@ void append_output_to_junit_report(cutest_junit_report_t* junit_report,
 
   if (NULL != stats->skip_reason) {
     junit_report->verdict = CUTEST_TEST_SKIPPED;
+    junit_report->message = NULL;
   }
   else if (0 != cutest_error_cnt) {
     junit_report->verdict = CUTEST_TEST_ERROR;
@@ -315,6 +316,7 @@ void append_output_to_junit_report(cutest_junit_report_t* junit_report,
   }
   else {
     junit_report->verdict = CUTEST_TEST_OK;
+    junit_report->message = NULL;
   }
 
 }
@@ -431,7 +433,7 @@ void write_junit_report(const char* report_file_name,
   size_t i;
   for (i = 0; i < test_cnt; i++) {
     cutest_append_junit_node(stream, test_file_name, &junit_report[i]);
-    if (NULL == junit_report[i].message) {
+    if (NULL != junit_report[i].message) {
       free(junit_report[i].message);
     }
   }
@@ -498,17 +500,18 @@ void cutest_shutdown(const char* filename,
            cutest_stats.fail_cnt);
   }
 
-  memset(junit_report_name, 0, sizeof(junit_report_name));
-
-  for (i = strlen(filename); i > 0; i--) {
-    if ('.' == filename[i]) {
-      strncpy(junit_report_name, filename, i);
-      strcat(junit_report_name, ".junit_report.xml");
-      break;
-    }
-  }
 
   if (1 == cutest_opts.junit) {
+    memset(junit_report_name, 0, sizeof(junit_report_name));
+
+    for (i = strlen(filename); i > 0; i--) {
+      if ('.' == filename[i]) {
+        strncpy(junit_report_name, filename, i);
+        strcat(junit_report_name, ".junit_report.xml");
+        break;
+      }
+    }
+
     write_junit_report(junit_report_name, filename, &cutest_stats,
                        junit_report, test_cnt);
   }
