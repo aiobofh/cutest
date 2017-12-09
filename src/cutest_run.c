@@ -137,7 +137,7 @@ static void print_main_function_prologue(const char* test_source_file_name,
   printf("int main(int argc, char* argv[])\n"
          "{\n"
          "  cutest_junit_report_t junit_report[%lu];\n"
-         "  cutest_startup(argc, argv, \"%s\", junit_report, %lu);\n\n",
+         "  int just_print = cutest_startup(argc, argv, \"%s\", junit_report, %lu);\n\n",
          test_cnt,
          test_source_file_name,
          test_cnt);
@@ -156,8 +156,7 @@ static void print_test_case_executor(const char* name, size_t idx,
 static void print_main_function_epilogue(const char* test_source_file_name,
                                          const size_t test_cnt)
 {
-  printf("  cutest_shutdown(\"%s\", junit_report, %lu);\n\n"
-         "  return cutest_exit_code;\n"
+  printf("  return cutest_shutdown(\"%s\", junit_report, %lu);\n\n"
          "}\n",
          test_source_file_name,
          test_cnt);
@@ -212,7 +211,7 @@ static void print_test_names_printer(testcase_list_t* list)
 {
   testcase_node_t* node;
 
-  printf("  if (cutest_opts.print_tests) {\n");
+  printf("  if (just_print) {\n");
   for (node = list->first; NULL != node; node = node->next) {
     printf("    puts(\"%s\");\n", node->testcase);
   }

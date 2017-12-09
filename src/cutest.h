@@ -424,13 +424,13 @@ typedef struct cutest_junit_report_s {
   float time;
 } cutest_junit_report_t;
 
-void cutest_startup(int argc, char* argv[], const char* suite_name,
-                    cutest_junit_report_t* junit_report, size_t test_cnt);
+int cutest_startup(int argc, char* argv[], const char* suite_name,
+                   cutest_junit_report_t* junit_report, size_t test_cnt);
 void cutest_execute_test(cutest_junit_report_t* junit_report,
                          void (*func)(), const char *name,
                          int do_mock, const char *prog_name);
-void cutest_shutdown(const char* filename,
-                     cutest_junit_report_t* junit_report, size_t test_cnt);
+int cutest_shutdown(const char* filename,
+                    cutest_junit_report_t* junit_report, size_t test_cnt);
 
 /*
  * These functions are generated
@@ -605,8 +605,7 @@ int cutest_assert_eq_default(const unsigned long long a,
               __FILE__,                                                 \
               __LINE__,                                                 \
               cutest_o);                                                \
-      strcat(cutest_stats.current_error_output, error_output_buf);      \
-      cutest_assert_fail_cnt++;                                         \
+      cutest_increment_fails(error_output_buf);                         \
     }                                                                   \
   }
 
@@ -623,8 +622,7 @@ int cutest_assert_eq_default(const unsigned long long a,
               __FILE__,                                                 \
               __LINE__,                                                 \
               cutest_o);                                                \
-      strcat(cutest_stats.current_error_output, error_output_buf);      \
-      cutest_assert_fail_cnt++;                                         \
+      cutest_increment_fails(error_output_buf);                         \
     }                                                                   \
   }
 
@@ -637,8 +635,7 @@ int cutest_assert_eq_default(const unsigned long long a,
             " %s:%d assert_eq(" #EXP ", " #REF ", " STR ") "       \
             "failed\n",                                            \
             __FILE__, __LINE__);                                   \
-    strcat(cutest_stats.current_error_output, error_output_buf);   \
-    cutest_assert_fail_cnt++;                                      \
+    cutest_increment_fails(error_output_buf);                      \
   }
 
 #define assert_eq_2(EXP, REF)                                      \
@@ -648,11 +645,12 @@ int cutest_assert_eq_default(const unsigned long long a,
             " %s:%d assert_eq(" #EXP ", " #REF ") "                \
             "failed\n",                                            \
             __FILE__, __LINE__);                                   \
-    strcat(cutest_stats.current_error_output, error_output_buf);   \
-    cutest_assert_fail_cnt++;                                      \
+    cutest_increment_fails(error_output_buf);                      \
   }
 
 #endif
+
+void cutest_increment_fails();
 
 #define assert_eq_1(EXP)                                           \
   if (!(EXP)) {                                                    \
@@ -661,8 +659,7 @@ int cutest_assert_eq_default(const unsigned long long a,
             " %s:%d assert_eq(" #EXP ") "                          \
             "failed\n",                                            \
             __FILE__, __LINE__);                                   \
-    strcat(cutest_stats.current_error_output, error_output_buf);   \
-    cutest_assert_fail_cnt++;                                      \
+    cutest_increment_fails(error_output_buf);                      \
   }
 
 #define assert_eq_select(X, A1, A2, A3, MACRO, ...) MACRO
@@ -700,36 +697,7 @@ int cutest_assert_eq_default(const unsigned long long a,
   cutest_stats.skip_cnt++;                      \
   return
 
-static int cutest_assert_fail_cnt = 0;
-typedef struct cutest_opts_s {
-  int verbose;
-  int log_errors;
-  int junit;
-  int no_linefeed;
-  int segfault_recovery;
-  int print_tests;
-} cutest_opts_t;
-static cutest_opts_t cutest_opts;
-static int cutest_exit_code = EXIT_SUCCESS;
-
 #define CUTEST_MAX_JUNIT_BUFFER_SIZE 1024*1024
-
-typedef struct cutest_stats_s {
-  char suite_name[128];
-  char design_under_test[128];
-  char error_output[1024*1024*10];
-  char current_error_output[1024];
-  int test_cnt;
-  int fail_cnt;
-  int error_cnt;
-  int skip_cnt;
-  char* skip_reason;
-  float elapsed_time;
-} cutest_stats_t;
-
-cutest_stats_t cutest_stats;
-
-extern int cutest_error_cnt;
 
 /*
  * Phases in the test-build and -execution

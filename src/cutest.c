@@ -12,11 +12,38 @@
 
 jmp_buf buf;
 
-int cutest_error_cnt = 0;
 static struct {
   int cnt;
   char test_name[1024][1024];
 } cutest_tests_to_run;
+
+typedef struct cutest_opts_s {
+  int verbose;
+  int log_errors;
+  int junit;
+  int no_linefeed;
+  int segfault_recovery;
+  int print_tests;
+} cutest_opts_t;
+static cutest_opts_t cutest_opts;
+
+typedef struct cutest_stats_s {
+  char suite_name[128];
+  char design_under_test[128];
+  char error_output[1024*1024*10];
+  char current_error_output[1024];
+  int test_cnt;
+  int fail_cnt;
+  int error_cnt;
+  int skip_cnt;
+  char* skip_reason;
+  float elapsed_time;
+} cutest_stats_t;
+
+static int cutest_exit_code = EXIT_SUCCESS;
+static cutest_stats_t cutest_stats;
+static int cutest_assert_fail_cnt = 0;
+static int cutest_error_cnt = 0;
 
 extern struct tm *localtime_r(const time_t *timep, struct tm *result);
 
@@ -109,6 +136,12 @@ int cutest_assert_eq_default(const unsigned long long a,
 
 #endif
 
+void cutest_increment_fails(const char* error_output)
+{
+  strcat(cutest_stats.current_error_output, error_output);
+  cutest_assert_fail_cnt++;
+}
+
 static void cutest_segfault_handler(int s)
 {
   switch(s) {
@@ -195,8 +228,8 @@ static void handle_args(cutest_opts_t* opts, const char* suite_name,
   }
 }
 
-void cutest_startup(int argc, char* argv[], const char* suite_name,
-                    cutest_junit_report_t* junit_report, size_t test_cnt)
+int cutest_startup(int argc, char* argv[], const char* suite_name,
+                   cutest_junit_report_t* junit_report, size_t test_cnt)
 {
   memset(&cutest_tests_to_run, 0, sizeof(cutest_tests_to_run));
   memset(&cutest_opts, 0, sizeof(cutest_opts));
@@ -214,6 +247,8 @@ void cutest_startup(int argc, char* argv[], const char* suite_name,
   if (1 == cutest_opts.junit) {
     memset(junit_report, 0, sizeof(junit_report) * test_cnt);
   }
+
+  return cutest_opts.print_tests;
 }
 
 void catch_segfault_through_gdb(const char* name, const char* prog_name)
@@ -469,7 +504,7 @@ void write_log_file(const char* test_suite_file_name, const char* error_buf)
   free(log_file_name);
 }
 
-void cutest_shutdown(const char* filename,
+int cutest_shutdown(const char* filename,
                      cutest_junit_report_t* junit_report, size_t test_cnt)
 {
   char junit_report_name[1024];
@@ -515,4 +550,6 @@ void cutest_shutdown(const char* filename,
     write_junit_report(junit_report_name, filename, &cutest_stats,
                        junit_report, test_cnt);
   }
+
+  return cutest_exit_code;
 }
