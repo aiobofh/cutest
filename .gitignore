@@ -3,6 +3,8 @@ cutest_run
 cutest_mock
 cutest_prox
 cutest_work
+*_test_run.c
+*.cov
 *_mocks.h
 *_test
 *.gcda
