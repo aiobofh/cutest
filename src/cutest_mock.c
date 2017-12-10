@@ -67,17 +67,7 @@
 #include "mockable.h"
 #include "helpers.h"
 
-/*
-static void* my_malloc_ptr = NULL;
-//#define malloc(bytes) \
-  my_malloc_ptr = malloc(bytes); fprintf(stderr, "malloc: %s:%d %p\n", __FILE__, __LINE__, my_malloc_ptr)
-
-//#define free(ptr) \
-  free((void*)ptr); fprintf(stderr, "free: %s:%d %p\n", __FILE__, __LINE__, ptr)
-*/
-
 cutest_mocks_t mocks;
-
 
 static void usage(const char* program_name)
 {
@@ -136,8 +126,8 @@ static size_t get_prefix_attributes(return_type_t* return_type,
                      &return_type->is_struct,
                      &return_type->is_inline,
                      NULL};
-
   int offs = 0;
+
   while (pos + offs <= namepos - 1) {
     size_t i = 0;
     size_t len = 0;
@@ -217,18 +207,16 @@ static size_t get_return_type(return_type_t* return_type,
    *       the code style in this program.
    */
   /* Remove this when the TODO described above is done. */
-  //memset(return_type->name, 0, sizeof(return_type->name));
-
   int pos = 0;
-  // int dst_pos = 0;
+  int namepos = 0;
   pos += count_white_spaces(&buf[pos]);
 
-  int namepos = find_name_pos(&buf[pos]);
+  namepos = find_name_pos(&buf[pos]);
   if (-1 == namepos) {
     return 0;
   }
 
-  return_type->name = malloc(namepos + 3); // Plus some asterisks and \0
+  return_type->name = malloc(namepos + 3); /* Plus some asterisks and \0 */
   if (NULL == return_type->name) {
     return 0;
   }
@@ -267,8 +255,10 @@ static size_t get_function_name(char* name, const char* buf)
    * a left parenthesis '('. This is what will be considered a function name.
    */
   size_t pos = 0;
-  name[0] = 0;
   const size_t len = strlen(buf);
+
+  name[0] = 0;
+
   while (pos < len) {
     if (';' == buf[pos]) {
       break;
@@ -358,6 +348,7 @@ static int is_basic_type(const char* buffer) {
 static size_t find_type_len(const char* buf, size_t end) {
   size_t last_type_name_character = end;
   int paren = 0;
+
   while (0 < last_type_name_character) {
     char c = buf[last_type_name_character];
     paren += (')' == c);
@@ -382,10 +373,13 @@ static arg_node_t* add_new_arg_node(arg_list_t* list, const char* src,
 {
   const size_t max_arg_len = 128;
   char buf[max_arg_len];
+  arg_node_t* node = NULL;
+
   memset(buf, 0, sizeof(buf));
   memcpy(buf, src, len);
   buf[len] = 0;
-  arg_node_t* node = new_arg_node(buf);
+
+  node = new_arg_node(buf);
   if (NULL == node) {
     return NULL;
   }
@@ -399,7 +393,8 @@ static size_t split2args(arg_list_t* list, const char* buf) {
    * representation of the function prototype arguments being scanned.
    */
   size_t pos = 0;
-  size_t len;
+  size_t len = 0;
+
   while (0 != (len = find_next_comma_in_args(&buf[pos]))) {
     add_new_arg_node(list, &buf[pos], len);
     pos += len;
@@ -480,6 +475,7 @@ static char* make_mock_arg_name(size_t idx, int function_pointer,
   char* arg = NULL;
   size_t numbers = 1;
   size_t fpchars = 0;
+
   if (9 < idx) {
     numbers = 2;
   }
@@ -531,9 +527,11 @@ static char* make_assignment_type_cast(char* args_control_type, int asterisks)
   int i;
   const size_t len = strlen(args_control_type);
   char* buf = malloc(1 + len + 1 + asterisks + 1 + 1);
+
   if (NULL == buf) {
     return NULL;
   }
+
   strcpy(buf, "(");
   strcat(buf, args_control_type);
   if (0 != asterisks) {
@@ -556,6 +554,7 @@ static char* make_assignment_name(size_t idx)
    */
   char* arg = NULL;
   size_t numbers = 1;
+
   if (9 < idx) {
     numbers = 2;
   }
@@ -575,6 +574,7 @@ static char* extract_variable_name_to_ptr(char* buf, size_t pos)
 static int is_array_argument(char* buf)
 {
   const size_t len = strlen(buf);
+
   if (']' == buf[len - 1]) {
     return 1;
   }
@@ -602,6 +602,7 @@ static size_t get_length_without_asterisks_brackets_or_parenthesis(char* s)
   size_t pos = 0;
   int chars_to_remove = 0;
   const int function_pointer = is_function_pointer(s);
+
   while (pos < len) {
     if ('*' == s[pos]) {
       chars_to_remove++;
@@ -631,19 +632,18 @@ static char* strip_asterisks_and_brackets(char* variable_name)
    */
   const size_t len =
     get_length_without_asterisks_brackets_or_parenthesis(variable_name);
-
+  size_t pos = 0;
+  const int function_pointer = is_function_pointer(variable_name);
+  size_t dst_pos = 0;
   char* buf = malloc(len + 1);
+
   if (NULL == buf) {
     return NULL;
   }
 
-  size_t pos = 0;
-  const int function_pointer = is_function_pointer(variable_name);
   if (function_pointer) {
     variable_name++; /* skip the '(' in a function pointer */
   }
-
-  size_t dst_pos = 0;
 
   while (dst_pos < len) {
     if ('*' == variable_name[pos]) {
@@ -683,6 +683,7 @@ static int parse_argument_to_info(arg_node_t* node, size_t idx)
   int asterisks = 0;
   size_t pos = 0;
   size_t param_name_start = extract_type_to_string(&node->type, node->arg);
+
   if (0 == param_name_start) {
     return -1;
   }
@@ -757,11 +758,12 @@ static int parse_argument_to_info(arg_node_t* node, size_t idx)
  */
 static size_t get_function_args(arg_list_t* list, const char* buf) {
   size_t pos = 0;
+  size_t idx = 0;
+  arg_node_t* node;
 
   pos = split2args(list, buf);
 
-  size_t idx = 0;
-  arg_node_t* node = list->first;
+  node = list->first;
   while (NULL != node) {
     parse_argument_to_info(node, idx++);
     node = node->next;
@@ -783,6 +785,7 @@ static int get_mockables(mockable_list_t* list, const char* nm_filename) {
    * tool.
    */
   char buf[1024];
+  int mockable_cnt = 0;
 
   /*
    * Run nm on the object file in order to get a list of functions that
@@ -794,11 +797,10 @@ static int get_mockables(mockable_list_t* list, const char* nm_filename) {
     return 0;
   }
 
-  int mockable_cnt = 0;
-
   while (fgets(buf, sizeof(buf), fd)) {
+    mockable_node_t* node;
     buf[strlen(buf) - 1] = 0;
-    mockable_node_t* node = new_mockable_node(buf);
+    node = new_mockable_node(buf);
     mockable_list_add_node(list, node);
   }
 
@@ -815,6 +817,8 @@ static void get_include_flags(char* dst, int argc, char* argv[]) {
    * that it can find functions to create function prototypes for them.
    */
   const char* cutest_path = argv[3];
+  int i;
+
   strcpy(dst, "-I\"");
   strcat(dst, cutest_path);
   strcat(dst, "\"");
@@ -823,7 +827,7 @@ static void get_include_flags(char* dst, int argc, char* argv[]) {
     strcat(dst, " ");
   }
 
-  for (int i = 4; i < argc; i++) {
+  for (i = 4; i < argc; i++) {
     strcat(dst, argv[i]);
     if (i < argc - 1) {
       strcat(dst, " ");
@@ -839,6 +843,7 @@ static int node_symbol_match(mockable_node_t* node, const char* symbol,
    * command to determine if the symbol even should be mocked.
    */
   const size_t mockable_len = strlen(node->symbol_name);
+
   return ((symbol_len == mockable_len) &&
           (0 == strcmp(node->symbol_name, symbol)));
 }
@@ -848,6 +853,7 @@ static mockable_node_t* symbol_is_in_list(mockable_list_t* list,
 {
   mockable_node_t* node;
   const size_t symbol_len = strlen(symbol);
+
   for (node = list->first; NULL != node; node = node->next) {
     if (node_symbol_match(node, symbol, symbol_len)) {
       return node;
@@ -870,6 +876,7 @@ static mockable_node_t* parse_cproto_row(mockable_list_t* list, char* buf)
   return_type_t return_type;
   mockable_node_t* node = NULL;
   char function_name[1024];
+
   memset(&return_type, 0, sizeof(return_type));
   pos += get_return_type(&return_type, &buf[pos]);
   if (0 == pos) {
@@ -895,6 +902,7 @@ static void construct_cproto_command_line(char* dst, int argc, char* argv[])
 {
   char iflags[1024];
   const char* filename = argv[1];
+
   get_include_flags(iflags, argc, argv);
   sprintf(dst, "cproto -i -s -x %s \"%s\" 2>/dev/null", iflags, filename);
 }
@@ -905,11 +913,12 @@ static int execute_cproto(mockable_list_t* list, int argc, char* argv[])
    * Execute the 'cproto' binary and parse all output rows.
    */
   char buf[1024];
-
   char command[1024];
+  FILE* pd = NULL;
+
   construct_cproto_command_line(command, argc, argv);
 
-  FILE* pd = popen(command, "r");
+  pd = popen(command, "r");
 
   if (NULL == pd) {
     fprintf(stderr, "ERROR: Unable to execute command '%s'\n", command);
@@ -936,6 +945,7 @@ static void print_function_args(arg_list_t* list) {
    * 'cproto' output.
    */
   arg_node_t* node;
+
   for (node = list->first; NULL != node; node = node->next) {
     if (NULL != node->next) {
       printf("%s, ", node->arg);
@@ -1003,6 +1013,7 @@ static void print_mock_control_struct_args(arg_list_t* list)
    * case assertions.
    */
   arg_node_t* node;
+
   printf("    struct {\n");
   printf("      int this_variable_is_only_here_to_allow_empty_arg_struct;\n");
   for (node = list->first; NULL != node; node = node->next) {
@@ -1071,7 +1082,6 @@ static void copy_pre_processor_directives_from_dut(const char* filename)
    * so that #includes and #defines are part of the artifact.
    */
   char buf[1024];
-
   FILE* f = fopen(filename, "r");
 
   if (NULL == f) {
@@ -1114,6 +1124,7 @@ static void print_declarations(const char* pretype, const char* prefix,
                                mockable_list_t* list)
 {
   mockable_node_t* node;
+
   for (node = list->first; NULL != node; node = node->next) {
     if (0 == node->legit) {
       continue;
@@ -1146,12 +1157,15 @@ static void print_mock_declarations(mockable_list_t* list)
 }
 
 static void strip_array_part(char* dst, char* src) {
+  size_t src_len = 0;
+  size_t pos = 0;
+
   /* Could this be reused in stripping of asterisks and brackets? */
   if (NULL == src) {
     return;
   }
-  const size_t src_len = strlen(src);
-  size_t pos = 0;
+  src_len = strlen(src);
+
   while (('[' != src[pos]) && (pos < src_len)) {
     dst[pos] = src[pos];
     pos++;
@@ -1182,6 +1196,7 @@ static void print_arg_assignment(arg_node_t* node, const char* name)
 static void print_arg_assignments(arg_list_t* list, const char* name)
 {
   arg_node_t* node;
+
   for (node = list->first; NULL != node; node = node->next) {
     print_arg_assignment(node, name);
   }
@@ -1195,6 +1210,7 @@ static void print_stub_caller_args(arg_list_t* list)
    * function set to the .func-member of the mock-control structure.
    */
   arg_node_t* node = NULL;
+
   for (node = list->first; NULL != node; node = node->next) {
     if (node->variadic) {
       continue;
@@ -1226,6 +1242,7 @@ static char* last_unvariadic_arg(arg_list_t* list)
 static int print_printf_caller(arg_list_t* list)
 {
   char lastarg[128];
+
   strip_array_part(lastarg, last_unvariadic_arg(list));
   printf("    if (printf != cutest_mock.printf.func) {\n"
          "      fprintf(stderr, \"WARNING: You can only set "
@@ -1248,6 +1265,7 @@ static int print_printf_caller(arg_list_t* list)
 static int print_sprintf_caller(arg_list_t* list)
 {
   char lastarg[128];
+
   strip_array_part(lastarg, last_unvariadic_arg(list));
   printf("    if (sprintf != cutest_mock.sprintf.func) {\n"
          "      fprintf(stderr, \"WARNING: You can only set "
@@ -1270,6 +1288,7 @@ static int print_sprintf_caller(arg_list_t* list)
 static int print_snprintf_caller(arg_list_t* list)
 {
   char lastarg[128];
+
   strip_array_part(lastarg, last_unvariadic_arg(list));
   printf("    if (snprintf != cutest_mock.snprintf.func) {\n"
          "      fprintf(stderr, \"WARNING: You can only set "
@@ -1292,6 +1311,7 @@ static int print_snprintf_caller(arg_list_t* list)
 static int print_fprintf_caller(arg_list_t* list)
 {
   char lastarg[128];
+
   strip_array_part(lastarg, last_unvariadic_arg(list));
   printf("    if (fprintf != cutest_mock.fprintf.func) {\n"
          "      fprintf(stderr, \"WARNING: You can only set "
@@ -1377,7 +1397,8 @@ static void print_mock_implementation(mockable_node_t* node)
 
 static void print_mock_implementations(mockable_list_t* list)
 {
-  mockable_node_t* node;
+  mockable_node_t* node = NULL;
+
   printf("/*\n"
          " * Mock-up implementations of every callable function in your"
          " * design. These functions are called by default instead of the"
@@ -1404,8 +1425,9 @@ static void print_mock_func_module_test_assignment(mockable_node_t* node)
 
 static void print_mock_func_module_test_assignments(mockable_list_t* list)
 {
+  mockable_node_t* node = NULL;
+
   printf("void cutest_set_mocks_to_original_functions() {\n");
-  mockable_node_t* node;
   for (node = list->first; NULL != node; node = node->next) {
     if (0 == node->legit) {
       continue;
@@ -1419,6 +1441,10 @@ static void print_mock_func_module_test_assignments(mockable_list_t* list)
 int main(int argc, char* argv[])
 {
   const char* program_name = argv[0];
+  const char* filename = argv[1];
+  const char* nm_filename = argv[2];
+  const char* cutest_path = argv[3];
+  mockable_list_t* list = NULL;
 
   if (argc < 4) {
     fprintf(stderr, "ERROR: Missing argument\n");
@@ -1426,11 +1452,7 @@ int main(int argc, char* argv[])
     return EXIT_FAILURE;
   }
 
-  const char* filename = argv[1];
-  const char* nm_filename = argv[2];
-  const char* cutest_path = argv[3];
-
-  mockable_list_t* list = new_mockable_list();
+  list = new_mockable_list();
   if (NULL == list) {
     return EXIT_FAILURE;
   }

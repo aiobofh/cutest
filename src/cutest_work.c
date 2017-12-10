@@ -54,6 +54,7 @@ static int all_input_files_exist(int argc, char* argv[])
 {
   int idx;
   int retval = 1;
+
   for (idx = 2; idx < argc; idx++) {
     if (!file_exists(argv[idx])) {
       fprintf(stderr, "ERROR: '%s' does not exist\n", argv[idx]);
@@ -66,9 +67,11 @@ static int all_input_files_exist(int argc, char* argv[])
 static int run_test_suite(const char* executable_file_name, int verbose, int stderr_log)
 {
   int valgrindlen = 0;
-  int retval;
+  int retval = 0;
   int optlen = 0;
   int prefix_len = 0;
+  char* command = NULL;
+
   if (NULL == executable_file_name) {
     fprintf(stderr, "ERROR: Internal error, suite executable is NULL pointer\n");
     return -1;
@@ -89,7 +92,7 @@ static int run_test_suite(const char* executable_file_name, int verbose, int std
   if (1 == stderr_log) {
     optlen += strlen(" -l");
   }
-  char* command = malloc(valgrindlen + prefix_len + strlen(executable_file_name) + optlen + 1);
+  command = malloc(valgrindlen + prefix_len + strlen(executable_file_name) + optlen + 1);
   if (NULL == command) {
     fprintf(stderr, "ERROR: Out of memory while allocating suite command.\n");
     return -1;
@@ -173,8 +176,9 @@ static int handle_args(int argc, char* argv[]) {
 static void launch_child_processes(int allocated_cores, int argc,
                                    char* argv[], int verbose)
 {
-  int idx;
+  int idx = 0;
   pid_t pid[128];
+
   for (idx = 0; idx < allocated_cores; idx++) {
     if (0 > (pid[idx] = fork())) {
       fprintf(stderr, "ERROR: Failed to fork\n");
@@ -196,7 +200,8 @@ static void launch_child_processes(int allocated_cores, int argc,
 static int slight_delay()
 {
   int a = 0;
-  int i;
+  int i = 0;
+
   for (i = 0; i < 10; i++) {
     a += i * 2;
   }
@@ -206,11 +211,10 @@ static int slight_delay()
 static int wait_for_child_processes(int allocated_cores, int verbose)
 {
   int retval = 0;
+
   while (allocated_cores > 0) {
-    int status;
-    pid_t pid;
-    pid = waitpid(0, &status, 0);
-    (void)pid;
+    int status = 0;
+    (void)waitpid(0, &status, 0);
     --allocated_cores;
     retval |= WEXITSTATUS(status);
   }
@@ -226,6 +230,9 @@ static void print_log(const char* suite_name)
 {
   const size_t log_name_len = strlen(suite_name) + strlen(".log") + 1;
   char* log_name = malloc(log_name_len);
+  FILE *fd = NULL;
+  char buf[1024];
+
   if (NULL == log_name) {
     fprintf(stderr, "ERROR: Out of memory while allocating log file name\n");
     return;
@@ -233,12 +240,11 @@ static void print_log(const char* suite_name)
   memset(log_name, 0, log_name_len);
   strcpy(log_name, suite_name);
   strcat(log_name, ".log");
-  FILE *fd = fopen(log_name, "r");
+  fd = fopen(log_name, "r");
   if (NULL == fd) {
     free(log_name);
     return;
   }
-  char buf[1024];
   while (NULL != fgets(buf, sizeof(buf), fd)) {
     buf[strlen(buf)] = 0;
     fputs(buf, stderr);
@@ -261,6 +267,7 @@ static void print_logs(int argc, char* argv[])
 static int launch_process(int argc, char* argv[], int verbose)
 {
   int r = run_test_suites(0, 1, argc, argv, verbose, 0);
+
   if (-1 == verbose) {
     puts("");
   }
@@ -269,14 +276,12 @@ static int launch_process(int argc, char* argv[], int verbose)
 
 int main(int argc, char* argv[]) {
   int verbose = 0;
-
-  verbose = handle_args(argc, argv);
-
   const int cores = get_number_of_cores();
   const int suites = argc - 1;
   int retval = 0;
-
   int allocated_cores = min(suites, cores);
+
+  verbose = handle_args(argc, argv);
 
   if (allocated_cores > 1) {
     launch_child_processes(allocated_cores, argc, argv, verbose);

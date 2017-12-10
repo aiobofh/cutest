@@ -59,6 +59,7 @@ static void replace_last_parenthesis_with_0(char *buf, int start)
 {
   size_t i;
   const size_t len = strlen(buf);
+
   for (i = start; i < len; i++) {
     if (')' == buf[i]) {
       buf[i] = 0;
@@ -73,6 +74,7 @@ static int skip_comments(const char* buf)
   const size_t len = strlen(buf);
   size_t i;
   int slash_star_comment = 0;
+
   for (i = 0; i < len - 1; i++) {
     if (('/' == buf[i]) && ('*' == buf[i+1])) {
       slash_star_comment++;
@@ -88,6 +90,7 @@ static struct test_s next_test(char* buf)
 {
   struct test_s retval = {NULL, 0};
   size_t len;
+
   if (0 == strncmp(buf, "test(", len=strlen("test("))) {
     replace_last_parenthesis_with_0(buf, len);
     retval.name = &buf[len];
@@ -167,12 +170,13 @@ static size_t parse_test_cases(testcase_list_t* list,
 {
   size_t test_cnt = 0;
   FILE *fd = fopen(test_source_file_name, "r");
-
   int still_inside_a_comment = 0;
 
   while (!feof(fd)) {
-
+    testcase_node_t* node = NULL;
     char buf[CHUNK_SIZE];
+    struct test_s t;
+
     if (NULL == fgets(buf, CHUNK_SIZE, fd)) {
       break;
     }
@@ -182,12 +186,12 @@ static size_t parse_test_cases(testcase_list_t* list,
       continue;
     }
 
-    struct test_s t = next_test(buf);
+    t = next_test(buf);
     if (NULL == t.name) {
       continue;
     }
 
-    testcase_node_t* node = new_testcase_node(t.name, t.reset_mocks);
+    node = new_testcase_node(t.name, t.reset_mocks);
     testcase_list_add_node(list, node);
 
     test_cnt++;
@@ -202,6 +206,7 @@ static void print_test_case_executions(testcase_list_t* list)
 {
   testcase_node_t* node;
   size_t idx = 0;
+
   for (node = list->first; NULL != node; node = node->next) {
     print_test_case_executor(node->testcase, idx++, node->reset);
   }
@@ -232,6 +237,10 @@ static void print_test_names_printer(testcase_list_t* list)
  */
 int main(int argc, char* argv[]) {
   const char* program_name = argv[0];
+  const char* test_source_file_name = argv[1];
+  const char* mock_header_file_name = argv[2];
+  testcase_list_t* list = NULL;
+  size_t test_cnt = 0;
 
   if (argc < 3) {
     fprintf(stderr, "ERROR: Missing arguments\n");
@@ -239,20 +248,17 @@ int main(int argc, char* argv[]) {
     return EXIT_FAILURE;
   }
 
-  const char* test_source_file_name = argv[1];
-  const char* mock_header_file_name = argv[2];
-
   if (!file_exists(test_source_file_name) ||
       !file_exists(mock_header_file_name)) {
     return EXIT_FAILURE;
   }
 
-  testcase_list_t* list = new_testcase_list();
+  list = new_testcase_list();
   if (NULL == list) {
     return EXIT_FAILURE;
   }
 
-  const size_t test_cnt = parse_test_cases(list, test_source_file_name);
+  test_cnt = parse_test_cases(list, test_source_file_name);
 
   print_header(program_name, test_source_file_name, mock_header_file_name);
   print_main_function_prologue(test_source_file_name, test_cnt);

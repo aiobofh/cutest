@@ -254,6 +254,7 @@ int cutest_startup(int argc, char* argv[], const char* suite_name,
 void catch_segfault_through_gdb(const char* name, const char* prog_name)
 {
   char buf[1024];
+  FILE* fp = NULL;
 
   sprintf(buf, " Segmentation fault! Caught in: %s\n", name);
 
@@ -261,7 +262,7 @@ void catch_segfault_through_gdb(const char* name, const char* prog_name)
 
   sprintf(buf, "gdb --batch -ex \"r -v %s\" -ex \"bt\" %s", name, prog_name);
 
-  FILE* fp = popen(buf, "r");
+  fp = popen(buf, "r");
 
   if (NULL == fp) {
     fprintf(stderr,
@@ -444,12 +445,14 @@ void write_junit_report(const char* report_file_name,
   const time_t current_time = time(NULL);
   char timestamp[40];
   struct tm tm;
+  FILE *stream = NULL;
+  size_t i = 0;
 
   /* Create a textual timestamp */
   localtime_r(&current_time, &tm);
   strftime(timestamp, sizeof(timestamp), "%Y-%m-%dT%H:%M:%S", &tm);
 
-  FILE *stream = fopen(report_file_name, "w+");
+  stream = fopen(report_file_name, "w+");
 
   /* Ugly-output a JUnit XML-report. */
   fprintf(stream,
@@ -465,7 +468,6 @@ void write_junit_report(const char* report_file_name,
           stats->skip_cnt,
           timestamp);
 
-  size_t i;
   for (i = 0; i < test_cnt; i++) {
     cutest_append_junit_node(stream, test_file_name, &junit_report[i]);
     if (NULL != junit_report[i].message) {
@@ -484,13 +486,13 @@ void write_log_file(const char* test_suite_file_name, const char* error_buf)
 {
   const size_t dotpos =
     strstr(test_suite_file_name, ".") - test_suite_file_name;
-
   char* log_file_name = malloc(dotpos + 4);
+  FILE* fd = NULL;
 
   strncpy(log_file_name, test_suite_file_name, dotpos);
   strcat(log_file_name, ".log");
 
-  FILE* fd = fopen(log_file_name, "w");
+  fd = fopen(log_file_name, "w");
   if (NULL == fd) {
     fprintf(stderr, "ERROR: Could not open log-file '%s' for writing.\n",
             log_file_name);

@@ -54,12 +54,14 @@ static mockable_node* add_new_mockable_node(mockable_node* node,
                                             const char* mockable_name)
 {
   mockable_node *n = NULL;
+  size_t len = 0;
+
   n = malloc(sizeof(mockable_node));
   if (NULL == n) {
     return NULL;
   }
   memset(n, 0, sizeof(*n));
-  const size_t len = strlen(mockable_name);
+  len = strlen(mockable_name);
   n->name = malloc(len + 1);
   if (NULL == n->name) {
     return NULL;
@@ -80,13 +82,13 @@ static size_t read_mockables_list_file(mockable_node* node,
                                        const char* mockables_list_file_name)
 {
   size_t cnt = 0;
-  (void)node;
+  char buf[CHUNK_SIZE];
   FILE* fd = fopen(mockables_list_file_name, "r");
+
   if (NULL == fd) {
     return 0;
   }
 
-  char buf[CHUNK_SIZE];
   while (fgets(buf, sizeof(buf), fd)) {
     rstrip(buf);
     if (0 == strcmp(buf, "stderr")) {
@@ -106,10 +108,12 @@ static size_t read_mockables_list_file(mockable_node* node,
 static int mockable_name_pos(const char* buf, const char* mockable_name)
 {
   char* s = strstr(buf, mockable_name);
+  int pos = 0;
+
   if (NULL == s) {
     return 0;
   }
-  const int pos = s - buf;
+  pos = s - buf;
   if (pos < 3) { /* probably not a mnemonic in-front of the label */
     return 0;
   }
@@ -139,6 +143,7 @@ static int mockable_is_surrounded_by_whitespaces(const char* buf,
 {
   const int left = is_space(buf[pos - 1]);
   const int right = is_space(buf[end + 1]);
+
   return (left && right);
 }
 
@@ -146,10 +151,11 @@ static int replace_jump_destination(char* buf, char* mockable_name, int pos)
 {
   const int mocklen = strlen(mockable_name);
   const int end = pos + mocklen - 1;
+  char newbuf[CHUNK_SIZE];
+
   if (!mockable_is_surrounded_by_whitespaces(buf, pos, end)) {
     return 0;
   }
-  char newbuf[CHUNK_SIZE];
   buf[pos] = 0;
   sprintf(newbuf, "%scutest_%s%s", buf, mockable_name, &buf[end + 1]);
   strcpy(buf, newbuf);
@@ -160,6 +166,7 @@ static void traverse_all_nodes(char* buf, mockable_node* node)
 {
   while (node) {
     const int pos = mockable_name_pos(buf, node->name);
+
     if ((0 != pos) && replace_jump_destination(buf, node->name, pos)) {
       break;
     }
@@ -171,6 +178,7 @@ static int row_starts_with_valid_char(const char* buf)
 {
   const size_t len = strlen(buf);
   const size_t i = count_white_spaces(buf);
+
   if ((i == len) || (buf[i] == '.')) {
     return 0;
   }
@@ -206,6 +214,9 @@ static void free_mockables_list(mockable_node* node)
 
 int main(int argc, char* argv[]) {
   const char* program_name = argv[0];
+  const char* dut_asm_source_file_name = argv[1];
+  const char* mockables_list_file_name = argv[2];
+  mockable_node* node = NULL;
 
   if (argc < 3) {
     fprintf(stderr, "ERROR: Missing argument\n");
@@ -213,18 +224,14 @@ int main(int argc, char* argv[]) {
     return EXIT_FAILURE;
   }
 
-  const char* dut_asm_source_file_name = argv[1];
-  const char* mockables_list_file_name = argv[2];
-
   if (!file_exists(dut_asm_source_file_name) ||
       !file_exists(mockables_list_file_name)) {
     return EXIT_FAILURE;
   }
 
-  mockable_node* node = malloc(sizeof(mockable_node));
+  node = malloc(sizeof(mockable_node));
   memset(node, 0, sizeof(*node));
 
-  //  mockable_node m = {NULL, NULL};
   read_mockables_list_file(node, mockables_list_file_name);
 
   replace_assembler_jumps(node->next, dut_asm_source_file_name);

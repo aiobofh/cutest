@@ -2,10 +2,11 @@ Q=@
 
 .SUFFIXES:
 
+DEPS=$(subst .c,.d,$(wildcard *.c))
+
 all:
 	$(Q)$(MAKE) -s -r --no-print-directory $(DEPS) && \
-	$(MAKE) -r --no-print-directory check && \
-	$(MAKE) -r --no-print-directory apassbc
+	$(MAKE) -s -r --no-print-directory check
 
 %.d: %.c
 	$(Q)$(CC) -MM -MG $(CFLAGS) $< | grep -v -e '^ \\'>> $@

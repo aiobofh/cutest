@@ -87,7 +87,7 @@ cutest_info:
 	@echo "Source-folder        : $(CUTEST_SRC_DIR)"
 	@echo "CUTest-path          : $(CUTEST_PATH)"
 	@echo "CUTest-CFLAGS        : $(CUTEST_CFLAGS)"
-	@echo "CC                   : $(CC) $(findstring gcc,$(CC))"
+	@echo "CC                   : $(CC) '$(findstring gcc,$(CC))'"
 	@echo "Sources to test      : $(SOURCES)"
 	@echo "Expected tests suites: $(EXPECTED_TEST_SUITES)"
 	@echo "Found tests suites   : $(FOUND_TEST_SUITES)"

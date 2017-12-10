@@ -5,16 +5,6 @@
 #include "arg.h"
 #include "mockable.h"
 
-/*
-static void* my_malloc_ptr = NULL;
-
-//#define malloc(bytes) \
-  my_malloc_ptr = malloc(bytes); fprintf(stderr, "malloc: %s:%d %p\n", __FILE__, __LINE__, my_malloc_ptr)
-
-//#define free(ptr) \
-  free((void*)ptr); fprintf(stderr, "free: %s:%d %p\n", __FILE__, __LINE__, ptr)
-*/
-
 static mockable_node_t *allocate_mockable_node()
 {
   mockable_node_t* node = malloc(sizeof(mockable_node_t));
