@@ -420,6 +420,7 @@ typedef struct cutest_junit_report_s {
   float time;
 } cutest_junit_report_t;
 
+void cutest_increment_skips(char* reason);
 void cutest_increment_fails();
 int cutest_startup(int argc, char* argv[], const char* suite_name,
                    cutest_junit_report_t* junit_report, size_t test_cnt);
@@ -576,8 +577,7 @@ int cutest_test_name_argument_given(const char* test_name);
  *
  */
 #define skip(REASON)                            \
-  cutest_stats.skip_reason = REASON;            \
-  cutest_stats.skip_cnt++;                      \
+  cutest_increment_skips(REASON);               \
   return
 
 /*

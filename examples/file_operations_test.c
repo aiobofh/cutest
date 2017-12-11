@@ -1,7 +1,18 @@
+#include <stdio.h>
 #include <sys/types.h>
 #include <unistd.h>
 
-#define CUTEST_LENIENT_ASSERTS 1
+int cutest_assert_eq_file_ptr(FILE* a, FILE* b, char* output)
+{
+  if (a == b) {
+    return 0;
+  }
+  sprintf(output, "%p, %p", (void*)a, (void*)b);
+  return 1;
+}
+
+#define CUTEST_MY_OWN_EQ_COMPARATORS(EXP, REF)  \
+  FILE*: cutest_assert_eq_file_ptr,
 
 #include "cutest.h"
 

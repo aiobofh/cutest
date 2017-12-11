@@ -136,6 +136,12 @@ int cutest_assert_eq_default(const unsigned long long a,
 
 #endif
 
+void cutest_increment_skips(char* reason)
+{
+  cutest_stats.skip_reason = reason;
+  cutest_stats.skip_cnt++;
+}
+
 void cutest_increment_fails(const char* error_output)
 {
   strcat(cutest_stats.current_error_output, error_output);

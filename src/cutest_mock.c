@@ -483,26 +483,26 @@ static char* make_mock_arg_name(size_t idx, int function_pointer,
   }
   arg = malloc(numbers + fpchars + asterisks + strlen("arg") + 1 + array);
   if (1 == function_pointer) {
-    sprintf(arg, "(*arg%lu)%s", idx, function_pointer_args);
+    sprintf(arg, "(*arg%zu)%s", idx, function_pointer_args);
   }
   else {
     if (0 == array) {
       if (0 == asterisks) {
-        sprintf(arg, "arg%lu", idx);
+        sprintf(arg, "arg%zu", idx);
       }
       else if (1 == asterisks) {
-        sprintf(arg, "*arg%lu", idx);
+        sprintf(arg, "*arg%zu", idx);
       }
       else {
-        sprintf(arg, "**arg%lu", idx);
+        sprintf(arg, "**arg%zu", idx);
       }
     }
     else { /* Array arguments can be considered a lever of pointer-nes :) */
       if (0 == asterisks) {
-        sprintf(arg, "*arg%lu", idx);
+        sprintf(arg, "*arg%zu", idx);
       }
       else if (1 == asterisks) {
-        sprintf(arg, "**arg%lu", idx);
+        sprintf(arg, "**arg%zu", idx);
       }
       else {
         fprintf(stderr, "ERROR: Too many asterisks for an array ref\n");
@@ -560,7 +560,7 @@ static char* make_assignment_name(size_t idx)
   if (NULL == arg) {
     return NULL;
   }
-  sprintf(arg, "arg%lu", idx);
+  sprintf(arg, "arg%zu", idx);
   return arg;
 }
 

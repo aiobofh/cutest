@@ -664,7 +664,7 @@ test(make_mock_arg_name_shall_use_the_correct_formatting_for_func_ptr)
   make_mock_arg_name(0, 1, "(int*, char*)", 0, 0);
   assert_eq(1, m.sprintf.call_count);
   assert_eq(0x1234, m.sprintf.args.arg0);
-  assert_eq("(*arg%lu)%s", m.sprintf.args.arg1);
+  assert_eq("(*arg%zu)%s", m.sprintf.args.arg1);
 }
 
 test(make_mock_arg_name_shall_use_the_correct_formatting_for_non_func_ptr)
@@ -674,7 +674,7 @@ test(make_mock_arg_name_shall_use_the_correct_formatting_for_non_func_ptr)
   make_mock_arg_name(0, 0, NULL, 0, 0);
   assert_eq(1, m.sprintf.call_count);
   assert_eq(0x1234, m.sprintf.args.arg0);
-  assert_eq("arg%lu", m.sprintf.args.arg1);
+  assert_eq("arg%zu", m.sprintf.args.arg1);
 }
 
 test(make_mock_arg_name_shall_use_the_correct_formatting_pointers)
@@ -684,7 +684,7 @@ test(make_mock_arg_name_shall_use_the_correct_formatting_pointers)
   make_mock_arg_name(0, 0, NULL, 1, 0);
   assert_eq(1, m.sprintf.call_count);
   assert_eq(0x1234, m.sprintf.args.arg0);
-  assert_eq("*arg%lu", m.sprintf.args.arg1);
+  assert_eq("*arg%zu", m.sprintf.args.arg1);
 }
 
 test(make_mock_arg_name_shall_use_the_correct_formatting_double_pointers)
@@ -694,7 +694,7 @@ test(make_mock_arg_name_shall_use_the_correct_formatting_double_pointers)
   make_mock_arg_name(0, 0, NULL, 2, 0);
   assert_eq(1, m.sprintf.call_count);
   assert_eq(0x1234, m.sprintf.args.arg0);
-  assert_eq("**arg%lu", m.sprintf.args.arg1);
+  assert_eq("**arg%zu", m.sprintf.args.arg1);
 }
 
 test(make_mock_arg_name_shall_use_the_correct_formatting_for_non_func_ptr_ar)
@@ -704,7 +704,7 @@ test(make_mock_arg_name_shall_use_the_correct_formatting_for_non_func_ptr_ar)
   make_mock_arg_name(0, 0, NULL, 0, 1);
   assert_eq(1, m.sprintf.call_count);
   assert_eq(0x1234, m.sprintf.args.arg0);
-  assert_eq("*arg%lu", m.sprintf.args.arg1);
+  assert_eq("*arg%zu", m.sprintf.args.arg1);
 }
 
 test(make_mock_arg_name_shall_use_the_correct_formatting_pointers_array)
@@ -714,7 +714,7 @@ test(make_mock_arg_name_shall_use_the_correct_formatting_pointers_array)
   make_mock_arg_name(0, 0, NULL, 1, 1);
   assert_eq(1, m.sprintf.call_count);
   assert_eq(0x1234, m.sprintf.args.arg0);
-  assert_eq("**arg%lu", m.sprintf.args.arg1);
+  assert_eq("**arg%zu", m.sprintf.args.arg1);
 }
 
 test(make_mock_arg_name_shall_output_an_error_message_if_too_many_asterisks)

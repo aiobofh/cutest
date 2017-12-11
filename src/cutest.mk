@@ -258,6 +258,7 @@ clean_cutest:
 	$(Q)$(RM) -f $(CUTEST_PATH)/cutest_run \
 	$(CUTEST_PATH)/cutest_prox \
 	$(CUTEST_PATH)/cutest_mock \
+	$(CUTEST_PATH)/cutest_work \
 	$(CUTEST_PATH)/*.o \
 	$(CUTEST_PATH)/*.gcda \
 	$(CUTEST_PATH)/*.gcno

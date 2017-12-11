@@ -33,7 +33,7 @@ struct my_struct* use_return_my_struct_ptr() {
 }
 
 const char* return_const_char_ptr() {
-  return (const char*)1234;
+  return "1234";
 }
 
 const char* use_return_const_char_ptr() {
@@ -91,10 +91,6 @@ int arg_function_pointer(int i, int (*func)(int, int)) {
 
 int use_arg_function_pointer(int i, int (*func)(int, int)) {
   return arg_function_pointer(i, func);
-}
-
-int use_arg_function_pointer_with_mockable(int i) {
-  return arg_function_pointer(i, arg_int);
 }
 
 int arg_array_ptr(int i, int *j[]) {

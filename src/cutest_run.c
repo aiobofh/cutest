@@ -139,8 +139,8 @@ static void print_main_function_prologue(const char* test_source_file_name,
 {
   printf("int main(int argc, char* argv[])\n"
          "{\n"
-         "  cutest_junit_report_t junit_report[%lu];\n"
-         "  int just_print = cutest_startup(argc, argv, \"%s\", junit_report, %lu);\n\n",
+         "  cutest_junit_report_t junit_report[%zu];\n"
+         "  int just_print = cutest_startup(argc, argv, \"%s\", junit_report, %zu);\n\n",
          test_cnt,
          test_source_file_name,
          test_cnt);
@@ -151,7 +151,7 @@ static void print_test_case_executor(const char* name, size_t idx,
 {
   printf("  if (1 == cutest_test_name_argument_given(\"%s\")) {\n"
          "    memset(&cutest_mock, 0, sizeof(cutest_mock));\n"
-         "    cutest_execute_test(&junit_report[%lu], cutest_%s, \"%s\", %d, argv[0]);\n"
+         "    cutest_execute_test(&junit_report[%zu], cutest_%s, \"%s\", %d, argv[0]);\n"
          "  }\n",
          name, idx, name, name, reset_mocks);
 }
@@ -159,7 +159,7 @@ static void print_test_case_executor(const char* name, size_t idx,
 static void print_main_function_epilogue(const char* test_source_file_name,
                                          const size_t test_cnt)
 {
-  printf("  return cutest_shutdown(\"%s\", junit_report, %lu);\n\n"
+  printf("  return cutest_shutdown(\"%s\", junit_report, %zu);\n\n"
          "}\n",
          test_source_file_name,
          test_cnt);
