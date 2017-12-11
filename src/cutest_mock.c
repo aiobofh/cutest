@@ -67,11 +67,9 @@
 #include "mockable.h"
 #include "helpers.h"
 
-cutest_mocks_t mocks;
-
 static void usage(const char* program_name)
 {
-  printf("USAGE: %s <dut-source-file.c> <mockables.lst> <path-to-cutest>"
+  printf("USAGE: %s <path-to-cproto> <dut-source-file.c> <mockables.lst> <path-to-cutest>"
          " [-I flags]\n",
          program_name);
 }
@@ -816,18 +814,18 @@ static void get_include_flags(char* dst, int argc, char* argv[]) {
    * tool. This is useful to give it access to include-paths for example, so
    * that it can find functions to create function prototypes for them.
    */
-  const char* cutest_path = argv[3];
+  const char* cutest_path = argv[4];
   int i;
 
   strcpy(dst, "-I\"");
   strcat(dst, cutest_path);
   strcat(dst, "\"");
 
-  if (argc > 4) {
+  if (argc > 5) {
     strcat(dst, " ");
   }
 
-  for (i = 4; i < argc; i++) {
+  for (i = 5; i < argc; i++) {
     strcat(dst, argv[i]);
     if (i < argc - 1) {
       strcat(dst, " ");
@@ -898,16 +896,18 @@ static mockable_node_t* parse_cproto_row(mockable_list_t* list, char* buf)
   return node;
 }
 
-static void construct_cproto_command_line(char* dst, int argc, char* argv[])
+static void construct_cproto_command_line(char* dst, const char* cproto,
+                                          int argc, char* argv[])
 {
   char iflags[1024];
-  const char* filename = argv[1];
+  const char* filename = argv[2];
 
   get_include_flags(iflags, argc, argv);
-  sprintf(dst, "cproto -i -s -x %s \"%s\" 2>/dev/null", iflags, filename);
+  sprintf(dst, "\"%s\" -i -s -x %s \"%s\" 2>/dev/null", cproto, iflags, filename);
 }
 
-static int execute_cproto(mockable_list_t* list, int argc, char* argv[])
+static int execute_cproto(mockable_list_t* list, const char* cproto,
+                          int argc, char* argv[])
 {
   /*
    * Execute the 'cproto' binary and parse all output rows.
@@ -916,7 +916,7 @@ static int execute_cproto(mockable_list_t* list, int argc, char* argv[])
   char command[1024];
   FILE* pd = NULL;
 
-  construct_cproto_command_line(command, argc, argv);
+  construct_cproto_command_line(command, cproto, argc, argv);
 
   pd = popen(command, "r");
 
@@ -1137,7 +1137,7 @@ static void print_declarations(const char* pretype, const char* prefix,
 static void print_dut_declarations(mockable_list_t* list)
 {
   printf("/*\n"
-         " * These extern declarations are here to help the compiler to find"
+         " * These extern declarations are here to help the compiler to find\n"
          " * your design under test.\n"
          " */\n"
          "\n");
@@ -1148,7 +1148,7 @@ static void print_dut_declarations(mockable_list_t* list)
 static void print_mock_declarations(mockable_list_t* list)
 {
   printf("/*\n"
-         " * Function prototypes to all mock-up functions that are to"
+         " * Function prototypes to all mock-up functions that are to\n"
          " * replace function calls within your design under test.\n"
          " */\n"
          "\n");
@@ -1441,12 +1441,13 @@ static void print_mock_func_module_test_assignments(mockable_list_t* list)
 int main(int argc, char* argv[])
 {
   const char* program_name = argv[0];
-  const char* filename = argv[1];
-  const char* nm_filename = argv[2];
-  const char* cutest_path = argv[3];
+  const char* cproto = argv[1];
+  const char* filename = argv[2];
+  const char* nm_filename = argv[3];
+  const char* cutest_path = argv[4];
   mockable_list_t* list = NULL;
 
-  if (argc < 4) {
+  if (argc < 5) {
     fprintf(stderr, "ERROR: Missing argument\n");
     usage(program_name);
     return EXIT_FAILURE;
@@ -1459,7 +1460,7 @@ int main(int argc, char* argv[])
 
   get_mockables(list, nm_filename);
 
-  if (0 == execute_cproto(list, argc, argv)) {
+  if (0 == execute_cproto(list, cproto, argc, argv)) {
     delete_mockable_list(list);
     return EXIT_FAILURE;
   }

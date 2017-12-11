@@ -240,6 +240,7 @@ static void print_log(const char* suite_name)
   memset(log_name, 0, log_name_len);
   strcpy(log_name, suite_name);
   strcat(log_name, ".log");
+
   fd = fopen(log_name, "r");
   if (NULL == fd) {
     free(log_name);

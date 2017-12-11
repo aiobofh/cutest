@@ -1204,17 +1204,17 @@ test(get_mockbables_shall_close_the_correct_file)
 module_test(get_include_flags_shall_always_use_arg_number_3_as_cutest_path)
 {
   char dst[1024];
-  char* argv[] = {"program name", "other arg", "other arg", "cutest path"};
-  get_include_flags(dst, 3, argv);
+  char* argv[] = {"program name", "cproto", "other arg", "other arg", "cutest path"};
+  get_include_flags(dst, 4, argv);
   assert_eq("-I\"cutest path\"", dst);
 }
 
 module_test(get_include_flags_shall_always_append_the_rest_of_the_args)
 {
   char dst[1024];
-  char* argv[] = {"program name", "other arg", "other arg", "cutest path",
+  char* argv[] = {"program name", "cproto", "other arg", "other arg", "cutest path",
                   "-Ifoo", "-Ibar"};
-  get_include_flags(dst, 6, argv);
+  get_include_flags(dst, 7, argv);
   assert_eq("-I\"cutest path\" -Ifoo -Ibar", dst);
 }
 
@@ -1412,10 +1412,10 @@ test(parse_cproto_row_shall_return_the_pointer_to_a_mockable_node)
 module_test(construct_cproto_command_line_shall_produce_a_valid_command)
 {
   char command[1024];
-  char* argv[] = {"program name", "design.c", "mockables.lst",
+  char* argv[] = {"program name", "cproto", "design.c", "mockables.lst",
                   "/path/to/cutest", "-Iinc"};
-  construct_cproto_command_line(command, 5, argv);
-  assert_eq("cproto -i -s -x -I\"/path/to/cutest\" -Iinc \"design.c\" 2>/dev/null",
+  construct_cproto_command_line(command, "cproto", 6, argv);
+  assert_eq("\"cproto\" -i -s -x -I\"/path/to/cutest\" -Iinc \"design.c\" 2>/dev/null",
             command);
 }
 
@@ -1425,15 +1425,16 @@ module_test(construct_cproto_command_line_shall_produce_a_valid_command)
 
 test(execute_cproto_shall_forward_args_to_command_line_constructor)
 {
-  execute_cproto(NULL, 5678, 0x1234);
+  execute_cproto(NULL, 0x4321, 5678, 0x1234);
   assert_eq(1, m.construct_cproto_command_line.call_count);
-  assert_eq(5678, m.construct_cproto_command_line.args.arg1);
-  assert_eq(0x1234, m.construct_cproto_command_line.args.arg2);
+  assert_eq(0x4321, m.construct_cproto_command_line.args.arg1);
+  assert_eq(5678, m.construct_cproto_command_line.args.arg2);
+  assert_eq(0x1234, m.construct_cproto_command_line.args.arg3);
 }
 
 test(execute_cproto_shall_execute_the_constructed_command)
 {
-  execute_cproto(NULL, 5678, 0x1234);
+  execute_cproto(NULL, 0x4321, 5678, 0x1234);
   assert_eq(1, m.popen.call_count);
   /*
    * This can not be checked 100% safely, since the argument is on the stack
@@ -1445,21 +1446,21 @@ test(execute_cproto_shall_execute_the_constructed_command)
 
 test(execute_cproto_shall_output_an_error_if_the_command_could_not_execute)
 {
-  execute_cproto(NULL, 5678, 0x1234);
+  execute_cproto(NULL, 0x4321, 5678, 0x1234);
   assert_eq(1, m.fprintf.call_count);
   assert_eq(stderr, m.fprintf.args.arg0);
 }
 
 test(execute_cproto_shall_return_0_if_the_command_could_not_execute)
 {
-  assert_eq(0, execute_cproto(NULL, 5678, 0x1234));
+  assert_eq(0, execute_cproto(NULL, 0x4321, 5678, 0x1234));
 }
 
 test(execute_cproto_shall_call_fgets_to_read_the_stdout_from_cproto)
 {
   m.strncmp.func = strncmp;
   m.popen.retval = 0x4321;
-  execute_cproto(NULL, 5678, 0x1234);
+  execute_cproto(NULL, 0x4321, 5678, 0x1234);
   assert_eq(1, m.fgets.call_count);
   assert_eq(0x4321, m.fgets.args.arg2);
 }
@@ -1470,7 +1471,7 @@ test(execute_cproto_shall_call_fgets_until_the_end_of_the_file_was_reached)
   fgets_only_5_times_stub_cnt = 0;
   m.fgets.func = fgets_only_5_times_stub;
   m.popen.retval = 0x4321;
-  execute_cproto(NULL, 5678, 0x1234);
+  execute_cproto(NULL, 0x4321, 5678, 0x1234);
   assert_eq(6, m.fgets.call_count);
   fgets_only_5_times_stub_cnt = 0;
 }
@@ -1495,7 +1496,7 @@ test(execute_cproto_shall_call_parse_cproto_row_for_each_non_comment_row)
   fgets_no_comment_5_times_stub_cnt = 0;
   m.fgets.func = fgets_no_comment_5_times_stub;
   m.popen.retval = 0x4321;
-  execute_cproto(NULL, 5678, 0x1234);
+  execute_cproto(NULL, 0x4321, 5678, 0x1234);
   assert_eq(5, m.parse_cproto_row.call_count);
   fgets_no_comment_5_times_stub_cnt = 0;
 }
@@ -1520,7 +1521,7 @@ test(execute_cproto_shall_not_call_parse_cproto_row_if_comment_row)
   fgets_read_comment_stub_cnt = 0;
   m.fgets.func = fgets_read_comment_stub;
   m.popen.retval = 0x4321;
-  execute_cproto(NULL, 5678, 0x1234);
+  execute_cproto(NULL, 0x4321, 5678, 0x1234);
   assert_eq(0, m.parse_cproto_row.call_count);
   fgets_read_comment_stub_cnt = 0;
 }
@@ -2521,22 +2522,22 @@ test(main_shall_return_EXIT_FAILURE_if_arguments_are_less_than_4) {
 }
 
 test(main_shall_call_new_mockable_list_once) {
-  char* argv[] = {"program_name", "dut_src", "nm_filename", "cutest_path"};
-  main(4, argv);
+  char* argv[] = {"program_name", "cproto", "dut_src", "nm_filename", "cutest_path"};
+  main(5, argv);
   assert_eq(1, m.new_mockable_list.call_count);
 }
 
 test(main_shall_return_EXIT_FAILURE_if_argument_list_could_not_be_created)
 {
-  char* argv[] = {"program_name", "dut_src", "nm_filename", "cutest_path"};
-  assert_eq(EXIT_FAILURE, main(4, argv));
+  char* argv[] = {"program_name", "cproto", "dut_src", "nm_filename", "cutest_path"};
+  assert_eq(EXIT_FAILURE, main(5, argv));
 }
 
 test(main_shall_get_mockables_from_the_nm_file)
 {
-  char* argv[] = {"program_name", "dut_src", "nm_filename", "cutest_path"};
+  char* argv[] = {"program_name", "cproto", "dut_src", "nm_filename", "cutest_path"};
   m.new_mockable_list.retval = 0x1234;
-  main(4, argv);
+  main(5, argv);
   assert_eq(1, m.get_mockables.call_count);
   assert_eq(0x1234, m.get_mockables.args.arg0);
   assert_eq("nm_filename", m.get_mockables.args.arg1);
@@ -2544,107 +2545,108 @@ test(main_shall_get_mockables_from_the_nm_file)
 
 test(main_shall_execute_cproto_correctly)
 {
-  char* argv[] = {"program_name", "dut_src", "nm_filename", "cutest_path"};
+  char* argv[] = {"program_name", "cproto", "dut_src", "nm_filename", "cutest_path"};
   m.new_mockable_list.retval = 0x1234;
-  main(4, argv);
+  main(5, argv);
   assert_eq(1, m.execute_cproto.call_count);
   assert_eq(0x1234, m.execute_cproto.args.arg0);
-  assert_eq(4, m.execute_cproto.args.arg1);
-  assert_eq(argv, m.execute_cproto.args.arg2);
+  assert_eq("cproto", m.execute_cproto.args.arg1);
+  assert_eq(5, m.execute_cproto.args.arg2);
+  assert_eq(argv, m.execute_cproto.args.arg3);
 }
 
 test(main_shall_delete_mockables_list_if_cproto_fails)
 {
-  char* argv[] = {"program_name", "dut_src", "nm_filename", "cutest_path"};
+  char* argv[] = {"program_name", "cproto", "dut_src", "nm_filename", "cutest_path"};
   m.new_mockable_list.retval = 0x1234;
   m.execute_cproto.retval = 0;
-  main(4, argv);
+  main(5, argv);
   assert_eq(1, m.delete_mockable_list.call_count);
   assert_eq(0x1234, m.delete_mockable_list.args.arg0);
 }
 
 test(main_shall_return_EXIT_FAILURE_if_cproto_fails)
 {
-  char* argv[] = {"program_name", "dut_src", "nm_filename", "cutest_path"};
+  char* argv[] = {"program_name", "cproto", "dut_src", "nm_filename", "cutest_path"};
   m.new_mockable_list.retval = 0x1234;
   m.execute_cproto.retval = 0;
-  assert_eq(EXIT_FAILURE, main(4, argv));
+  assert_eq(EXIT_FAILURE, main(5, argv));
 }
 
 test(main_shall_print_file_header)
 {
-  char* argv[] = {"program_name", "dut_src", "nm_filename", "cutest_path"};
+  char* argv[] = {"program_name", "cproto", "dut_src", "nm_filename", "cutest_path"};
   m.new_mockable_list.retval = 0x1234;
   m.execute_cproto.retval = 1;
-  main(4, argv);
+  main(5, argv);
   assert_eq(1, m.printf.call_count);
 }
 
 test(main_shall_copy_pre_processor_directives)
 {
-  char* argv[] = {"program_name", "dut_src", "nm_filename", "cutest_path"};
+  char* argv[] = {"program_name", "cproto", "dut_src", "nm_filename", "cutest_path"};
   m.new_mockable_list.retval = 0x1234;
   m.execute_cproto.retval = 1;
-  main(4, argv);
+  main(5, argv);
   assert_eq(1, m.copy_pre_processor_directives_from_dut.call_count);
   assert_eq("dut_src", m.copy_pre_processor_directives_from_dut.args.arg0);
 }
 
 test(main_shall_print_dut_declarations)
 {
-  char* argv[] = {"program_name", "dut_src", "nm_filename", "cutest_path"};
+  char* argv[] = {"program_name", "cproto", "dut_src", "nm_filename", "cutest_path"};
   m.new_mockable_list.retval = 0x1234;
   m.execute_cproto.retval = 1;
-  main(4, argv);
+  main(5, argv);
   assert_eq(1, m.print_dut_declarations.call_count);
   assert_eq(0x1234, m.print_dut_declarations.args.arg0);
 }
 
 test(main_shall_print_mock_declarations)
 {
-  char* argv[] = {"program_name", "dut_src", "nm_filename", "cutest_path"};
+  char* argv[] = {"program_name", "cproto", "dut_src", "nm_filename", "cutest_path"};
   m.new_mockable_list.retval = 0x1234;
   m.execute_cproto.retval = 1;
-  main(4, argv);
+  main(5, argv);
   assert_eq(1, m.print_mock_declarations.call_count);
   assert_eq(0x1234, m.print_mock_declarations.args.arg0);
 }
 
 test(main_shall_print_mock_control_structs)
 {
-  char* argv[] = {"program_name", "dut_src", "nm_filename", "cutest_path"};
+  char* argv[] = {"program_name", "cproto", "dut_src", "nm_filename", "cutest_path"};
   m.new_mockable_list.retval = 0x1234;
   m.execute_cproto.retval = 1;
-  main(4, argv);
+  main(5, argv);
   assert_eq(1, m.print_mock_control_structs.call_count);
   assert_eq(0x1234, m.print_mock_control_structs.args.arg0);
 }
 
 test(main_shall_print_mock_implementations)
 {
-  char* argv[] = {"program_name", "dut_src", "nm_filename", "cutest_path"};
+  char* argv[] = {"program_name", "cproto", "dut_src", "nm_filename", "cutest_path"};
   m.new_mockable_list.retval = 0x1234;
   m.execute_cproto.retval = 1;
-  main(4, argv);
+  main(5, argv);
   assert_eq(1, m.print_mock_implementations.call_count);
   assert_eq(0x1234, m.print_mock_implementations.args.arg0);
 }
 
 test(main_shall_print_mock_func_module_test_assignments)
 {
-  char* argv[] = {"program_name", "dut_src", "nm_filename", "cutest_path"};
+  char* argv[] = {"program_name", "cproto", "dut_src", "nm_filename", "cutest_path"};
   m.new_mockable_list.retval = 0x1234;
   m.execute_cproto.retval = 1;
-  main(4, argv);
+  main(5, argv);
   assert_eq(1, m.print_mock_func_module_test_assignments.call_count);
 }
 
 test(main_shall_delete_mockable_list)
 {
-  char* argv[] = {"program_name", "dut_src", "nm_filename", "cutest_path"};
+  char* argv[] = {"program_name", "cproto", "dut_src", "nm_filename", "cutest_path"};
   m.new_mockable_list.retval = 0x1234;
   m.execute_cproto.retval = 1;
-  main(4, argv);
+  main(5, argv);
   assert_eq(1, m.delete_mockable_list.call_count);
   assert_eq(0x1234, m.delete_mockable_list.args.arg0);
 }
