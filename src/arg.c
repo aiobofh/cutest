@@ -5,16 +5,6 @@
 #include "arg.h"
 #include "list.h"
 
-
-/*
-static void* my_malloc_ptr = NULL;
-//#define malloc(bytes)                                                   \
-  my_malloc_ptr = malloc(bytes); fprintf(stderr, "malloc: %s:%d %p\n", __FILE__, __LINE__, my_malloc_ptr)
-
-//#define free(ptr) \
-  free((void*)ptr); fprintf(stderr, "free: %s:%d %p\n", __FILE__, __LINE__, ptr)
-*/
-
 static arg_node_t* allocate_arg_node()
 {
   arg_node_t* node = malloc(sizeof(arg_node_t));
@@ -85,12 +75,13 @@ static void delete_assignment_type_cast(char* type_cast)
 
 arg_node_t* new_arg_node(const char* arg_string)
 {
+  char* arg = NULL;
   arg_node_t* node = allocate_arg_node();
   if (NULL == node) {
     return NULL;
   }
 
-  char* arg = new_arg(arg_string);
+  arg = new_arg(arg_string);
   if (NULL == arg) {
     free_arg_node(node);
     return NULL;
