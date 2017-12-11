@@ -9,6 +9,7 @@ DATE=$(shell /bin/date +"%Y-%m-%d")
 all:
 	@$(MAKE) -r --no-print-directory sanitize_tests && \
 	$(MAKE) -r --no-print-directory regression_tests && \
+	$(MAKE) -r --no-print-directory remote_tests && \
 	$(MAKE) -r --no-print-directory README.rst && \
 	$(MAKE) -r --no-print-directory clean && \
 	$(MAKE) -r --no-print-directory release
@@ -50,6 +51,28 @@ regression_tests:
 	$(MAKE) -r --no-print-directory -C examples/complex_directory_structure/my_project_with_separate_src_and_test_folders clean && \
 	$(MAKE) -r --no-print-directory -C examples/complex_directory_structure/my_project_with_separate_src_and_test_folders clean_cutest && \
 	echo ""
+
+arm:
+	@echo "examples on ARM running Debian Jessie:" && \
+	ssh -q cutest_arm 'rm -rf /tmp/cutest; mkdir /tmp/cutest' && \
+	scp -q -r src examples cutest_arm:/tmp/cutest/. &&\
+	ssh -q cutest_arm 'make -r --no-print-directory -C /tmp/cutest/examples check' && echo "OK"
+ppc:
+	@echo "examples on PowerPC (G4) running Ubuntu Xenial:" && \
+	ssh -q cutest_ppc 'rm -rf /tmp/cutest; mkdir /tmp/cutest' && \
+	scp -q -r src examples cutest_ppc:/tmp/cutest/. &&\
+	ssh -q cutest_ppc 'make -r --no-print-directory -C /tmp/cutest/examples check' && echo "OK"
+
+remote: arm ppc
+
+remote_tests:
+	@echo "==============================================" && \
+	echo "Running remote tests" && \
+	echo "==============================================" && \
+	echo "" && \
+	$(MAKE) -r --no-print-directory -C examples clean && \
+	$(MAKE) -r --no-print-directory -C examples clean_cutest && \
+	$(MAKE) -r --no-print-directory remote
 
 release: cutest-$(VERSION).tar.gz
 
