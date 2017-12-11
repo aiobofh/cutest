@@ -1,5 +1,8 @@
-CFLAGS=-pedantic -Wall -std=c99
-EXTRA_CFLAGS=-O2 -flto
+LOCALCFLAGS=-pedantic -Wall -std=c99 -O2
+
+ifneq ($(findstring clang,$(CC)),clang)
+	LOCALCFLAGS+=-flto
+endif
 
 all:
 	$(MAKE) -s -r --no-print-directory cutest_run && \
@@ -11,19 +14,19 @@ include cutest.mk
 include coverage.mk
 
 %.o: %.c
-	$(CC) -c $^ $(CFLAGS) $(EXTRA_CFLAGS) -o $@
+	$(CC) -c $^ $(LOCALCFLAGS) $(EXTRA_CFLAGS) -o $@
 
 cutest_run: cutest_run.o helpers.o testcase.o
-	$(CC) $^ $(CFLAGS) $(EXTRA_CFLAGS) -o $@
+	$(CC) $^ $(LOCALCFLAGS) $(EXTRA_CFLAGS) -o $@
 
 cutest_mock: cutest_mock.o helpers.o mockable.o arg.o
-	$(CC) $^ $(CFLAGS) $(EXTRA_CFLAGS) -o $@
+	$(CC) $^ $(LOCALCFLAGS) $(EXTRA_CFLAGS) -o $@
 
 cutest_prox: cutest_prox.o helpers.o
-	$(CC) $^ $(CFLAGS) $(EXTRA_CFLAGS) -o $@
+	$(CC) $^ $(LOCALCFLAGS) $(EXTRA_CFLAGS) -o $@
 
 cutest_work: cutest_work.o helpers.o
-	$(CC) $^ $(CFLAGS) $(EXTRA_CFLAGS) -o $@
+	$(CC) $^ $(LOCALCFLAGS) $(EXTRA_CFLAGS) -o $@
 
 clean::
 	$(Q)$(RM) *~ *.o cutest_run cutset_mock cutest_prox cutest_work
