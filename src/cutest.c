@@ -490,6 +490,7 @@ void write_log_file(const char* test_suite_file_name, const char* error_buf)
   FILE* fd = NULL;
 
   strncpy(log_file_name, test_suite_file_name, dotpos);
+  log_file_name[dotpos] = 0;
   strcat(log_file_name, ".log");
 
   fd = fopen(log_file_name, "w");
