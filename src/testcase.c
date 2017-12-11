@@ -40,12 +40,13 @@ static void delete_testcase(char* testcase)
 
 testcase_node_t* new_testcase_node(const char* testcase_name, int reset)
 {
+  char* testcase = NULL;
   testcase_node_t* node = allocate_testcase_node();
   if (NULL == node) {
     return NULL;
   }
 
-  char* testcase = new_testcase(testcase_name);
+  testcase = new_testcase(testcase_name);
   if (NULL == testcase) {
     free_testcase_node(node);
     return NULL;

@@ -46,12 +46,13 @@ static void delete_return_type_name(char* name) {
 
 mockable_node_t* new_mockable_node(const char* symbol_name)
 {
+  char* sn = NULL;
   mockable_node_t* node = allocate_mockable_node();
   if (NULL == node) {
     return NULL;
   }
 
-  char* sn = new_symbol_name(symbol_name);
+  sn = new_symbol_name(symbol_name);
   if (NULL == sn) {
     free_mockable_node(node);
     return NULL;
