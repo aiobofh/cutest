@@ -1,4 +1,4 @@
-#include "cutest_simple.h"
+#include "cutest.h"
 
 int main(int argc, char* argv[]) {
   (void)argc;

@@ -401,7 +401,7 @@
 
 #else
 
-#define assert_eq(EXP, REF) asset_eq_2(EXP, REF)
+#define assert_eq(EXP, REF) assert_eq_2(EXP, REF)
 
 #endif
 

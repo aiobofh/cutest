@@ -85,11 +85,10 @@ test(run_test_suite_shall_allocate_correct_amount_of_memory_for_cmd)
   char buf[1024];
   memset(buf, 0, sizeof(buf));
   m.strlen.func = strlen;
-  m.strstr.func = strstr;
   m.malloc.retval = buf;
   run_test_suite("bogus_suite_runner", 0, 0);
   assert_eq(1, m.malloc.call_count);
-  assert_eq(strlen("./bogus_suite_runner -j -s") + 1, m.malloc.args.arg0);
+  assert_eq(strlen("bogus_suite_runner -j -s") + 1, m.malloc.args.arg0);
 }
 
 test(run_test_suite_shall_allocate_correct_amount_of_memory_for_cmd_with_pfx)
@@ -97,11 +96,10 @@ test(run_test_suite_shall_allocate_correct_amount_of_memory_for_cmd_with_pfx)
   char buf[1024];
   memset(buf, 0, sizeof(buf));
   m.strlen.func = strlen;
-  m.strstr.func = strstr;
   m.malloc.retval = buf;
-  run_test_suite("./bogus_suite_runner", 0, 0);
+  run_test_suite("bogus_suite_runner", 0, 0);
   assert_eq(1, m.malloc.call_count);
-  assert_eq(strlen("./bogus_suite_runner -j -s") + 1, m.malloc.args.arg0);
+  assert_eq(strlen("bogus_suite_runner -j -s") + 1, m.malloc.args.arg0);
 }
 
 test(run_test_suite_shall_output_an_error_if_out_of_memory)
@@ -109,9 +107,8 @@ test(run_test_suite_shall_output_an_error_if_out_of_memory)
   char buf[1024];
   memset(buf, 0, sizeof(buf));
   m.strlen.func = strlen;
-  m.strstr.func = strstr;
   m.malloc.retval = NULL;
-  run_test_suite("./bogus_suite_runner", 0, 0);
+  run_test_suite("bogus_suite_runner", 0, 0);
 #ifdef CUTEST_GCC
   assert_eq(1, m.fwrite.call_count);
   assert_eq(stderr, m.fwrite.args.arg3);
@@ -130,7 +127,7 @@ test(run_test_suite_shall_allocate_correct_amount_of_memory_for_verbose_cmd)
   m.malloc.retval = buf;
   run_test_suite("bogus_suite_runner", 1, 0);
   assert_eq(1, m.malloc.call_count);
-  assert_eq(strlen("./bogus_suite_runner -v -j -s") + 1, m.malloc.args.arg0);
+  assert_eq(strlen("bogus_suite_runner -v -j -s") + 1, m.malloc.args.arg0);
 }
 
 test(run_test_suite_shall_allocate_correct_amount_of_memory_for_logging_cmd)
@@ -141,7 +138,7 @@ test(run_test_suite_shall_allocate_correct_amount_of_memory_for_logging_cmd)
   m.malloc.retval = buf;
   run_test_suite("bogus_suite_runner", 1, 1);
   assert_eq(1, m.malloc.call_count);
-  assert_eq(strlen("./bogus_suite_runner -v -j -s -l") + 1, m.malloc.args.arg0);
+  assert_eq(strlen("bogus_suite_runner -v -j -s -l") + 1, m.malloc.args.arg0);
 }
 
 test(run_test_suite_shall_allocate_correct_amount_of_memory_for_valgrind_cmd)
@@ -152,7 +149,7 @@ test(run_test_suite_shall_allocate_correct_amount_of_memory_for_valgrind_cmd)
   m.malloc.retval = buf;
   run_test_suite("bogus_suite_runner", 2, 0);
   assert_eq(1, m.malloc.call_count);
-  assert_eq(strlen("valgrind --track-origins=yes -q ./bogus_suite_runner -v -j -s") + 1, m.malloc.args.arg0);
+  assert_eq(strlen("valgrind --track-origins=yes -q bogus_suite_runner -v -j -s") + 1, m.malloc.args.arg0);
 }
 
 test(run_test_suite_shall_free_cmd)
@@ -176,28 +173,28 @@ module_test(run_test_suite_shall_execute_correct_command)
 {
   m.system.func = system_stub;
   assert_eq(1234, run_test_suite("suite_runner", 0, 0))
-  assert_eq("./suite_runner -j -s", system_stub_arg);
+  assert_eq("suite_runner -j -s", system_stub_arg);
 }
 
 module_test(run_test_suite_shall_execute_correct_command_verbose)
 {
   m.system.func = system_stub;
   assert_eq(1234, run_test_suite("suite_runner", 1, 0))
-  assert_eq("./suite_runner -v -j -s", system_stub_arg);
+  assert_eq("suite_runner -v -j -s", system_stub_arg);
 }
 
 module_test(run_test_suite_shall_execute_correct_command_no_line_feed)
 {
   m.system.func = system_stub;
   assert_eq(1234, run_test_suite("suite_runner", -1, 0))
-  assert_eq("./suite_runner -n -j -s", system_stub_arg);
+  assert_eq("suite_runner -n -j -s", system_stub_arg);
 }
 
 module_test(run_test_suite_shall_execute_correct_command_logging)
 {
   m.system.func = system_stub;
   assert_eq(1234, run_test_suite("suite_runner", -1, 1))
-  assert_eq("./suite_runner -n -j -s -l", system_stub_arg);
+  assert_eq("suite_runner -n -j -s -l", system_stub_arg);
 }
 
 

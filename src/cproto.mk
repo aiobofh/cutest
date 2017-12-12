@@ -89,7 +89,7 @@ $(CPROTO_PATH).tgz:
 	$(Q)$(WGET) -q ftp://ftp.invisible-island.net/cproto/cproto-4.7m.tgz
 
 $(CPROTO_PATH)/lex.l: $(CPROTO_PATH).tgz
-	$(Q)cd $(CUTEST_PATH) && $(TAR) xzf cproto-4.7m.tgz
+	$(Q)cd $(CUTEST_PATH) && $(TAR) $(TARFLAGS) xzf cproto-4.7m.tgz
 
 $(CPROTO_PATH)/cproto.c: $(CPROTO_PATH)/lex.l
 
@@ -97,7 +97,9 @@ $(CPROTO_PATH)/dump.c: $(CPROTO_PATH)/lex.l
 
 $(CPROTO_PATH)/lintlibs.c: $(CPROTO_PATH)/lex.l
 
-$(CPROTO_PATH)/semantics.c: $(CPROTO_PATH)/lex.l
+$(CPROTO_PATH)/semantic.c: $(CPROTO_PATH)/lex.l
+
+$(CPROTO_PATH)/grammar.y: $(CPROTO_PATH)/lex.l
 
 $(CPROTO_PATH)/strkey.c: $(CPROTO_PATH)/lex.l
 
@@ -119,4 +121,4 @@ $(CPROTO_PATH)/cproto: $(CPROTO_PATH)/cproto.c $(CPROTO_PATH)/dump.c $(CPROTO_PA
 	$(Q)$(CC) -o $@ $^ -Icproto-4.7m/ $(CPROTO_FLAGS)
 
 clean_cproto:
-	$(Q)$(RMDIR) $(CPROTO_PATH)
+	$(Q)$(RM) $(CPROTO_PATH)/cproto $(CPROTO_PATH)/grammar.tab.c $(CPROTO_PATH)/lex.yy.c

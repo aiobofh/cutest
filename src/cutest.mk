@@ -21,6 +21,8 @@
 # Reuse the Q variable for making cutest test running verbose too.
 Q ?=@
 
+export CC
+
 CUTEST_PATH := $(abspath $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 
 CUTEST_RUN=$(CUTEST_PATH)/cutest_run
@@ -43,14 +45,18 @@ endif
 CUTEST_SRC_DIR ?=./
 CUTEST_TEST_DIR ?=./
 
+CUTEST_SRC_DIR:=$(abspath $(CUTEST_SRC_DIR))
+CUTEST_TEST_DIR:=$(abspath $(CUTEST_TEST_DIR))
+
+PEDANTIC:=-pedantic -Wall
 # Some nice flags for compiling cutest-tests with good quality
 ifneq ($(findstring clang,$(CC)),clang)
-	CUTEST_CFLAGS?=-g -pedantic -Wall
+	CUTEST_CFLAGS?=-g
 else
-	CUTEST_CFLAGS?=-pedantic -Wall
+	CUTEST_CFLAGS?=
 endif
 
-HAS_VISIBILITY_HIDDEN=$(shell $(CC) -o $(CUTEST_PATH)/empty $(CUTEST_PATH)/empty.c -fvisibility=hidden 2>&1 >/dev/null && echo "yes")
+HAS_VISIBILITY_HIDDEN:=$(shell $(CC) -o $(CUTEST_PATH)/empty $(CUTEST_PATH)/empty.c -fvisibility=hidden 2>&1 >/dev/null && echo "yes")
 ifeq ("$(HAS_VISIBILITY_HIDDEN)","yes")
 	VISIBILITY_HIDDEN:=-fvisibility=hidden
 else
@@ -101,6 +107,7 @@ else
 		ifeq ("$(HAS_C90)","yes")
 			STD:=-std=c90
 		else
+			PEDANTIC:=
 			STD:=
 		endif
 	endif
@@ -114,14 +121,14 @@ all:
 
 # This makes valgrind work with long double values, should suffice for
 # most applications as well.
-HAS_LONGOPT=$(shell $(CC) -o $(CUTEST_PATH)/empty $(CUTEST_PATH)/empty.c -mlong-double-64 2>&1 >/dev/null && echo "yes")
+HAS_LONGOPT:=$(shell $(CC) -o $(CUTEST_PATH)/empty $(CUTEST_PATH)/empty.c -mlong-double-64 2>&1 >/dev/null && echo "yes")
 ifeq ("$(HAS_LONGOPT)","yes")
 	LONG_DOUBLE_64:=-mlong-double-64
 else
 	LONG_DOUBLE_64:=
 endif
 
-CUTEST_CFLAGS+=$(LONG_DOUBLE_64) $(STD) $(VARIADIC) $(WEXTRA) $(NOPRAGMA)
+CUTEST_CFLAGS+=$(LONG_DOUBLE_64) $(STD) $(VARIADIC) $(WEXTRA) $(NOPRAGMA) $(PEDANTIC)
 
 ifneq (${LENIENT},0)
 	ifeq ("$(STD)","-std=c11")
@@ -166,11 +173,11 @@ cutest_info:
 #	@echo "Installed cproto     : $(INSTALLED_CPROTO) $(INSTALLED_CPROTO_VER)"
 	@echo "Using cproto         : $(CPROTO)"
 	@echo "Cproto-archive       : $(CPROTO_PATH).tgz"
-#	@echo "Sources to test      : $(SOURCES)"
-#	@echo "Expected tests suites: $(EXPECTED_TEST_SUITES)"
-#	@echo "Found tests suites   : $(FOUND_TEST_SUITES)"
-#	@echo "Missing sources      : $(MISSING_SOURCES)"
-#	@echo "Missing test suites  : $(MISSING_TEST_SUITES)"
+	@echo "Sources to test      : $(SOURCES)"
+	@echo "Expected tests suites: $(EXPECTED_TEST_SUITES)"
+	@echo "Found tests suites   : $(FOUND_TEST_SUITES)"
+	@echo "Missing sources      : $(MISSING_SOURCES)"
+	@echo "Missing test suites  : $(MISSING_TEST_SUITES)"
 
 $(CUTEST_PATH)/cutest.o: $(CUTEST_PATH)/cutest.c
 	$(Q)$(CC) -c $^ $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -I$(abspath $(CUTEST_SRC_DIR)) $(CUTEST_IFLAGS) -DNDEBUG -D"inline=" $(CUTEST_DEFINES) -o $@
@@ -199,7 +206,8 @@ $(CUTEST_TEST_DIR)/%_mockables.o: $(CUTEST_SRC_DIR)/%.c
 # Generate a list of all posible mockable functions
 .PRECIOUS: $(CUTEST_TEST_DIR)/%_mockables.lst
 $(CUTEST_TEST_DIR)/%_mockables.lst: $(CUTEST_TEST_DIR)/%_mockables.o
-	$(Q)nm $< | sed 's/.* //g' | grep -v '__stack_' | sort -u > $@
+	$(Q)nm $< | sed 's/.* //g' | grep -v '__stack_' | sort -u > $@ && \
+	grep 'gcc2_compiled.' >/dev/null $@ && sed -i 's/^_//g' $@ || true
 
 # Generate an assembler file for later processing
 .PRECIOUS: $(CUTEST_TEST_DIR)/%_mockables.s
@@ -209,18 +217,18 @@ $(CUTEST_TEST_DIR)/%_mockables.s: $(CUTEST_SRC_DIR)/%.c
 
 # Generate an assembler output with all function calls replaced to cutest mocks/stubs
 .PRECIOUS: $(CUTEST_TEST_DIR)/%_proxified.s
-$(CUTEST_TEST_DIR)/%_proxified.s: $(CUTEST_TEST_DIR)/%_mockables.s $(CUTEST_TEST_DIR)/%_mockables.lst $(CUTEST_PATH)/cutest_prox
-	$(Q)$(CUTEST_PATH)/cutest_prox $< $(subst .s,.lst,$<) > $@
+$(CUTEST_TEST_DIR)/%_proxified.s: $(CUTEST_TEST_DIR)/%_mockables.s $(CUTEST_TEST_DIR)/%_mockables.lst $(CUTEST_PROX)
+	$(Q)$(CUTEST_PROX) $< $(subst .s,.lst,$<) > $@
 
 .PRECIOUS: $(CUTEST_TEST_DIR)/%_mocks.h
 # Generate mocks from the call()-macro in a source-file.
-$(CUTEST_TEST_DIR)/%_mocks.h: $(CUTEST_SRC_DIR)/%.c $(CUTEST_TEST_DIR)/%_mockables.lst $(CUTEST_PATH)/cutest.h $(CUTEST_PATH)/cutest_mock $(CPROTO)
-	$(Q)$(CUTEST_PATH)/cutest_mock $(CPROTO) $(wordlist 1,2,$^) $(CUTEST_PATH) $(CUTEST_IFLAGS) > $@
+$(CUTEST_TEST_DIR)/%_mocks.h: $(CUTEST_SRC_DIR)/%.c $(CUTEST_TEST_DIR)/%_mockables.lst $(CUTEST_PATH)/cutest.h $(CUTEST_MOCK) $(CPROTO)
+	$(Q)$(CUTEST_MOCK) $(CPROTO) $(wordlist 1,2,$^) $(CUTEST_PATH) $(CUTEST_IFLAGS) > $@
 
 .PRECIOUS: $(CUTEST_TEST_DIR)/%_test_run.c
 # Generate a test-runner program code from a test-source-file
-$(CUTEST_TEST_DIR)/%_test_run.c: $(CUTEST_TEST_DIR)/%_test.c $(CUTEST_TEST_DIR)/%_mocks.h $(CUTEST_PATH)/cutest.h $(CUTEST_PATH)/cutest_run
-	$(Q)$(CUTEST_PATH)/cutest_run $(wordlist 1,2,$^) > $@
+$(CUTEST_TEST_DIR)/%_test_run.c: $(CUTEST_TEST_DIR)/%_test.c $(CUTEST_TEST_DIR)/%_mocks.h $(CUTEST_PATH)/cutest.h $(CUTEST_RUN)
+	$(Q)$(CUTEST_RUN) $(wordlist 1,2,$^) > $@
 
 # Compile a test-runner from the generate test-runner program code
 $(CUTEST_TEST_DIR)/%_test: $(CUTEST_TEST_DIR)/%_proxified.s $(CUTEST_TEST_DIR)/%_test_run.c $(CUTEST_PATH)/cutest.o
@@ -266,14 +274,14 @@ endif
 	$(Q)echo
 
 # Run all test-suites on as many threads as needed using cutest_work
-check:: $(subst .c,,$(wildcard $(CUTEST_TEST_DIR)/*_test.c)) $(CUTEST_PATH)/cutest_work
+check:: $(subst .c,,$(wildcard $(CUTEST_TEST_DIR)/*_test.c)) $(CUTEST_WORK)
 ifneq ($(MISSING_SOURCES),)
 	$(warning "Missing source(s) $(MISSING_SOURCES) - Did you delete the test?")
 endif
 ifneq ($(MISSING_TEST_SUITES),)
 	$(warning "Missing test-suite(s) $(MISSING_TEST_SUITES) - Did you forget to write the test suites?")
 endif
-	$(Q)$(CUTEST_PATH)/cutest_work $V $(filter-out $(CUTEST_PATH)/cutest_work,$^)
+	$(Q)$(CUTEST_WORK) $V $(filter-out $(CUTEST_WORK),$^)
 
 sanitize: check
 
@@ -303,19 +311,26 @@ makevalgrind:: $(subst .c,,$(wildcard $(CUTEST_TEST_DIR)/*_test.c))
 	done; \
 	`$$R`
 
+#
+# Dependencies described for test cases
+#
+$(CUTEST_TEST_DIR)/cutest_run_test:: helpers.c testcase.c
+
+$(CUTEST_TEST_DIR)/cutest_mock_test:: helpers.c mockable.c arg.c
+
+$(CUTEST_TEST_DIR)/cutest_prox_test:: helpers.c
+
+$(CUTEST_TEST_DIR)/cutest_work_test:: helpers.c
+
+$(CUTEST_TEST_DIR)/mockable_test:: arg.c list.c
+
 clean_cutest:
-	$(Q)$(RM) -f $(CUTEST_PATH)/cutest_run \
-	$(CUTEST_PATH)/cutest_prox \
-	$(CUTEST_PATH)/cutest_mock \
-	$(CUTEST_PATH)/cutest_work \
-	$(CUTEST_PATH)/*.o \
-	$(CUTEST_PATH)/*.gcda \
-	$(CUTEST_PATH)/*.uaem \
-	$(CUTEST_PATH)/*.gcno
+	$(Q)$(MAKE) -s -r --no-print-directory -C $(CUTEST_PATH) -f $(CUTEST_PATH)/Makefile clean
 
 clean::
 	$(Q)$(RM) -f $(CUTEST_TEST_DIR)/*_test_run.c \
 	$(CUTEST_PATH)/empty \
+	$(CUTEST_PATH)/cutest.o \
 	$(CUTEST_TEST_DIR)/cutest_run \
 	$(CUTEST_TEST_DIR)/cutest_mock \
 	$(CUTEST_TEST_DIR)/cutest_prox \
@@ -339,5 +354,12 @@ clean::
 	$(CUTEST_TEST_DIR)/cutest_sources.lst \
 	$(CUTEST_TEST_DIR)/cutest_testsuites.lst \
 	$(CUTEST_TEST_DIR)/*_test.log \
-	$(CUTEST_TEST_DIR)/*~ && \
+	$(CUTEST_TEST_DIR)/*~ \
+	$(CUTEST_PATH)/*.uaem \
+	$(CUTEST_SRC_DIR)/*.uaem \
+	$(CUTEST_PATH)/*.gcno \
+	$(CUTEST_SRC_DIR)/*.gcno \
+	$(CUTEST_PATH)/*.gcda \
+	$(CUTEST_SRC_DIR)/*.gcda \
+	$(CUTEST_TEST_DIR)/*.uaem && \
 	$(RM) -rf $(CUTEST_PATH)/.terminfo

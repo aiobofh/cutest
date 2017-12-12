@@ -69,15 +69,11 @@ static int run_test_suite(const char* executable_file_name, int verbose, int std
   int valgrindlen = 0;
   int retval = 0;
   int optlen = 0;
-  int prefix_len = 0;
   char* command = NULL;
 
   if (NULL == executable_file_name) {
     fprintf(stderr, "ERROR: Internal error, suite executable is NULL pointer\n");
     return -1;
-  }
-  if (executable_file_name != strstr(executable_file_name, "./")) {
-    prefix_len = 2;
   }
   if (0 == verbose) {
     optlen = strlen(" -j -s");
@@ -92,7 +88,7 @@ static int run_test_suite(const char* executable_file_name, int verbose, int std
   if (1 == stderr_log) {
     optlen += strlen(" -l");
   }
-  command = malloc(valgrindlen + prefix_len + strlen(executable_file_name) + optlen + 1);
+  command = malloc(valgrindlen + strlen(executable_file_name) + optlen + 1);
   if (NULL == command) {
     fprintf(stderr, "ERROR: Out of memory while allocating suite command.\n");
     return -1;
@@ -100,9 +96,6 @@ static int run_test_suite(const char* executable_file_name, int verbose, int std
   command[0] = 0;
   if (2 == verbose) {
     strcat(command, "valgrind --track-origins=yes -q ");
-  }
-  if (2 == prefix_len) {
-    strcat(command, "./");
   }
   strcat(command, executable_file_name);
   if (1 == verbose) {

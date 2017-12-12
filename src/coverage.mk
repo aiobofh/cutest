@@ -18,6 +18,7 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+ifeq ("$(HAS_COV)","yes")
 CUTEST_CFLAGS+=-fprofile-arcs -ftest-coverage
 CUTEST_COVERAGE_DIR?=.
 
@@ -43,5 +44,6 @@ check::
 valgrind::
 	$(Q)$(MAKE) -r --no-print-directory output_coverage
 
+endif
 clean::
 	$(Q)rm -rf coverage.xml *.gcno *.gcda *.cov

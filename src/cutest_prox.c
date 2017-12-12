@@ -138,6 +138,21 @@ static int is_space(char c)
   }
 }
 
+static int is_space_underscore(char c1, char c2)
+{
+  return (is_space(c1) && ('_' == c2));
+}
+
+static int mockable_is_surrounded_by_whitespaces_but_old_gcc(const char* buf,
+                                                             int pos,
+                                                             int end)
+{
+  const int left = is_space_underscore(buf[pos - 2], buf[pos - 1]);
+  const int right = is_space(buf[end + 1]);
+
+  return (left && right);
+}
+
 static int mockable_is_surrounded_by_whitespaces(const char* buf,
                                                  int pos,
                                                  int end)
@@ -153,13 +168,34 @@ static int replace_jump_destination(char* buf, char* mockable_name, int pos)
   const int mocklen = strlen(mockable_name);
   const int end = pos + mocklen - 1;
   char newbuf[CHUNK_SIZE];
+  /*
+  char fnurp[1024];
+  */
+  const int new_school = mockable_is_surrounded_by_whitespaces(buf, pos, end);
+  const int old_school = mockable_is_surrounded_by_whitespaces_but_old_gcc(buf, pos, end);
 
-  if (!mockable_is_surrounded_by_whitespaces(buf, pos, end)) {
+  if (!new_school && !old_school) {
     return 0;
   }
   buf[pos] = 0;
-  sprintf(newbuf, "%scutest_%s%s", buf, mockable_name, &buf[end + 1]);
+  if (new_school) {
+    sprintf(newbuf, "%scutest_%s%s", buf, mockable_name, &buf[end + 1]);
+  }
+  else {
+    sprintf(newbuf, "%scutest_%s%s", buf, mockable_name, &buf[end + 1]);
+  }
   strcpy(buf, newbuf);
+
+  /*
+  fnurp[0] = 0;
+  if (new_school) {
+    sprintf(fnurp, " ; DEBUG: NEW '%s' %s\n", mockable_name, buf);
+  }
+  if (old_school) {
+    sprintf(fnurp, " ; DEBUG: OLD '%s' %s\n", mockable_name, buf);
+  }
+  strcat(buf, fnurp);
+  */
   return 1;
 }
 

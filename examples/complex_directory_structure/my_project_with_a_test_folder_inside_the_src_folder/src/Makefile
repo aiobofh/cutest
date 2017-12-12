@@ -21,14 +21,26 @@
 # with make Q= if i would change my mind.
 Q=@
 
-CUTEST_TEST_DIR=./test
-
 # Disable all implicit rules
 .SUFFIXES:
 
 all: check
 
-include ../../../../src/cutest.mk
+cutest_info:
+	@$(MAKE) -r --no-print-directory -C test cutest_info
+
+check:
+	@$(MAKE) -r --no-print-directory -C test
+
+valgrind:
+	@$(MAKE) -r --no-print-directory -C test valgrind
+
+sanitize:
+	@$(MAKE) -r --no-print-directory -C test sanitize
+
+clean_cutest:
+	@$(MAKE) -r --no-print-directory -C test clean_cutest
 
 clean::
-	$(Q)$(RM) -f *~
+	$(Q)$(RM) -f *~; \
+	$(MAKE) -r --no-print-directory -C test clean

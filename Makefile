@@ -72,6 +72,7 @@ remote_tests:
 	echo "" && \
 	$(MAKE) -r --no-print-directory -C examples clean && \
 	$(MAKE) -r --no-print-directory -C examples clean_cutest && \
+	$(MAKE) -r --no-print-directory -C examples clean_cproto && \
 	$(MAKE) -r --no-print-directory remote
 
 release: cutest-$(VERSION).tar.gz
@@ -113,7 +114,7 @@ foo:
 	bash -c 'echo -e "\e[31mWARNING\e[0m: cutest.h still as yyyy-mm-dd. You need to update it."'
 
 examples/cutest_help.rst:
-	@$(MAKE) -r --no-print-directory -C examples cutest_help.rst
+	@$(MAKE) -r --no-print-directory -C examples $(abspath examples/cutest_help.rst)
 
 README.rst: examples/cutest_help.rst
 	@echo "=============================="; \
@@ -128,6 +129,7 @@ clean:
 	@rm -rf tmp cutest-* *~ && \
 	$(MAKE) -r --no-print-directory -C examples clean && \
 	$(MAKE) -r --no-print-directory -C examples clean_cutest && \
+	$(MAKE) -r --no-print-directory -C examples clean_cproto && \
 	$(MAKE) -r --no-print-directory -C examples/complex_directory_structure/my_project_with_a_test_folder_inside_the_src_folder/src clean && \
 	$(MAKE) -r --no-print-directory -C examples/complex_directory_structure/my_project_with_a_test_folder_inside_the_src_folder/src clean_cutest && \
 	$(MAKE) -r --no-print-directory -C examples/complex_directory_structure/my_project_with_separate_src_and_test_folders clean && \

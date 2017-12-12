@@ -7,7 +7,7 @@ test(bar_shall_multiply_input_argument_by_four)
   assert_eq(8, bar(2));
 }
 
-test(foo_shall_no_call_bar_if_argument_is_null)
+test(foo_shall_not_call_bar_if_argument_is_null)
 {
   foo(NULL);
   assert_eq(0, cutest_mock.bar.call_count);
@@ -36,7 +36,7 @@ module_test(foo_shall_multiply_input_argument_by_four)
   assert_eq(12, my_integer);
 }
 
-test(moo_shall_no_call_bar_if_argument_is_null)
+test(moo_shall_not_call_bar_if_argument_is_null)
 {
   moo(NULL);
   assert_eq(0, cutest_mock.mii.call_count);

@@ -1,7 +1,32 @@
-include cutest.mk
+#include cutest.mk
+#
+#ifneq ("$(COV)","")
+#	include coverage.mk
+#endif
 
-ifneq ("$(COV)","")
-	include coverage.mk
+Q=@
+
+all: cutest_run cutest_mock cutest_prox cutest_work
+
+STD:=none
+HAS_C11:=$(shell $(CC) -std=c11 -o empty empty.c 2>&1 >/dev/null && echo "yes")
+ifeq ("$(HAS_C11)","yes")
+	STD:=-std=c11
+else
+	HAS_C11:=no
+	HAS_C99:=$(shell $(CC) -std=c99 -o empty empty.c 2>&1 >/dev/null && echo "yes")
+	ifeq ("$(HAS_C99)","yes")
+		STD:=-std=c99
+	else
+		HAS_C99:=no
+		HAS_C90:=$(shell $(CC) -std=c90 -o empty empty.c 2>&1 >/dev/null && echo "yes")
+		ifeq ("$(HAS_C90)","yes")
+			STD:=-std=c90
+		else
+			PEDANTIC:=
+			STD:=
+		endif
+	endif
 endif
 
 HAS_LTO:=$(shell $(CC) -o empty empty.c -flto 2>&1 >/dev/null && echo "yes")
@@ -34,20 +59,9 @@ cutest_prox: cutest_prox.o helpers.o
 cutest_work: cutest_work.o helpers.o
 	$(Q)$(CC) $^ $(LOCALCFLAGS) $(EXTRA_CFLAGS) -o $@
 
-clean::
-	$(Q)$(RM) *~ *.o cutest_run cutset_mock cutest_prox cutest_work
+check:
+	$(Q)$(MAKE) -s -r --no-print-directory -f cutest.mk check
 
-clean_all: clean clean_cutest clean_cproto
-
-#
-# Dependencies described for test cases
-#
-cutest_run_test: helpers.c testcase.c
-
-cutest_mock_test: helpers.c mockable.c arg.c
-
-cutest_prox_test: helpers.c
-
-cutest_work_test: helpers.c
-
-mockable_test: arg.c list.c
+clean:
+	$(Q)$(RM) *~ *.o cutest_run cutset_mock cutest_prox cutest_work empty && \
+	$(MAKE) -s -r --no-print-directory -f cutest.mk clean \

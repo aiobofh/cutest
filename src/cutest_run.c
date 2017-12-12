@@ -123,8 +123,8 @@ static void print_header(const char* program_name,
          "#define main MAIN /* To make sure we can test main() */\n"
          "#define inline\n"
          "#include \"%s\" /* Mock-up functions and design under test */\n"
-         "#include \"%s\" /* Test-cases */\n"
          "#undef inline\n"
+         "#include \"%s\" /* Test-cases */\n"
          "#undef main\n"
          "\n",
          program_name,

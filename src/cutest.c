@@ -30,7 +30,8 @@ static cutest_opts_t cutest_opts;
 typedef struct cutest_stats_s {
   char suite_name[128];
   char design_under_test[128];
-  char error_output[1024*1024*10];
+  /* char error_output[1024*1024*10]; */
+  char error_output[1024*1024];
   char current_error_output[1024];
   int test_cnt;
   int fail_cnt;
@@ -492,8 +493,10 @@ void write_log_file(const char* test_suite_file_name, const char* error_buf)
 {
   const size_t dotpos =
     strstr(test_suite_file_name, ".") - test_suite_file_name;
-  char* log_file_name = malloc(dotpos + 4);
+  char* log_file_name = malloc(dotpos + 5);
   FILE* fd = NULL;
+
+  memset(log_file_name, 0, dotpos + 5);
 
   strncpy(log_file_name, test_suite_file_name, dotpos);
   log_file_name[dotpos] = 0;
