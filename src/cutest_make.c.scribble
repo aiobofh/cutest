@@ -1,0 +1,278 @@
+#include <sys/stat.h>
+#include <dirent.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <wchar.h>
+
+int make(const char* target, int expect_fail);
+
+int file_exists(const char *filename)
+{
+  FILE *fd = fopen(filename, "r");
+  if (NULL == fd) {
+    return 0;
+  }
+  fclose(fd);
+  return 1;
+}
+
+static int cutest_o()
+{
+  struct stat cutest_o_stats;
+  struct stat dep_stats;
+  int compare = 0;
+  int rebuild = 0;
+  /*
+   * Build cutest.o for linking to test-runners
+   */
+  if (1 == file_exists("cutest.o")) {
+    if (0 != stat("cutest.o", &cutest_o_stats)) {
+      fprintf(stderr, "ERROR: Could not stat cutest.o\n");
+      return 0;
+    }
+    compare = 1;
+  }
+  else {
+    rebuild = 1;
+  }
+
+  if (0 == file_exists("cutest.c")) {
+    fprintf(stderr, "ERROR: Could not find cutest.c. cutest.o depends on\n");
+    return 0;
+  }
+
+  if (0 == file_exists("cutest.h")) {
+    fprintf(stderr, "ERROR: Could not find cutest.h. cutest.o depends on\n");
+    return 0;
+  }
+
+  if (1 == compare) {
+    if (0 != stat("cutest.c", &dep_stats)) {
+      fprintf(stderr, "ERROR: Could not stat cutest.c\n");
+      return 0;
+    }
+    if ((dep_stats.st_mtim.tv_sec > cutest_o_stats.st_mtim.tv_sec) ||
+        ((dep_stats.st_mtim.tv_sec == cutest_o_stats.st_mtim.tv_sec) &&
+         (dep_stats.st_mtim.tv_nsec > cutest_o_stats.st_mtim.tv_nsec))) {
+      printf("DEBUG: cutest.c is newer than cutest.o\n");
+      rebuild = 1;
+    }
+
+    if (0 != stat("cutest.h", &dep_stats)) {
+      fprintf(stderr, "ERROR: Could not stat cutest.c\n");
+      return 0;
+    }
+    if ((dep_stats.st_mtim.tv_sec > cutest_o_stats.st_mtim.tv_sec) ||
+        ((dep_stats.st_mtim.tv_sec == cutest_o_stats.st_mtim.tv_sec) &&
+         (dep_stats.st_mtim.tv_nsec > cutest_o_stats.st_mtim.tv_nsec))) {
+      printf("DEBUG: cutest.h is newer than cutest.o\n");
+      rebuild = 1;
+    }
+  }
+
+  if (1 == rebuild) {
+    printf("DEBUG: Building cutest.c\n");
+    if (EXIT_SUCCESS != system("$CC -c cutest.c -DNDEBUG -o cutest.o")) {
+      return 0;
+    }
+  }
+
+  return 1;
+}
+
+typedef struct file_node_s {
+  wchar_t* filename;
+  struct file_node_s* next;
+} file_node_t;
+
+typedef struct file_list_s {
+  file_node_t* first;
+  file_node_t* last;
+} file_list_t;
+
+void add_file_node(file_list_t* list, file_node_t* node) {
+  if (NULL == list->first) {
+    list->first = node;
+  }
+  if (NULL != list->last) {
+    list->last->next = node;
+  }
+  list->last = node;
+}
+
+file_node_t* new_file_node(const wchar_t* filename) {
+  file_node_t* node = malloc(sizeof(file_node_t));
+  if (NULL == node) {
+    fwprintf(stderr, L"ERROR: Out of memory while allocating filename %s\n",
+             filename);
+    return NULL;
+  }
+  node->filename = malloc(sizeof(wchar_t) * wcslen(filename) + 1);
+  if (NULL == node->filename) {
+    fwprintf(stderr, L"ERROR: Out of memory while allocating filename %s\n",
+             filename);
+    free(node);
+    return NULL;
+  }
+  wcscpy(node->filename, filename);
+  return node;
+}
+
+void delete_file_node(file_node_t* node) {
+  free(node->filename);
+  free(node);
+}
+
+int mockables_o(const wchar_t* target, const wchar_t* dep) {
+  struct stat cutest_o_stats;
+  struct stat dep_stats;
+  int compare = 0;
+  int rebuild = 0;
+
+  if (1 == file_exists((char*)target)) {
+    if (0 != stat((char*)target, &cutest_o_stats)) {
+      fwprintf(stderr, L"ERROR: Could not stat %s\n", target);
+      return 0;
+    }
+    compare = 1;
+  }
+  else {
+    rebuild = 1;
+  }
+
+  if (1 == compare) {
+    if (0 != stat((char*)dep, &dep_stats)) {
+      fwprintf(stderr, L"ERROR: Could not stat %s\n", dep);
+      return 0;
+    }
+    if ((dep_stats.st_mtim.tv_sec > cutest_o_stats.st_mtim.tv_sec) ||
+        ((dep_stats.st_mtim.tv_sec == cutest_o_stats.st_mtim.tv_sec) &&
+         (dep_stats.st_mtim.tv_nsec > cutest_o_stats.st_mtim.tv_nsec))) {
+      wprintf(L"DEBUG: %s is newer than %s\n", dep, target);
+      rebuild = 1;
+    }
+  }
+
+  if (1 == rebuild) {
+    const size_t len = wcslen(L"$CC -c  -fvisibility=hidden -fno-inline -g -D\"inline=\" -o") + wcslen(target) + wcslen(dep) + 1;
+    wchar_t* command = malloc(len);
+    swprintf(command, len, L"$CC -c %s -fvisibility=hidden -fno-inline -g -D\"inline=\" -o %s", dep, target);
+    wprintf(L"DEBUG: Building %s using '%s'\n", target, command);
+    /*
+    if (EXIT_SUCCESS != system(command)) {
+      free(command);
+      return 0;
+    }
+    */
+    free(command);
+  }
+
+  return 0;
+}
+
+int all_mockables_o() {
+  DIR *dir;
+  int retval = 1;
+  struct dirent *ent;
+  file_list_t file_list;
+  file_node_t* node;
+  file_list.first = NULL;
+  file_list.last = NULL;
+
+  if (NULL == (dir = opendir("."))) {
+    fprintf(stderr, "ERROR: Could not list files in .\n");
+    return 0;
+  }
+
+  while (NULL != (ent = readdir (dir))) {
+    file_node_t* file_node = NULL;
+    const size_t
+    const size_t len = sizeof(wchar_t) * wcslen(ent->d_name);
+    if (!(('.' == ent->d_name[len - 2]) &&
+          ('c' == ent->d_name[len - 1]))) {
+      continue;
+    }
+    file_node = new_file_node((wchar_t*)ent->d_name);
+    if (NULL == file_node) {
+      closedir(dir);
+      return 0;
+    }
+    add_file_node(&file_list, file_node);
+  }
+
+  closedir(dir);
+
+  for (node = file_list.first; NULL != node; node = node->next) {
+    wchar_t* target = NULL;
+    const size_t len = sizeof(wchar_t) * wcslen(node->filename);
+    target = malloc(wcslen(node->filename) + wcslen(L"_mockables"));
+    memcpy(target, node->filename, len - 3);
+    target[len - 3] = 0;
+    wcscat(target, L"_mockables.o");
+    if (0 == mockables_o(target, node->filename)) {
+      retval = 0;
+      free(target);
+      break;
+    }
+    free(target);
+  }
+
+  for (node = file_list.first; NULL != node; node = node->next) {
+    delete_file_node(node);
+  }
+
+  return retval;
+}
+
+static int all()
+{
+  if (0 == cutest_o()) {
+    return 0;
+  }
+  return 1;
+}
+
+int make(const char* target, int expect_fail)
+{
+  if (0 == strcmp("all_mockables", target)) {
+    if (0 == all_mockables_o()) {
+      fprintf(stderr, "Target all_mockables_o failed.\n");
+      return EXIT_FAILURE;
+    }
+  }
+  if (0 == strcmp("all", target)) {
+    if (0 == all()) {
+      fprintf(stderr, "Target all failed.\n");
+      return EXIT_FAILURE;
+    }
+  }
+  else if (0 == strcmp("cutest.o", target)) {
+    if (0 == cutest_o()) {
+      return EXIT_FAILURE;
+    }
+  }
+  else {
+    if (0 == expect_fail) {
+      fprintf(stderr, "ERROR: Unknown build target '%s'\n", target);
+    }
+    return EXIT_FAILURE;
+  }
+  return EXIT_SUCCESS;
+}
+
+int main(int argc, char* argv[])
+{
+  (void)argc;
+  (void)argv;
+
+  char* target = NULL;
+  if (1 == argc) {
+    target = "all";
+  }
+  else if (2 <= argc) {
+    target = argv[1];
+  }
+
+  return make(target, 0);
+}

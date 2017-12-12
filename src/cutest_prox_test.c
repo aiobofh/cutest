@@ -26,7 +26,7 @@ test(usage_shall_print_something)
 test(add_new_mockable_node_shall_return_NULL_if_out_of_memory)
 {
   mockable_node node;
-  assert_eq(NULL, add_new_mockable_node(&node, 0x5678));
+  assert_eq(NULL, add_new_mockable_node(&node, "foo"));
 }
 
 test(add_new_mockable_node_shall_allocate_a_new_node_for_each_file_item)
@@ -179,13 +179,14 @@ test(read_mockables_list_file_shall_return_0_if_out_of_memory)
 test(read_mockables_list_file_shall_return_count_if_all_is_ok)
 {
   mockable_node node;
+  mockable_node new_node;
   fgets_only_once_stub_cnt = 0;
 
   m.fopen.retval = 0x1234;
   m.fgets.func = fgets_only_once_stub;
   m.fgets.retval = 0x5678;
   m.strcmp.retval = 1;
-  m.add_new_mockable_node.retval = 0x8765;
+  m.add_new_mockable_node.retval = &new_node;
 
   assert_eq(1, read_mockables_list_file(&node, "file_name"));
 

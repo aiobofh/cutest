@@ -15,3 +15,6 @@ cutest_work
 *.junit_report.xml
 *.memcheck
 *~
+empty
+cproto-4.7m.tgz
+cproto-4.7m

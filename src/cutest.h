@@ -387,6 +387,24 @@
 #include "cutest_simple.h"
 #endif
 
+#ifdef VARIADIC
+
+#define assert_eq_select(X, A1, A2, A3, MACRO, ...) MACRO
+
+#define assert_eq_chooser(...)                  \
+  assert_eq_select(,##__VA_ARGS__,              \
+                   assert_eq_3,                 \
+                   assert_eq_2,                 \
+                   assert_eq_1,)
+
+#define assert_eq(...) assert_eq_chooser(__VA_ARGS__)(__VA_ARGS__)
+
+#else
+
+#define assert_eq(EXP, REF) asset_eq_2(EXP, REF)
+
+#endif
+
 #include "stdlib.h"
 
 /*
@@ -429,7 +447,6 @@ void cutest_execute_test(cutest_junit_report_t* junit_report,
                          int do_mock, const char *prog_name);
 int cutest_shutdown(const char* filename,
                     cutest_junit_report_t* junit_report, size_t test_cnt);
-
 /*
  * These functions are generated
  */

@@ -31,14 +31,4 @@
     cutest_increment_fails(error_output_buf);                      \
   }
 
-#define assert_eq_select(X, A1, A2, A3, MACRO, ...) MACRO
-
-#define assert_eq_chooser(...)                  \
-  assert_eq_select(,##__VA_ARGS__,              \
-                   assert_eq_3,                 \
-                   assert_eq_2,                 \
-                   assert_eq_1,)
-
-#define assert_eq(...) assert_eq_chooser(__VA_ARGS__)(__VA_ARGS__)
-
 #endif

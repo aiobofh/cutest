@@ -21,31 +21,12 @@
 # Reuse the Q variable for making cutest test running verbose too.
 Q ?=@
 
-CUTEST_PATH := $(subst /cutest.mk,,$(abspath $(lastword $(MAKEFILE_LIST))))
+CUTEST_PATH := $(abspath $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 
 CUTEST_RUN=$(CUTEST_PATH)/cutest_run
-INSTALLED_CUTEST_RUN:=$(shell which cutest_run)
-ifneq ("$(INSTALLED_CUTEST_RUN)","")
-	CUTEST_RUN=$(INSTALLED_CUTEST_RUN)
-endif
-
 CUTEST_MOCK=$(CUTEST_PATH)/cutest_mock
-INSTALLED_CUTEST_MOCK:=$(shell which cutest_mock)
-ifneq ("$(INSTALLED_CUTEST_MOCK)","")
-	CUTEST_MOCK=$(INSTALLED_CUTEST_MOCK)
-endif
-
 CUTEST_PROX=$(CUTEST_PATH)/cutest_prox
-INSTALLED_CUTEST_PROX:=$(shell which cutest_prox)
-ifneq ("$(INSTALLED_CUTEST_PROX)","")
-	CUTEST_PROX=$(INSTALLED_CUTEST_PROX)
-endif
-
 CUTEST_WORK=$(CUTEST_PATH)/cutest_work
-INSTALLED_CUTEST_WORK:=$(shell which cutest_work)
-ifneq ("$(INSTALLED_CUTEST_WORK)","")
-	CUTEST_PROX=$(INSTALLED_CUTEST_WORK)
-endif
 
 include $(CUTEST_PATH)/cproto.mk
 
@@ -64,30 +45,94 @@ CUTEST_TEST_DIR ?=./
 
 # Some nice flags for compiling cutest-tests with good quality
 ifneq ($(findstring clang,$(CC)),clang)
-	CUTEST_CFLAGS?=-g -pedantic -Wall -Wextra -std=c11
-	LTO=-flto
+	CUTEST_CFLAGS?=-g -pedantic -Wall
 else
-	CUTEST_CFLAGS?=-pedantic -Wall -Wextra -std=c11
-	LTO=
+	CUTEST_CFLAGS?=-pedantic -Wall
 endif
 
-# This makes valgrind work with long double values, should suffice for
-# most applications as well.
-HAS_LONGOPT=$(shell $(CC) -mlong-double-64 2>&1 | grep 'unrecognized' >/dev/null && echo "yes")
-ifneq ($(findstring clang,$(CC)),clang)
-	ifneq ($(HAS_LONGOPT),yes)
-		CUTEST_CFLAGS+= -mlong-double-64
+HAS_VISIBILITY_HIDDEN=$(shell $(CC) -o $(CUTEST_PATH)/empty $(CUTEST_PATH)/empty.c -fvisibility=hidden 2>&1 >/dev/null && echo "yes")
+ifeq ("$(HAS_VISIBILITY_HIDDEN)","yes")
+	VISIBILITY_HIDDEN:=-fvisibility=hidden
+else
+	VISIBILITY_HIDDEN:=
+endif
+
+HAS_COV:=$(shell $(CC) -o $(CUTEST_PATH)/empty $(CUTEST_PATH)/empty.c -fprofile-arcs 2>&1 >/dev/null && echo "yes")
+ifeq ("$(HAS_COV)","yes")
+	COV:=-fprofile-arcs -ftest-coverage
+else
+	COV:=
+endif
+
+HAS_NOPRAGMA:=$(shell $(CC) -o $(CUTEST_PATH)/empty $(CUTEST_PATH)/empty.c -Wno-pragma 2>&1 >/dev/null && echo "yes")
+ifeq ("$(HAS_NOPRAGMA)","yes")
+	NOPRAGMA:=-Wno-pragma
+else
+	NOPRAGMA:=
+endif
+
+HAS_WEXTRA:=$(shell $(CC) -o $(CUTEST_PATH)/empty $(CUTEST_PATH)/empty.c -Wextra 2>&1 >/dev/null && echo "yes")
+ifeq ("$(HAS_WEXTRA)","yes")
+	WEXTRA:=-Wextra
+else
+	WEXTRA:=
+endif
+
+VARIADIC:=none
+HAS_VARIADIC:=$(shell $(CC) -o $(CUTEST_PATH)/empty $(CUTEST_PATH)/empty.c -DVARIADIC=1 2>&1 >/dev/null && echo "yes")
+ifeq ("$(HAS_VARIADIC)","yes")
+	VARIADIC:=-D"VARIADIC=1"
+else
+	VARIADIC:=
+endif
+
+STD:=none
+HAS_C11:=$(shell $(CC) -std=c11 -o $(CUTEST_PATH)/empty $(CUTEST_PATH)/empty.c 2>&1 >/dev/null && echo "yes")
+ifeq ("$(HAS_C11)","yes")
+	STD:=-std=c11
+else
+	HAS_C11:=no
+	HAS_C99:=$(shell $(CC) -std=c99 -o $(CUTEST_PATH)/empty $(CUTEST_PATH)/empty.c 2>&1 >/dev/null && echo "yes")
+	ifeq ("$(HAS_C99)","yes")
+		STD:=-std=c99
+	else
+		HAS_C99:=no
+		HAS_C90:=$(shell $(CC) -std=c90 -o $(CUTEST_PATH)/empty $(CUTEST_PATH)/empty.c 2>&1 >/dev/null && echo "yes")
+		ifeq ("$(HAS_C90)","yes")
+			STD:=-std=c90
+		else
+			STD:=
+		endif
 	endif
 endif
 
+all:
+	$(Q)$(MAKE) -s -r --no-print-directory cutest_run && \
+	$(MAKE) -s -r --no-print-directory cutest_mock && \
+	$(MAKE) -s -r --no-print-directory cutest_prox && \
+	$(MAKE) -s -r --no-print-directory cutest_work
+
+# This makes valgrind work with long double values, should suffice for
+# most applications as well.
+HAS_LONGOPT=$(shell $(CC) -o $(CUTEST_PATH)/empty $(CUTEST_PATH)/empty.c -mlong-double-64 2>&1 >/dev/null && echo "yes")
+ifeq ("$(HAS_LONGOPT)","yes")
+	LONG_DOUBLE_64:=-mlong-double-64
+else
+	LONG_DOUBLE_64:=
+endif
+
+CUTEST_CFLAGS+=$(LONG_DOUBLE_64) $(STD) $(VARIADIC) $(WEXTRA) $(NOPRAGMA)
+
 ifneq (${LENIENT},0)
-	CUTEST_CFLAGS+=-D"CUTEST_LENIENT_ASSERTS=1"
+	ifeq ("$(STD)","-std=c11")
+		CUTEST_CFLAGS+=-D"CUTEST_LENIENT_ASSERTS=1"
+	endif
 endif
 
 export ASAN_OPTIONS=strict_string_checks=1:detect_stack_use_after_return=1:check_initialization_order=1
 export UBSAN_OPTIONS=print_stacktrace=1
 
-CUTEST_CFLAGS+=-Wno-pragmas
+#CUTEST_CFLAGS+=-Wno-pragmas
 
 ifeq ($(findstring gcc,$(CC)),gcc)
 	CUTEST_CFLAGS+=-D"CUTEST_GCC=1"
@@ -115,8 +160,12 @@ cutest_info:
 	@echo "CUTest-path          : $(CUTEST_PATH)"
 	@echo "CUTest-CFLAGS        : $(CUTEST_CFLAGS)"
 	@echo "CC                   : $(CC) '$(findstring gcc,$(CC))'"
+	@echo "C-standard           : $(STD)"
+	@echo "LTO                  : $(LTO)"
+	@echo "CLFAGS               : $(CUTEST_CFLAGS)"
 #	@echo "Installed cproto     : $(INSTALLED_CPROTO) $(INSTALLED_CPROTO_VER)"
 	@echo "Using cproto         : $(CPROTO)"
+	@echo "Cproto-archive       : $(CPROTO_PATH).tgz"
 #	@echo "Sources to test      : $(SOURCES)"
 #	@echo "Expected tests suites: $(EXPECTED_TEST_SUITES)"
 #	@echo "Found tests suites   : $(FOUND_TEST_SUITES)"
@@ -145,7 +194,7 @@ $(CUTEST_WORK):
 # Produce an object file to be processed to search for mockable functions
 .PRECIOUS: $(CUTEST_TEST_DIR)/%_mockables.o
 $(CUTEST_TEST_DIR)/%_mockables.o: $(CUTEST_SRC_DIR)/%.c
-	$(Q)$(CC) -o $@ -c $< $(CFLAGS) $(CUTEST_IFLAGS) -I$(CUTEST_SRC_DIR) $(CUTEST_DEFINES) -fvisibility=hidden -fno-inline -g -D"inline="
+	$(Q)$(CC) -o $@ -c $< $(CFLAGS) $(CUTEST_IFLAGS) -I$(CUTEST_SRC_DIR) $(CUTEST_DEFINES) $(VISIBILITY_HIDDEN) -fno-inline -g -D"inline="
 
 # Generate a list of all posible mockable functions
 .PRECIOUS: $(CUTEST_TEST_DIR)/%_mockables.lst
@@ -155,7 +204,7 @@ $(CUTEST_TEST_DIR)/%_mockables.lst: $(CUTEST_TEST_DIR)/%_mockables.o
 # Generate an assembler file for later processing
 .PRECIOUS: $(CUTEST_TEST_DIR)/%_mockables.s
 $(CUTEST_TEST_DIR)/%_mockables.s: $(CUTEST_SRC_DIR)/%.c
-	$(Q)$(CC) -S -fverbose-asm -fvisibility=hidden -fno-inline -g -O0 \
+	$(Q)$(CC) -S -fverbose-asm $(VISIBILITY_HIDDEN) -fno-inline -g -O0 \
 	-o $@ -c $^ $(CUTEST_CFLAGS) $(CUTEST_IFLAGS) $(CUTEST_DEFINES) -D"static=" -D"inline=" -D"main=MAIN"
 
 # Generate an assembler output with all function calls replaced to cutest mocks/stubs
@@ -261,10 +310,12 @@ clean_cutest:
 	$(CUTEST_PATH)/cutest_work \
 	$(CUTEST_PATH)/*.o \
 	$(CUTEST_PATH)/*.gcda \
+	$(CUTEST_PATH)/*.uaem \
 	$(CUTEST_PATH)/*.gcno
 
 clean::
 	$(Q)$(RM) -f $(CUTEST_TEST_DIR)/*_test_run.c \
+	$(CUTEST_PATH)/empty \
 	$(CUTEST_TEST_DIR)/cutest_run \
 	$(CUTEST_TEST_DIR)/cutest_mock \
 	$(CUTEST_TEST_DIR)/cutest_prox \
@@ -288,4 +339,5 @@ clean::
 	$(CUTEST_TEST_DIR)/cutest_sources.lst \
 	$(CUTEST_TEST_DIR)/cutest_testsuites.lst \
 	$(CUTEST_TEST_DIR)/*_test.log \
-	$(CUTEST_TEST_DIR)/*~
+	$(CUTEST_TEST_DIR)/*~ && \
+	$(RM) -rf $(CUTEST_PATH)/.terminfo

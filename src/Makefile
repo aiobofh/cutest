@@ -1,35 +1,43 @@
-LOCALCFLAGS=-pedantic -Wall -std=c99 -O2
+include cutest.mk
 
-ifneq ($(findstring clang,$(CC)),clang)
-	LOCALCFLAGS+=-flto
+ifneq ("$(COV)","")
+	include coverage.mk
 endif
 
-all:
-	$(MAKE) -s -r --no-print-directory cutest_run && \
-	$(MAKE) -s -r --no-print-directory cutest_mock && \
-	$(MAKE) -s -r --no-print-directory cutest_prox && \
-	$(MAKE) -s -r --no-print-directory cutest_work
+HAS_LTO:=$(shell $(CC) -o empty empty.c -flto 2>&1 >/dev/null && echo "yes")
+ifeq ("$(HAS_LTO)","yes")
+	LTO:=-flto
+else
+	LTO:=
+	HAS_LTO:=no
+endif
 
-include cutest.mk
-include coverage.mk
+LOCALCFLAGS=-pedantic -Wall -O2 $(STD) $(LTO)
+
+info:
+	$(Q)echo "C-standard: $(STD)"
+	$(Q)echo "LTO       : $(LTO)"
+	$(Q)echo "CLFAGS    : $(LOCALCFLAGS)"
 
 %.o: %.c
-	$(CC) -c $^ $(LOCALCFLAGS) $(EXTRA_CFLAGS) -o $@
+	$(Q)$(CC) -c $^ $(LOCALCFLAGS) $(EXTRA_CFLAGS) -o $@
 
 cutest_run: cutest_run.o helpers.o testcase.o
-	$(CC) $^ $(LOCALCFLAGS) $(EXTRA_CFLAGS) -o $@
+	$(Q)$(CC) $^ $(LOCALCFLAGS) $(EXTRA_CFLAGS) -o $@
 
 cutest_mock: cutest_mock.o helpers.o mockable.o arg.o
-	$(CC) $^ $(LOCALCFLAGS) $(EXTRA_CFLAGS) -o $@
+	$(Q)$(CC) $^ $(LOCALCFLAGS) $(EXTRA_CFLAGS) -o $@
 
 cutest_prox: cutest_prox.o helpers.o
-	$(CC) $^ $(LOCALCFLAGS) $(EXTRA_CFLAGS) -o $@
+	$(Q)$(CC) $^ $(LOCALCFLAGS) $(EXTRA_CFLAGS) -o $@
 
 cutest_work: cutest_work.o helpers.o
-	$(CC) $^ $(LOCALCFLAGS) $(EXTRA_CFLAGS) -o $@
+	$(Q)$(CC) $^ $(LOCALCFLAGS) $(EXTRA_CFLAGS) -o $@
 
 clean::
 	$(Q)$(RM) *~ *.o cutest_run cutset_mock cutest_prox cutest_work
+
+clean_all: clean clean_cutest clean_cproto
 
 #
 # Dependencies described for test cases

@@ -37,13 +37,13 @@
 
 CPROTO_VER=4.7m
 
-CPROTO_PATH=$(CUTEST_PATH)/cproto-$(CPROTO_VER)
+CPROTO_PATH=$(abspath $(CUTEST_PATH)/cproto-$(CPROTO_VER))
 
 CPROTO=$(CPROTO_PATH)/cproto
-INSTALLED_CPROTO:=$(shell which cproto)
-ifneq ("$(INSTALLED_CPROTO)","")
-	CPROTO=$(INSTALLED_CPROTO)
-endif
+#INSTALLED_CPROTO:=$(shell which cproto)
+#ifneq ("$(INSTALLED_CPROTO)","")
+#	CPROTO=$(INSTALLED_CPROTO)
+#endif
 
 BISON=$(error bison - GNU Project parser generator not found. Can not build cproto-4.7m. You will have to install cproto onto your system manually. For more infomation go to http://invisible-island.net/cproto/cproto.html)
 ifneq ("$(wildcard /usr/bin/bison)","")
@@ -82,44 +82,41 @@ else
 endif
 
 RMDIR=$(RM) -r
-CPROTO_FLAGS=-D"CPP_DOES_ONLY_C_FILES=1" -D"CPP=\"gcc -E\"" -D"OPT_LINTLIBRARY=1" -D"MAX_INC_DEPTH=999999"
+CPROTO_FLAGS=-D"CPP_DOES_ONLY_C_FILES=1" -D"CPP=\"gcc -E\"" -D"OPT_LINTLIBRARY=1" -D"MAX_INC_DEPTH=999999" -I$(CPROTO_PATH)
 
-$(CUTEST_PATH)/cproto-4.7m.tgz:
+$(CPROTO_PATH).tgz:
 	$(info Using $(WGET) to download cproto-4.7m from authors site)
 	$(Q)$(WGET) -q ftp://ftp.invisible-island.net/cproto/cproto-4.7m.tgz
 
-$(CPROTO_PATH): $(CUTEST_PATH)/cproto-4.7m.tgz
-	$(Q)$(TAR) xzf $<
+$(CPROTO_PATH)/lex.l: $(CPROTO_PATH).tgz
+	$(Q)cd $(CUTEST_PATH) && $(TAR) xzf cproto-4.7m.tgz
 
-$(CPROTO_PATH)/lex.l: $(CPROTO_PATH)
+$(CPROTO_PATH)/cproto.c: $(CPROTO_PATH)/lex.l
 
-$(CPROTO_PATH)/cproto.c: $(CPROTO_PATH)
+$(CPROTO_PATH)/dump.c: $(CPROTO_PATH)/lex.l
 
-$(CPROTO_PATH)/dump.c: $(CPROTO_PATH)
+$(CPROTO_PATH)/lintlibs.c: $(CPROTO_PATH)/lex.l
 
-$(CPROTO_PATH)/lintlibs.c: $(CPROTO_PATH)
+$(CPROTO_PATH)/semantics.c: $(CPROTO_PATH)/lex.l
 
-$(CPROTO_PATH)/semantics.c: $(CPROTO_PATH)
+$(CPROTO_PATH)/strkey.c: $(CPROTO_PATH)/lex.l
 
-$(CPROTO_PATH)/strkey.c: $(CPROTO_PATH)
+$(CPROTO_PATH)/symbol.c: $(CPROTO_PATH)/lex.l
 
-$(CPROTO_PATH)/symbol.c: $(CPROTO_PATH)
+$(CPROTO_PATH)/trace.c: $(CPROTO_PATH)/lex.l
 
-$(CPROTO_PATH)/trace.c: $(CPROTO_PATH)
+$(CPROTO_PATH)/yyerror.c: $(CPROTO_PATH)/lex.l
 
-$(CPROTO_PATH)/yyerror.c: $(CPROTO_PATH)
+$(CPROTO_PATH)/lex.yy.c: $(CPROTO_PATH)/lex.l
+	$(info Using $(FLEX) to build parts of cproto-4.7m in $(CPROTO_PATH) $(CUTEST_PATH))
+	$(Q)cd $(CPROTO_PATH) && $(FLEX) $<
 
-$(CPROTO_PATH)/lex.yy.c: $(CPROTO_PATH)/lex.l $(FLEX)
-	$(info Using $(FLEX) to build parts of cproto-4.7m)
-	$(Q)cd cproto-4.7m && $(FLEX) $<
-
-$(CPROTO_PATH)/grammar.tab.c: $(CPROTO_PATH)/grammar.y $(CPROTO_PATH)/lex.yy.c $(BISON)
+$(CPROTO_PATH)/grammar.tab.c: $(CPROTO_PATH)/grammar.y $(CPROTO_PATH)/lex.yy.c
 	$(info Using $(BISON) to build parts of cproto-4.7m)
-	$(Q)cd cproto-4.7m && $(BISON) $(notdir $<)
+	$(Q)cd $(CPROTO_PATH) && $(BISON) $(notdir $<)
 
 $(CPROTO_PATH)/cproto: $(CPROTO_PATH)/cproto.c $(CPROTO_PATH)/dump.c $(CPROTO_PATH)/lintlibs.c $(CPROTO_PATH)/semantic.c $(CPROTO_PATH)/strkey.c $(CPROTO_PATH)/symbol.c $(CPROTO_PATH)/trace.c $(CPROTO_PATH)/yyerror.c $(CPROTO_PATH)/grammar.tab.c
 	$(Q)$(CC) -o $@ $^ -Icproto-4.7m/ $(CPROTO_FLAGS)
 
 clean_cproto:
 	$(Q)$(RMDIR) $(CPROTO_PATH)
-	$(Q)$(RM) cproto-4.7m.tgz

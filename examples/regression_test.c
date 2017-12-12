@@ -1,5 +1,17 @@
 #include <stdio.h>
 
+#define CUTEST_MY_OWN_EQ_COMPARATORS(EXP, REF)                  \
+  int*: cutest_assert_eq_int_ptr,                               \
+  int**: cutest_assert_eq_int_ptr_ptr,                          \
+  struct my_struct*: cutest_assert_eq_cumbersome_struct_ptr,    \
+  int(*)(int,int): cutest_assert_eq_int_func_ptr,
+
+#include "cutest.h"
+
+#define m cutest_mock
+
+struct my_struct;
+
 /*
  * These comparators are only here to reduce warnings on older compilers,
  * since they usually do not like pointer-to-int conversions, so these
@@ -40,16 +52,6 @@ int cutest_assert_eq_cumbersome_struct_ptr(struct my_struct* a, struct my_struct
   sprintf(output, "%p, %p", (void*)a, (void*)b);
   return 1;
 }
-
-#define CUTEST_MY_OWN_EQ_COMPARATORS(EXP, REF)                  \
-  int*: cutest_assert_eq_int_ptr,                               \
-  int**: cutest_assert_eq_int_ptr_ptr,                          \
-  struct my_struct*: cutest_assert_eq_cumbersome_struct_ptr,    \
-  int(*)(int,int): cutest_assert_eq_int_func_ptr,
-
-#include "cutest.h"
-
-#define m cutest_mock
 
 test(return_int_shall_return_1234) {
   assert_eq(1234, return_int());

@@ -319,7 +319,11 @@ test(print_test_names_printer_shall_traverse_the_list_of_testcases_and_print)
   node[1].next = &node[2];
   node[2].next = NULL;
   print_test_names_printer(&list);
+#ifdef CUTEST_GCC
   assert_eq(3, m.printf.call_count);
+#else
+  assert_eq(5, m.printf.call_count);
+#endif
 }
 
 /*****************************************************************************

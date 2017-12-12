@@ -115,16 +115,17 @@ static size_t get_prefix_attributes(return_type_t* return_type,
    * assumed to be and will consider that the end of the search.
    */
   size_t pos = 0;
-
+  int offs = 0;
   char* prefixes[4] = {"static ",
                        "struct ",
                        "inline ",
                        "__extension__ "};
-  int* attribs[4] = {&return_type->is_static,
-                     &return_type->is_struct,
-                     &return_type->is_inline,
-                     NULL};
-  int offs = 0;
+  int* attribs[4];
+
+  attribs[0] = &return_type->is_static;
+  attribs[1] = &return_type->is_struct;
+  attribs[2] = &return_type->is_inline;
+  attribs[3] = NULL;
 
   while (pos + offs <= namepos - 1) {
     size_t i = 0;
@@ -473,6 +474,7 @@ static char* make_mock_arg_name(size_t idx, int function_pointer,
   char* arg = NULL;
   size_t numbers = 1;
   size_t fpchars = 0;
+  const unsigned long long int idx_llu = idx;
 
   if (9 < idx) {
     numbers = 2;
@@ -483,26 +485,26 @@ static char* make_mock_arg_name(size_t idx, int function_pointer,
   }
   arg = malloc(numbers + fpchars + asterisks + strlen("arg") + 1 + array);
   if (1 == function_pointer) {
-    sprintf(arg, "(*arg%zu)%s", idx, function_pointer_args);
+    sprintf(arg, "(*arg%llu)%s", idx_llu, function_pointer_args);
   }
   else {
     if (0 == array) {
       if (0 == asterisks) {
-        sprintf(arg, "arg%zu", idx);
+        sprintf(arg, "arg%llu", idx_llu);
       }
       else if (1 == asterisks) {
-        sprintf(arg, "*arg%zu", idx);
+        sprintf(arg, "*arg%llu", idx_llu);
       }
       else {
-        sprintf(arg, "**arg%zu", idx);
+        sprintf(arg, "**arg%llu", idx_llu);
       }
     }
     else { /* Array arguments can be considered a lever of pointer-nes :) */
       if (0 == asterisks) {
-        sprintf(arg, "*arg%zu", idx);
+        sprintf(arg, "*arg%llu", idx_llu);
       }
       else if (1 == asterisks) {
-        sprintf(arg, "**arg%zu", idx);
+        sprintf(arg, "**arg%llu", idx_llu);
       }
       else {
         fprintf(stderr, "ERROR: Too many asterisks for an array ref\n");
@@ -550,6 +552,7 @@ static char* make_assignment_name(size_t idx)
    * the control structure, hence the arg0..argN members can be assigned
    * without having asterisks or type-information.
    */
+  const unsigned long long int idx_llu = idx;
   char* arg = NULL;
   size_t numbers = 1;
 
@@ -560,7 +563,7 @@ static char* make_assignment_name(size_t idx)
   if (NULL == arg) {
     return NULL;
   }
-  sprintf(arg, "arg%zu", idx);
+  sprintf(arg, "arg%llu", idx_llu);
   return arg;
 }
 
