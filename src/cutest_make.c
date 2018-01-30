@@ -127,7 +127,8 @@ static void usage(const char* program_name)
          "\n"
          " -v, --verbose   Print commands being executed to stdout.\n"
          " -d, --debug     Output debuging information to stdout.\n"
-         " -c, --clean     Clean all artifacts.\n"
+         " -C, --clean-all Clean all artifacts.\n"
+         " -c, --clean     Clean all test-related artifacts.\n"
          "\n",
          program_name);
 }
@@ -995,7 +996,6 @@ int build_dep(const char* source_file_name, file_list_t* target_list,
     }
   }
   else {
-    printf("CLEAN\n");
     clean(&mockables_o, verbose);
     clean(&mockables_s, verbose);
     clean(&mockables_lst, verbose);
@@ -1147,7 +1147,6 @@ static void launch_child_processes(int allocated_cores,
       exit(EXIT_FAILURE);
     }
     else if (pid[idx] == 0) {
-      printf("%d\n", idx);
       int r = build_deps(idx,
                          allocated_cores,
                          list,
@@ -1231,7 +1230,7 @@ int build(file_list_t* source_list, file_list_t* target_list, int verbose, int c
     printf("DEBUG: Making the CUTest framework and tools\n");
   }
 
-  if (0 == clean) {
+  if (2 != clean) {
     /*
      * This should only be needed if cutest is used from source. If it is
      * installed in the user's system rebuilding the cutest tools is irrelevant.
@@ -1371,9 +1370,18 @@ int main(int argc, char* argv[]) {
       clean = 1;
       continue;
     }
+    if ((0 == strcmp(argv[i], "-C")) || (0 == strcmp(argv[i], "--clean-all"))) {
+      clean = 2;
+      continue;
+    }
 
     if (0 == strcmp(argv[i], "clean")) {
       clean = 1;
+      continue;
+    }
+
+    if (0 == strcmp(argv[i], "clean-all")) {
+      clean = 2;
       continue;
     }
 
