@@ -1,5 +1,7 @@
 #include "cutest.h"
 
+#define CUTEST_DEP arg.o helpers.o
+
 /* For convenience 'm' is shorter to write than 'cutest_mock' */
 #define m cutest_mock
 

@@ -21,6 +21,8 @@
 # Reuse the Q variable for making cutest test running verbose too.
 Q ?=@
 
+.SUFFIXES:
+
 export CC
 
 CUTEST_PATH := $(abspath $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
@@ -70,11 +72,11 @@ else
 	COV:=
 endif
 
-HAS_NOPRAGMA:=$(shell $(CC) -o $(CUTEST_PATH)/empty $(CUTEST_PATH)/empty.c -Wno-pragma 2>&1 >/dev/null && echo "yes")
-ifeq ("$(HAS_NOPRAGMA)","yes")
-	NOPRAGMA:=-Wno-pragma
+HAS_NOPRAGMAS:=$(shell $(CC) -o $(CUTEST_PATH)/empty $(CUTEST_PATH)/empty.c -Wno-pragmas 2>&1 >/dev/null && echo "yes")
+ifeq ("$(HAS_NOPRAGMAS)","yes")
+	NOPRAGMAS:=-Wno-pragmas
 else
-	NOPRAGMA:=
+	NOPRAGMAS:=
 endif
 
 HAS_WEXTRA:=$(shell $(CC) -o $(CUTEST_PATH)/empty $(CUTEST_PATH)/empty.c -Wextra 2>&1 >/dev/null && echo "yes")
@@ -128,7 +130,7 @@ else
 	LONG_DOUBLE_64:=
 endif
 
-CUTEST_CFLAGS+=$(LONG_DOUBLE_64) $(STD) $(VARIADIC) $(WEXTRA) $(NOPRAGMA) $(PEDANTIC)
+CUTEST_CFLAGS+=$(LONG_DOUBLE_64) $(STD) $(VARIADIC) $(WEXTRA) $(NOPRAGMAS) $(PEDANTIC)
 
 ifneq (${LENIENT},0)
 	ifeq ("$(STD)","-std=c11")
@@ -346,6 +348,7 @@ clean::
 	$(CUTEST_TEST_DIR)/*_test.stderr \
 	$(CUTEST_TEST_DIR)/*_test.stdout \
 	$(CUTEST_TEST_DIR)/*_test.exe \
+	$(CUTEST_TEST_DIR)/*_mocks.h \
 	$(CUTEST_TEST_DIR)/*.tu \
 	$(CUTEST_TEST_DIR)/*_mockables.* \
 	$(CUTEST_TEST_DIR)/*_proxified.* \

@@ -3,6 +3,8 @@
  * for educational purposes on how to use this testing framework.
  */
 
+#define CUTEST_DEP testcase.o helpers.o
+
 #include "cutest.h"
 
 #include "cutest_run.h"
@@ -10,7 +12,7 @@
 /* For convenience 'm' is shorter to write than 'cutest_mock' */
 #define m cutest_mock
 /* The main() function is by default renamed but can be renamed again */
-#define main MAIN
+/*#define main MAIN */
 
 /*****************************************************************************
  * usage()

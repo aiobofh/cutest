@@ -37,7 +37,10 @@ else
 	HAS_LTO:=no
 endif
 
-LOCALCFLAGS=-pedantic -Wall -O2 $(STD) $(LTO)
+LOCALCFLAGS=-pedantic -Wall -O0 $(STD) $(LTO)
+
+include cutest.mk
+include coverage.mk
 
 info:
 	$(Q)echo "C-standard: $(STD)"
@@ -59,9 +62,14 @@ cutest_prox: cutest_prox.o helpers.o
 cutest_work: cutest_work.o helpers.o
 	$(Q)$(CC) $^ $(LOCALCFLAGS) $(EXTRA_CFLAGS) -o $@
 
-check:
-	$(Q)$(MAKE) -s -r --no-print-directory -f cutest.mk check
+cutest_conf: cutest_conf.o
+	$(Q)$(CC) $^ $(LOCALCFLAGS) $(EXTRA_CFLAGS) -o $@
 
-clean:
-	$(Q)$(RM) *~ *.o cutest_run cutset_mock cutest_prox cutest_work empty && \
-	$(MAKE) -s -r --no-print-directory -f cutest.mk clean \
+cutest_make: cutest_make.o
+	$(Q)$(CC) $^ $(LOCALCFLAGS) $(EXTRA_CFLAGS) -o $@ -g
+
+#check:
+#	$(Q)$(MAKE) -s -r --no-print-directory -f cutest.mk check
+
+clean::
+	$(Q)$(RM) *~ *.o cutest_run cutset_mock cutest_prox cutest_work empty

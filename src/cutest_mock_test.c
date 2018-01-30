@@ -1,12 +1,14 @@
 #include "cutest.h"
 
+#define CUTEST_DEP arg.o helpers.o mockable.o
+
 #include <assert.h>
 
 #include "mockable.h"
 #include "cutest_mock.h"
 
 #define m cutest_mock
-#define main MAIN
+/* #define main MAIN */
 
 /*****************************************************************************
  * usage()

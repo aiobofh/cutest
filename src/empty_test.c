@@ -4,7 +4,7 @@
 
 #include "cutest.h"
 
-#define main MAIN
+/*#define main MAIN */
 
 test(main_shall_return_0)
 {

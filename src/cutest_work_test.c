@@ -1,7 +1,9 @@
 #include "cutest.h"
 
+#define CUTEST_DEP helpers.o
+
 #define m cutest_mock
-#define main MAIN
+/*#define main MAIN */
 
 /*****************************************************************************
  * usage();
