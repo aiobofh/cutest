@@ -157,7 +157,7 @@ ifeq ($(MAKECMDGOALS),sanitize)
 endif
 
 SOURCES=$(notdir $(filter-out %_test_run.c,$(filter-out %_test.c,$(wildcard $(CUTEST_SRC_DIR)/*.c))))
-EXPECTED_TEST_SUITES=$(sort $(notdir $(subst .c,_test.c,$(filter-out cutest.c,$(SOURCES)))))
+EXPECTED_TEST_SUITES=$(sort $(notdir $(subst .c,_test.c,$(filter-out cutest_impl.c,$(SOURCES)))))
 FOUND_TEST_SUITES=$(sort $(notdir $(wildcard $(CUTEST_TEST_DIR)/*_test.c)))
 MISSING_TEST_SUITES=$(filter-out $(FOUND_TEST_SUITES),$(EXPECTED_TEST_SUITES))
 MISSING_SOURCES=$(subst _test.c,.c,$(filter-out $(EXPECTED_TEST_SUITES),$(FOUND_TEST_SUITES)))
@@ -181,7 +181,7 @@ cutest_info:
 	@echo "Missing sources      : $(MISSING_SOURCES)"
 	@echo "Missing test suites  : $(MISSING_TEST_SUITES)"
 
-$(CUTEST_PATH)/cutest.o: $(CUTEST_PATH)/cutest.c
+$(CUTEST_PATH)/cutest_impl.o: $(CUTEST_PATH)/cutest_impl.c
 	$(Q)$(CC) -c $^ $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -I$(abspath $(CUTEST_SRC_DIR)) $(CUTEST_IFLAGS) -DNDEBUG -D"inline=" $(CUTEST_DEFINES) -o $@
 
 # Build a tool to generate a test suite runner.
@@ -233,7 +233,7 @@ $(CUTEST_TEST_DIR)/%_test_run.c: $(CUTEST_TEST_DIR)/%_test.c $(CUTEST_TEST_DIR)/
 	$(Q)$(CUTEST_RUN) $(wordlist 1,2,$^) > $@
 
 # Compile a test-runner from the generate test-runner program code
-$(CUTEST_TEST_DIR)/%_test: $(CUTEST_TEST_DIR)/%_proxified.s $(CUTEST_TEST_DIR)/%_test_run.c $(CUTEST_PATH)/cutest.o
+$(CUTEST_TEST_DIR)/%_test: $(CUTEST_TEST_DIR)/%_proxified.s $(CUTEST_TEST_DIR)/%_test_run.c $(CUTEST_PATH)/cutest_impl.o
 	$(Q)$(CC) -o $@ $^ $(LTO) $(CUTEST_CFLAGS) -I$(CUTEST_PATH) -I$(abspath $(CUTEST_TEST_DIR)) -I$(abspath $(CUTEST_SRC_DIR)) $(CUTEST_IFLAGS) -DNDEBUG -D"inline=" $(CUTEST_DEFINES) 3>&1 1>&2 2>&3 3>&-
 
 # Print the CUTest manual
@@ -332,7 +332,7 @@ clean_cutest:
 clean::
 	$(Q)$(RM) -f $(CUTEST_TEST_DIR)/*_test_run.c \
 	$(CUTEST_PATH)/empty \
-	$(CUTEST_PATH)/cutest.o \
+	$(CUTEST_PATH)/cutest_impl.o \
 	$(CUTEST_TEST_DIR)/cutest_run \
 	$(CUTEST_TEST_DIR)/cutest_mock \
 	$(CUTEST_TEST_DIR)/cutest_prox \

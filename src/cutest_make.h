@@ -55,8 +55,8 @@
 #define TESTCASE_C CUTEST_PATH OS_PATH_SEPARATOR "testcase.c"
 #endif
 
-#ifndef CUTEST_C
-#define CUTEST_C CUTEST_PATH OS_PATH_SEPARATOR "cutest.c"
+#ifndef CUTEST_IMPL_C
+#define CUTEST_IMPL_C CUTEST_PATH OS_PATH_SEPARATOR "cutest_impl.c"
 #endif
 
 #ifndef CUTEST_H
@@ -123,8 +123,8 @@ ARTIFACT(arg_o);
 ARTIFACT(testcase_c);
 ARTIFACT(testcase_o);
 ARTIFACT(cutest_h);
-ARTIFACT(cutest_c);
-ARTIFACT(cutest_o);
+ARTIFACT(cutest_impl_c);
+ARTIFACT(cutest_impl_o);
 ARTIFACT(cutest_prox_c);
 ARTIFACT(cutest_prox_o);
 ARTIFACT(cutest_prox);

@@ -607,7 +607,7 @@ static int make_test_run_c(test_run_c_t* test_run_c,
 static int make_test(test_t* test,
                      proxified_s_t* proxified_s,
                      test_run_c_t* test_run_c,
-                     cutest_o_t *cutest_o,
+                     cutest_impl_o_t *cutest_impl_o,
                      file_list_t* dep_list,
                      int verbose)
 {
@@ -632,7 +632,7 @@ static int make_test(test_t* test,
 
   const artifact_t* deps[3] = {(artifact_t*)proxified_s,
                                (artifact_t*)test_run_c,
-                               (artifact_t*)cutest_o};
+                               (artifact_t*)cutest_impl_o};
 
   if (0 == should_rebuild(test, deps, verbose)) {
     return 0;
@@ -642,7 +642,7 @@ static int make_test(test_t* test,
                    dep_len +
                    strlen(proxified_s->str) +
                    strlen(test_run_c->str) +
-                   strlen(cutest_o->str) +
+                   strlen(cutest_impl_o->str) +
                    strlen(test->str) +
                    1);
 
@@ -650,7 +650,7 @@ static int make_test(test_t* test,
           extra_deps,
           proxified_s->str,
           test_run_c->str,
-          cutest_o->str,
+          cutest_impl_o->str,
           test->str);
 
   if (verbose >= 1) printf("%s\n", command);
@@ -723,10 +723,10 @@ static int make_testcase_o(testcase_o_t* testcase_o,
   return make_o_from_c(testcase_o, testcase_c, verbose);
 }
 
-static int make_cutest_o(cutest_o_t* cutest_o,
-                         cutest_c_t* cutest_c, int verbose)
+static int make_cutest_impl_o(cutest_impl_o_t* cutest_impl_o,
+                              cutest_impl_c_t* cutest_impl_c, int verbose)
 {
-  return make_o_from_c(cutest_o, cutest_c, verbose);
+  return make_o_from_c(cutest_impl_o, cutest_impl_c, verbose);
 }
 
 static int make_cutest_prox_o(cutest_prox_o_t* cutest_prox_o,
@@ -933,7 +933,7 @@ static int test_in_target_list(file_list_t* target_list, const char* file_name, 
 }
 
 int build_dep(const char* source_file_name, file_list_t* target_list,
-              cutest_h_t* cutest_h, cutest_o_t* cutest_o,
+              cutest_h_t* cutest_h, cutest_impl_o_t* cutest_impl_o,
               cutest_prox_t* cutest_prox, cutest_mock_t* cutest_mock,
               cutest_run_t* cutest_run, cproto_t* cproto,
               int verbose, int clean)
@@ -991,7 +991,7 @@ int build_dep(const char* source_file_name, file_list_t* target_list,
     }
 
     /* TODO: Maybe proxified_o and test_run_o would save build time */
-    if (0 != make_test(&test, &proxified_s, &test_run_c, cutest_o, &dep_list, v)) {
+    if (0 != make_test(&test, &proxified_s, &test_run_c, cutest_impl_o, &dep_list, v)) {
       return -5;
     }
   }
@@ -1074,7 +1074,7 @@ int build_deps(int core_idx,
                file_list_t* list,
                file_list_t* target_list,
                cutest_h_t* cutest_h,
-               cutest_o_t* cutest_o,
+               cutest_impl_o_t* cutest_impl_o,
                cutest_prox_t* cutest_prox,
                cutest_mock_t* cutest_mock,
                cutest_run_t* cutest_run,
@@ -1096,7 +1096,7 @@ int build_deps(int core_idx,
     if (0 == node->skip) {
       const int r = build_dep(node->file.file_name,
                               target_list,
-                              cutest_h, cutest_o,
+                              cutest_h, cutest_impl_o,
                               cutest_prox, cutest_mock,
                               cutest_run, cproto,
                               verbose, clean);
@@ -1132,7 +1132,7 @@ static void launch_child_processes(int allocated_cores,
                                    file_list_t* list,
                                    file_list_t* target_list,
                                    cutest_h_t* cutest_h,
-                                   cutest_o_t* cutest_o,
+                                   cutest_impl_o_t* cutest_impl_o,
                                    cutest_prox_t* cutest_prox,
                                    cutest_mock_t* cutest_mock,
                                    cutest_run_t* cutest_run,
@@ -1152,7 +1152,7 @@ static void launch_child_processes(int allocated_cores,
                          list,
                          target_list,
                          cutest_h,
-                         cutest_o,
+                         cutest_impl_o,
                          cutest_prox,
                          cutest_mock,
                          cutest_run,
@@ -1171,7 +1171,7 @@ static void launch_child_processes(int allocated_cores,
 static int launch_process(file_list_t* list,
                           file_list_t* target_list,
                           cutest_h_t* cutest_h,
-                          cutest_o_t* cutest_o,
+                          cutest_impl_o_t* cutest_impl_o,
                           cutest_prox_t* cutest_prox,
                           cutest_mock_t* cutest_mock,
                           cutest_run_t* cutest_run,
@@ -1182,7 +1182,7 @@ static int launch_process(file_list_t* list,
                      list,
                      target_list,
                      cutest_h,
-                     cutest_o,
+                     cutest_impl_o,
                      cutest_prox,
                      cutest_mock,
                      cutest_run,
@@ -1209,8 +1209,8 @@ int build(file_list_t* source_list, file_list_t* target_list, int verbose, int c
   testcase_o_t testcase_o = {gen_filename(testcase_c.str, ".c", ".o"), 0, 0};
 
   cutest_h_t cutest_h = {CUTEST_H, 0, 0};
-  cutest_c_t cutest_c = {CUTEST_C, 0, 0};
-  cutest_o_t cutest_o = {gen_filename(cutest_c.str, ".c", ".o"), 0, 0};
+  cutest_impl_c_t cutest_impl_c = {CUTEST_IMPL_C, 0, 0};
+  cutest_impl_o_t cutest_impl_o = {gen_filename(cutest_impl_c.str, ".c", ".o"), 0, 0};
 
   cutest_prox_c_t cutest_prox_c = {CUTEST_PROX_C, 0, 0};
   cutest_prox_o_t cutest_prox_o = {gen_filename(cutest_prox_c.str, ".c", ".o"), 0, 0};
@@ -1247,7 +1247,7 @@ int build(file_list_t* source_list, file_list_t* target_list, int verbose, int c
     if (0 != make_testcase_o(&testcase_o, &testcase_c, verbose)) {
       return -4;
     }
-    if (0 != make_cutest_o(&cutest_o, &cutest_c, verbose)) {
+    if (0 != make_cutest_impl_o(&cutest_impl_o, &cutest_impl_c, verbose)) {
       return -4;
     }
     if (0 != make_cutest_prox_o(&cutest_prox_o, &cutest_prox_c, verbose)) {
@@ -1277,7 +1277,7 @@ int build(file_list_t* source_list, file_list_t* target_list, int verbose, int c
     clean(&mockable_o, verbose);
     clean(&arg_o, verbose);
     clean(&testcase_o, verbose);
-    clean(&cutest_o, verbose);
+    clean(&cutest_impl_o, verbose);
     clean(&cutest_prox_o, verbose);
     clean(&cutest_prox, verbose);
     clean(&cutest_mock_o, verbose);
@@ -1300,7 +1300,7 @@ int build(file_list_t* source_list, file_list_t* target_list, int verbose, int c
                            source_list,
                            target_list,
                            &cutest_h,
-                           &cutest_o,
+                           &cutest_impl_o,
                            &cutest_prox,
                            &cutest_mock,
                            &cutest_run,
@@ -1311,7 +1311,7 @@ int build(file_list_t* source_list, file_list_t* target_list, int verbose, int c
     retval = launch_process(source_list,
                             target_list,
                             &cutest_h,
-                            &cutest_o,
+                            &cutest_impl_o,
                             &cutest_prox,
                             &cutest_mock,
                             &cutest_run,
@@ -1327,7 +1327,7 @@ int build(file_list_t* source_list, file_list_t* target_list, int verbose, int c
   free(mockable_o.str);
   free(arg_o.str);
   free(testcase_o.str);
-  free(cutest_o.str);
+  free(cutest_impl_o.str);
   free(cutest_prox_o.str);
   free(cutest_prox.str);
   free(cutest_mock_o.str);
