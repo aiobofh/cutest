@@ -1,22 +1,41 @@
 #ifndef _CUTEST_MAKE_H_
 #define _CUTEST_MAKE_H_
 
+#if defined(WIN32) || defined(_WIN32)
 #define OS_CURRENT_DIRECTORY "."
+#else
+#define OS_CURRENT_DIRECTORY ""
+#endif
+
+#if defined(WIN32) || defined(_WIN32)
+#define OS_PATH_SEPARATOR "\\"
+#else
 #define OS_PATH_SEPARATOR "/"
+#endif
 
 #ifndef CUTEST_SRC_PATH
 #warning "You did not provide CUTEST_SRC_PATH as define to your compiler, cutest_make will assume you have your source files for your product in the current directory"
-#define CUTEST_SRC_PATH OS_CURRENT_DIRECTORY
+#define CUTEST_SRC_PATH OS_CURRENT_DIRECTORY OS_PATH_SEPARATOR
 #endif
 
 #ifndef CUTEST_TST_PATH
 #warning "You did not provide CUTEST_TST_PATH as define to your compiler, cutest_make will assume you have your test files for your product in the current directory"
-#define CUTEST_TST_PATH OS_CURRENT_DIRECTORY
+#define CUTEST_TST_PATH OS_CURRENT_DIRECTORY OS_PATH_SEPARATOR
 #endif
 
 #ifndef CUTEST_PATH
 #warning "You did not provide CUTEST_PATH as define to your compiler, cutest_make will assume you have your downloaded version of cutest in a folder called 'cutest' in the current directory"
 #define CUTEST_PATH "cutest"
+#endif
+
+#ifndef CUTEST_INC_PATH
+#warning "You did not provide CUTEST_INC_PATH as define to your compiler, cutest_make will assume you have your source files for your product in the current directory"
+#define CUTEST_INC_PATH CUTEST_PATH OS_PATH_SEPARATOR
+#endif
+
+#ifndef CUTEST_TMP_PATH
+#warning "You did not provide CUTEST_TMP_PATH as define to your compiler, cutest_make will assume you have your source files for your product in the current directory"
+#define CUTEST_TMP_PATH OS_CURRENT_DIRECTORY OS_PATH_SEPARATOR
 #endif
 
 #ifndef CUTEST_CC_VISIBILITY_HIDDEN
@@ -37,6 +56,14 @@
 
 #ifndef CUTEST_RUN_C
 #define CUTEST_RUN_C CUTEST_PATH OS_PATH_SEPARATOR "cutest_run.c"
+#endif
+
+#ifndef CUTEST_WORK_C
+#define CUTEST_WORK_C CUTEST_PATH OS_PATH_SEPARATOR "cutest_work.c"
+#endif
+
+#ifndef CUTEST_C
+#define CUTEST_C CUTEST_PATH OS_PATH_SEPARATOR "cutest.c"
 #endif
 
 #ifndef HELPERS_C
@@ -134,5 +161,11 @@ ARTIFACT(cutest_mock);
 ARTIFACT(cutest_run_c);
 ARTIFACT(cutest_run_o);
 ARTIFACT(cutest_run);
+ARTIFACT(cutest_work_c);
+ARTIFACT(cutest_work_o);
+ARTIFACT(cutest_work);
+ARTIFACT(cutest_c);
+ARTIFACT(cutest_o);
+ARTIFACT(cutest);
 
 #endif

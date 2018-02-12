@@ -132,6 +132,7 @@ static int is_space(char c)
   case ',':
   case '$':
   case '#':
+  case '@':
     return 1;
   default:
     return 0;

@@ -39,8 +39,9 @@ static int compare_my_own_type_t(my_own_type_t a, my_own_type_t b, char* output)
 #define CUTEST_MY_OWN_EQ_COMPARATORS(EXP, REF) \
   my_own_type_t: compare_my_own_type_t,
 
+/*
 #define CUTEST_LENIENT_ASSERTS 1
-
+*/
 #include "cutest.h"
 
 /*

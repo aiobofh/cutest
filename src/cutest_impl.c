@@ -61,7 +61,7 @@ int cutest_assert_eq_char(const char a, const char b, char* output)
 
 int cutest_assert_eq_str(const char* a, const char *b, char* output)
 {
-  if (0 == strcmp(a, b)) {
+  if ((NULL != a) && (NULL != b) && (0 == strcmp(a, b))) {
     return 0;
   }
   sprintf(output, "\"%s\", \"%s\"", a, b);

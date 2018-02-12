@@ -101,8 +101,11 @@
  * * clang (3.8)
  *
  */
+/*
 #define _BSD_SOURCE
 #define _POSIX_C_SOURCE 200112L
+*/
+#define _DEFAULT_SOURCE
 #include <sys/stat.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -133,6 +136,7 @@ static void usage(const char* program_name)
          program_name);
 }
 
+/*
 static int get_number_of_cores()
 {
 #ifdef _SC_NPROCESSORS_ONLN
@@ -141,20 +145,33 @@ static int get_number_of_cores()
   return 1;
 #endif
 }
+*/
 
-static file_node_t* new_file_node(char* path)
+static file_node_t* new_file_node(const char* dirname, char* path)
 {
   file_node_t* node = malloc(sizeof(*node));
   if (NULL == node) {
     return NULL;
   }
-  char* dst = malloc(strlen(path) + 1);
+
+  size_t dirnamelen = 0;
+  if (NULL != dirname) {
+    dirnamelen = strlen(dirname);
+  }
+
+  char* dst = malloc(dirnamelen + strlen(path) + 1);
   if (NULL == dst) {
     free(node);
     return NULL;
   }
-  strcpy(dst, path);
-  dst[strlen(path)] = 0;
+  if (NULL != dirname) {
+    strcpy(dst, dirname);
+    strcat(dst, path);
+  }
+  else {
+    strcpy(dst, path);
+  }
+  dst[dirnamelen + strlen(path)] = 0;
 
   node->file.file_name = dst;
   node->skip = 0;
@@ -182,13 +199,18 @@ static void file_list_add_node(file_list_t* list, file_node_t* node)
 
 static size_t make_list_of_files(file_list_t* list, char* path,
                                  const char* suffix,
-                                 const char* filt1, const char* filt2)
+                                 const char* filt1, const char* filt2,
+                                 int verbose, const char* reasonstr)
 {
   DIR* dir;
   struct dirent* ent;
   const size_t suffix_len = strlen(suffix);
   const size_t filt1_len = (NULL != filt1) ? strlen(filt1) : 0;
   const size_t filt2_len = (NULL != filt2) ? strlen(filt2) : 0;
+
+  if (1 < verbose) {
+    printf("DEBUG: Searching for %s in '%s'\n", reasonstr, path);
+  }
 
   dir = opendir((char*)path);
 
@@ -214,7 +236,11 @@ static size_t make_list_of_files(file_list_t* list, char* path,
     if (0 != strcmp(suffix, &name[ent_len - suffix_len])) {
       continue;
     }
-    file_node_t* node = new_file_node(name);
+
+    /* HERE */
+
+
+    file_node_t* node = new_file_node(path, name);
     if (NULL == node) {
       fprintf(stderr, "ERROR: Out of memory while listing files\n");
       return 0;
@@ -237,7 +263,7 @@ static void free_files(file_list_t* list)
 }
 
 static void strreplace(char* dst, const char* src, const char* replace,
-                const char* with)
+                       const char* with)
 {
   char *pos = strstr(src, replace);
 
@@ -250,6 +276,7 @@ static void strreplace(char* dst, const char* src, const char* replace,
 }
 
 static char* gen_filename(const char* from,
+                          const char* newpath,
                           const char* replace,
                           const char* with)
 {
@@ -259,6 +286,32 @@ static char* gen_filename(const char* from,
                    1);
 
   strreplace(n, from, replace, with);
+
+  char* oldpath = NULL;
+  size_t oldpathlen = strlen(from);
+  size_t filenamepos = 0;
+  while (oldpathlen > 0) {
+    if (OS_PATH_SEPARATOR[0] == from[oldpathlen]) {
+      oldpath = malloc(oldpathlen + 2);
+      memcpy(oldpath, from, oldpathlen);
+      oldpath[oldpathlen] = 0;
+      filenamepos = oldpathlen + 1;
+      break;
+    }
+    oldpathlen--;
+  }
+
+  if ((NULL != oldpath) && (NULL != newpath)) {
+    const size_t newpathlen = strlen(newpath);
+    char* d = malloc(newpathlen + strlen(&n[filenamepos]) + 1);
+    strcpy(d, newpath);
+    if (OS_PATH_SEPARATOR[0] != newpath[newpathlen - 1]) {
+      strcat(d, OS_PATH_SEPARATOR);
+    }
+    strcat(d, &n[filenamepos]);
+    free(n);
+    n = d;
+  }
 
   return n;
 }
@@ -413,7 +466,7 @@ static int make_mockables_o(mockables_o_t* mockables_o, c_t* c, int verbose)
     "gcc %s -fno-inline -g -O0 -o %s -c %s -D\"static=\" -D\"inline=\" -D\"main=MAIN\"";
   */
   const char* fmt =
-    "$CC %s -fno-inline -g -O0 -o %s -c %s -D\"static=\" -D\"inline=\"";
+    "$CC %s -fno-inline -g -O0 -o %s -c %s -D\"static=\" -D\"inline=\" -I\"" CUTEST_INC_PATH "\"";
   char* command = NULL;
 
   const artifact_t* deps[1] = {(artifact_t*)c};
@@ -448,7 +501,7 @@ static int make_mockables_s(mockables_s_t* mockables_s, c_t* c, int verbose)
   int retval = 0;
 
   const char* fmt =
-    "$CC -S -fverbose-asm %s -fno-inline -g -O0 -o %s -c %s -D\"static=\" -D\"inline=\" -D\"main=MAIN\"";
+    "$CC -S -fverbose-asm %s -fno-inline -g -O0 -o %s -c %s -D\"static=\" -D\"inline=\" -D\"main=MAIN\" -I\"" CUTEST_INC_PATH "\"";
 
   char* command = NULL;
 
@@ -543,7 +596,7 @@ static int make_mocks_h(mocks_h_t* mocks_h,
                    strlen(cproto->str) +
                    strlen(c->str) +
                    strlen(mockables_lst->str) +
-                   strlen(CUTEST_PATH) +
+                   strlen(CUTEST_INC_PATH) +
                    strlen(mocks_h->str) +
                    1);
 
@@ -552,7 +605,7 @@ static int make_mocks_h(mocks_h_t* mocks_h,
           cproto->str,
           c->str,
           mockables_lst->str,
-          CUTEST_PATH,
+          CUTEST_INC_PATH,
           mocks_h->str);
 
   if (verbose >= 1) printf("%s\n", command);
@@ -612,7 +665,7 @@ static int make_test(test_t* test,
                      int verbose)
 {
   int retval = 0;
-  const char* fmt = "$CC %s%s %s %s -o %s -DNDEBUG -D\"inline=\" -D\"CUTEST_GCC\" -D\"CUTEST_LENIENT_ASSERTS\"";
+  const char* fmt = "$CC %s%s %s %s -o %s -DNDEBUG -D\"inline=\" -D\"CUTEST_GCC\" -D\"CUTEST_LENIENT_ASSERTS\" -I\"" CUTEST_INC_PATH "\"";
   char* command;
 
   file_node_t* file;
@@ -670,7 +723,7 @@ static int _make_o_from_c(artifact_t* o, artifact_t* c, int verbose)
   int retval = 0;
   char* fmt;
   /* if (0 == o->fake_main) { */
-    fmt= "$CC -c %s -o %s -O2 -D\"CUTEST_GCC\" -D\"CUTEST_LENIENT_ASSERTS\"";
+    fmt= "$CC -c %s -o %s -O2 -D\"CUTEST_GCC\" -D\"CUTEST_LENIENT_ASSERTS\" -I\"" CUTEST_INC_PATH "\"";
     /*
   }
   else {
@@ -849,9 +902,44 @@ static int make_cutest_run(cutest_run_t* cutest_run,
   return make_exe_from_o(cutest_run, objs, verbose);
 }
 
+static int make_cutest_work_o(cutest_work_o_t* cutest_work_o,
+                              cutest_work_c_t* cutest_work_c,
+                              int verbose)
+{
+  return make_o_from_c(cutest_work_o, cutest_work_c, verbose);
+}
+
+static int make_cutest_work(cutest_work_t* cutest_work,
+                            cutest_work_o_t* cutest_work_o,
+                            helpers_o_t* helpers_o,
+                            int verbose)
+{
+  const artifact_t* objs[2] = {(artifact_t*)cutest_work_o,
+                               (artifact_t*)helpers_o};
+
+  return make_exe_from_o(cutest_work, objs, verbose);
+}
+
+static int make_cutest_o(cutest_o_t* cutest_o,
+                         cutest_c_t* cutest_c,
+                         int verbose)
+{
+  return make_o_from_c(cutest_o, cutest_c, verbose);
+}
+
+static int make_cutest(cutest_t* cutest,
+                       cutest_o_t* cutest_o,
+                       int verbose)
+{
+  const artifact_t* objs[1] = {(artifact_t*)cutest_o};
+
+  return make_exe_from_o(cutest, objs, verbose);
+}
+
+/*
 static int make_cproto(cproto_t* cproto, int verbose)
 {
-  char command[1000]; /* TODO: Make cproto build neater */
+  char command[1000];
 
   cproto_t cproto_c = {"./cproto-4.7m/cproto.c", 0, 0};
   const artifact_t* deps[1] = {(artifact_t*)&cproto_c};
@@ -870,6 +958,7 @@ static int make_cproto(cproto_t* cproto, int verbose)
   }
   return 0;
 }
+*/
 
 #define DEPTOOKEN "#define CUTEST_DEP "
 
@@ -882,7 +971,7 @@ int split_deptooken(file_list_t* dep_list, char* buf)
   for (i = 0; i < len; i++) {
     if ((' ' == b[i]) || (len - 1 == i)) {
       b[i] = '\0';
-      file_node_t* file = new_file_node(start);
+      file_node_t* file = new_file_node(NULL, start);
       file_list_add_node(dep_list, file);
       start = &b[i + 1];
     }
@@ -940,14 +1029,14 @@ int build_dep(const char* source_file_name, file_list_t* target_list,
 {
   const int v = verbose; // Shorter
   c_t c = {(char*)source_file_name, 0};
-  mockables_o_t mockables_o = {gen_filename(c.str, ".c", "_mockables.o"), 0, 1};
-  mockables_s_t mockables_s = {gen_filename(mockables_o.str, ".o", ".s"), 0, 1};
-  mockables_lst_t mockables_lst = {gen_filename(mockables_s.str, ".s", ".lst"), 0, 1};
-  proxified_s_t proxified_s = {gen_filename(mockables_s.str, "_mockables.s", "_proxified.s"), 0, 1};
-  mocks_h_t mocks_h = {gen_filename(c.str, ".c", "_mocks.h"), 0, 1};
-  test_c_t test_c = {gen_filename(c.str, ".c", "_test.c"), 0, 1};
-  test_run_c_t test_run_c = {gen_filename(c.str, ".c", "_test_run.c"), 0, 0};
-  test_t test = {gen_filename(c.str, ".c", "_test"), 0, 0};
+  mockables_o_t mockables_o = {gen_filename(c.str, CUTEST_TMP_PATH, ".c", "_mockables.o"), 0, 1};
+  mockables_s_t mockables_s = {gen_filename(mockables_o.str, CUTEST_TMP_PATH, ".o", ".s"), 0, 1};
+  mockables_lst_t mockables_lst = {gen_filename(mockables_s.str, CUTEST_TMP_PATH, ".s", ".lst"), 0, 1};
+  proxified_s_t proxified_s = {gen_filename(mockables_s.str, CUTEST_TMP_PATH, "_mockables.s", "_proxified.s"), 0, 1};
+  mocks_h_t mocks_h = {gen_filename(c.str, CUTEST_TMP_PATH, ".c", "_mocks.h"), 0, 1};
+  test_c_t test_c = {gen_filename(c.str, CUTEST_TST_PATH, ".c", "_test.c"), 0, 1};
+  test_run_c_t test_run_c = {gen_filename(c.str, CUTEST_TMP_PATH, ".c", "_test_run.c"), 0, 0};
+  test_t test = {gen_filename(c.str, CUTEST_TST_PATH, ".c", "_test"), 0, 0};
 
   if (NULL != target_list->first) {
     if (1 < verbose) {
@@ -1017,6 +1106,7 @@ int build_dep(const char* source_file_name, file_list_t* target_list,
   return 0;
 }
 
+/*
 static int slight_delay()
 {
   int a = 0;
@@ -1027,7 +1117,9 @@ static int slight_delay()
   }
   return a;
 }
+*/
 
+/*
 static int wait_for_child_processes(int allocated_cores, int verbose)
 {
   int retval = 0;
@@ -1045,6 +1137,7 @@ static int wait_for_child_processes(int allocated_cores, int verbose)
 
   return retval;
 }
+*/
 
 static size_t file_list_len(file_list_t* list)
 {
@@ -1128,6 +1221,7 @@ int build_deps(int core_idx,
   return retval;
 }
 
+/*
 static void launch_child_processes(int allocated_cores,
                                    file_list_t* list,
                                    file_list_t* target_list,
@@ -1167,6 +1261,7 @@ static void launch_child_processes(int allocated_cores,
     }
   }
 }
+*/
 
 static int launch_process(file_list_t* list,
                           file_list_t* target_list,
@@ -1197,32 +1292,40 @@ int build(file_list_t* source_list, file_list_t* target_list, int verbose, int c
   int retval = 0;
 
   helpers_c_t helpers_c = {HELPERS_C, 0, 0};
-  helpers_o_t helpers_o = {gen_filename(helpers_c.str, ".c", ".o"), 0, 0};
+  helpers_o_t helpers_o = {gen_filename(helpers_c.str, CUTEST_TMP_PATH, ".c", ".o"), 0, 0};
 
   mockable_c_t mockable_c = {MOCKABLE_C, 0, 0};
-  mockable_o_t mockable_o = {gen_filename(mockable_c.str, ".c", ".o"), 0, 0};
+  mockable_o_t mockable_o = {gen_filename(mockable_c.str, CUTEST_TMP_PATH, ".c", ".o"), 0, 0};
 
   arg_c_t arg_c = {ARG_C, 0, 0};
-  arg_o_t arg_o = {gen_filename(arg_c.str, ".c", ".o"), 0, 0};
+  arg_o_t arg_o = {gen_filename(arg_c.str, CUTEST_TMP_PATH, ".c", ".o"), 0, 0};
 
   testcase_c_t testcase_c = {TESTCASE_C, 0, 0};
-  testcase_o_t testcase_o = {gen_filename(testcase_c.str, ".c", ".o"), 0, 0};
+  testcase_o_t testcase_o = {gen_filename(testcase_c.str, CUTEST_TMP_PATH, ".c", ".o"), 0, 0};
 
   cutest_h_t cutest_h = {CUTEST_H, 0, 0};
   cutest_impl_c_t cutest_impl_c = {CUTEST_IMPL_C, 0, 0};
-  cutest_impl_o_t cutest_impl_o = {gen_filename(cutest_impl_c.str, ".c", ".o"), 0, 0};
+  cutest_impl_o_t cutest_impl_o = {gen_filename(cutest_impl_c.str, CUTEST_TMP_PATH, ".c", ".o"), 0, 0};
 
   cutest_prox_c_t cutest_prox_c = {CUTEST_PROX_C, 0, 0};
-  cutest_prox_o_t cutest_prox_o = {gen_filename(cutest_prox_c.str, ".c", ".o"), 0, 0};
-  cutest_prox_t cutest_prox = {gen_filename(cutest_prox_c.str, ".c", ""), 0, 0};
+  cutest_prox_o_t cutest_prox_o = {gen_filename(cutest_prox_c.str, CUTEST_TMP_PATH, ".c", ".o"), 0, 0};
+  cutest_prox_t cutest_prox = {gen_filename(cutest_prox_c.str, CUTEST_TMP_PATH, ".c", ""), 0, 0};
 
   cutest_mock_c_t cutest_mock_c = {CUTEST_MOCK_C, 0, 0};
-  cutest_mock_o_t cutest_mock_o = {gen_filename(cutest_mock_c.str, ".c", ".o"), 0, 0};
-  cutest_mock_t cutest_mock = {gen_filename(cutest_mock_c.str, ".c", ""), 0, 0};
+  cutest_mock_o_t cutest_mock_o = {gen_filename(cutest_mock_c.str, CUTEST_TMP_PATH, ".c", ".o"), 0, 0};
+  cutest_mock_t cutest_mock = {gen_filename(cutest_mock_c.str, CUTEST_TMP_PATH, ".c", ""), 0, 0};
 
   cutest_run_c_t cutest_run_c = {CUTEST_RUN_C, 0, 0};
-  cutest_run_o_t cutest_run_o = {gen_filename(cutest_run_c.str, ".c", ".o"), 0, 0};
-  cutest_run_t cutest_run = {gen_filename(cutest_run_c.str, ".c", ""), 0, 0};
+  cutest_run_o_t cutest_run_o = {gen_filename(cutest_run_c.str, CUTEST_TMP_PATH, ".c", ".o"), 0, 0};
+  cutest_run_t cutest_run = {gen_filename(cutest_run_c.str, CUTEST_TMP_PATH, ".c", ""), 0, 0};
+
+  cutest_work_c_t cutest_work_c = {CUTEST_WORK_C, 0, 0};
+  cutest_work_o_t cutest_work_o = {gen_filename(cutest_work_c.str, CUTEST_TMP_PATH, ".c", ".o"), 0, 0};
+  cutest_work_t cutest_work = {gen_filename(cutest_work_c.str, CUTEST_TMP_PATH, ".c", ""), 0, 0};
+
+  cutest_c_t cutest_c = {CUTEST_C, 0, 0};
+  cutest_o_t cutest_o = {gen_filename(cutest_c.str, CUTEST_TMP_PATH, ".c", ".o"), 0, 0};
+  cutest_t cutest = {gen_filename(cutest_c.str, CUTEST_TMP_PATH, ".c", ""), 0, 0};
 
   cproto_t cproto = {CPROTO, 0, 0};
 
@@ -1268,9 +1371,23 @@ int build(file_list_t* source_list, file_list_t* target_list, int verbose, int c
     if (0 != make_cutest_run(&cutest_run, &cutest_run_o, &helpers_o, &testcase_o, verbose)) {
       return -4;
     }
+    if (0 != make_cutest_work_o(&cutest_work_o, &cutest_work_c, verbose)) {
+      return -4;
+    }
+    if (0 != make_cutest_work(&cutest_work, &cutest_work_o, &helpers_o, verbose)) {
+      return -4;
+    }
+    if (0 != make_cutest_o(&cutest_o, &cutest_c, verbose)) {
+      return -4;
+    }
+    if (0 != make_cutest(&cutest, &cutest_o, verbose)) {
+      return -4;
+    }
+    /*
     if (0 != make_cproto(&cproto, verbose)) {
       return -4;
     }
+    */
   }
   else {
     clean(&helpers_o, verbose);
@@ -1290,7 +1407,11 @@ int build(file_list_t* source_list, file_list_t* target_list, int verbose, int c
     printf("DEBUG: Done with the CUTest framework and tools dependencies.\n");
   }
 
+  /*
   const int allocated_cores = get_number_of_cores();
+  */
+  /*
+  const int allocated_cores = 1;
 
   if (allocated_cores > 1) {
     if (1 < verbose) {
@@ -1308,6 +1429,7 @@ int build(file_list_t* source_list, file_list_t* target_list, int verbose, int c
     retval = wait_for_child_processes(allocated_cores, verbose);
   }
   else {
+  */
     retval = launch_process(source_list,
                             target_list,
                             &cutest_h,
@@ -1316,7 +1438,9 @@ int build(file_list_t* source_list, file_list_t* target_list, int verbose, int c
                             &cutest_mock,
                             &cutest_run,
                             &cproto, verbose, clean);
+    /*
   }
+    */
   /*
   retval = build_deps(source_list, target_list, &cutest_h, &cutest_o,
                       &cutest_prox, &cutest_mock,
@@ -1386,7 +1510,7 @@ int main(int argc, char* argv[]) {
     }
 
     /* Add all other arguments to the build-target list */
-    target_node = new_file_node(argv[i]);
+    target_node = new_file_node(NULL, argv[i]);
     if (NULL == target_node) {
       fprintf(stderr, "ERROR: Out of memory while adding requested target '%s'\n", argv[i]);
       return EXIT_FAILURE;
@@ -1399,8 +1523,8 @@ int main(int argc, char* argv[]) {
     }
   }
 
-  make_list_of_files(&source_list, CUTEST_SRC_PATH, ".c", "_test.c", "_run.c");
-  make_list_of_files(&test_source_list, CUTEST_TST_PATH, "_test.c", NULL, NULL);
+  make_list_of_files(&source_list, CUTEST_SRC_PATH, ".c", "_test.c", "_run.c", verbose, "product code");
+  make_list_of_files(&test_source_list, CUTEST_TST_PATH, "_test.c", NULL, NULL, verbose, "test suites");
 
   print_missing_tests(&source_list, &test_source_list);
   print_missing_sources(&source_list, &test_source_list);

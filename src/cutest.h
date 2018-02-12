@@ -382,6 +382,7 @@
 #define _CUTEST_H_
 
 #ifdef CUTEST_LENIENT_ASSERTS
+#define VARIADIC 1
 #include "cutest_lenient.h"
 #else
 #include "cutest_simple.h"
