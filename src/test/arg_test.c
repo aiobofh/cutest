@@ -19,7 +19,7 @@ test(allocate_arg_node_shall_allocate_memory_for_a_new_node)
 test(allocate_arg_node_shall_output_an_error_if_allocation_failed)
 {
   allocate_arg_node();
-#ifdef CUTEST_GCC
+#if __GNUC__ > 4
   assert_eq(1, m.fwrite.call_count);
   assert_eq(stderr, m.fwrite.args.arg3);
 #else
@@ -47,9 +47,9 @@ test(allocate_arg_node_shall_return_null_if_something_wrong)
 
 test(free_arg_node_shall_free_node)
 {
-  free_arg_node(0x1234);
+  free_arg_node((arg_node_t*)0x1234);
   assert_eq(1, m.free.call_count);
-  assert_eq(0x1234, m.free.args.arg0);
+  assert_eq((void*)0x1234, m.free.args.arg0);
 }
 
 /*****************************************************************************
@@ -58,23 +58,23 @@ test(free_arg_node_shall_free_node)
 
 test(new_arg_shall_grab_the_string_length_of_the_input_arg)
 {
-  new_arg(0x1234);
+  new_arg((char*)0x1234);
   assert_eq(1, m.strlen.call_count);
-  assert_eq(0x1234, m.strlen.args.arg0);
+  assert_eq((void*)0x1234, m.strlen.args.arg0);
 }
 
 test(new_arg_shall_allocate_correct_amount_of_memory_for_name)
 {
   m.strlen.retval = 10;
-  new_arg(0x1234);
+  new_arg((char*)0x1234);
   assert_eq(1, m.malloc.call_count);
   assert_eq(10 + 1, m.malloc.args.arg0); // plus \0
 }
 
 test(new_arg_shall_output_an_error_if_allocation_failed)
 {
-  new_arg(0x1234);
-#ifdef CUTEST_GCC
+  new_arg((char*)0x1234);
+#if __GNUC__ > 4
   assert_eq(1, m.fwrite.call_count);
   assert_eq(stderr, m.fwrite.args.arg3);
 #else
@@ -86,11 +86,11 @@ test(new_arg_shall_output_an_error_if_allocation_failed)
 test(new_arg_shall_new_the_full_string)
 {
   m.strlen.retval = 10;
-  m.malloc.retval = 0x1234;
-  new_arg(0x5678);
+  m.malloc.retval = (void*)0x1234;
+  new_arg((char*)0x5678);
   assert_eq(1, m.strncpy.call_count);
-  assert_eq(0x1234, m.strncpy.args.arg0);
-  assert_eq(0x5678, m.strncpy.args.arg1);
+  assert_eq((void*)0x1234, m.strncpy.args.arg0);
+  assert_eq((void*)0x5678, m.strncpy.args.arg1);
   assert_eq(10 + 1, m.strncpy.args.arg2); // plus \0
 }
 
@@ -98,12 +98,12 @@ test(new_arg_shall_return_pointer_to_the_new_string_if_all_is_ok)
 {
   arg_node_t node;
   m.malloc.retval = &node;
-  assert_eq(&node, new_arg(0x1234));
+  assert_eq(&node, new_arg((char*)0x1234));
 }
 
 test(new_arg_shall_return_null_if_something_went_wrong)
 {
-  assert_eq(NULL, new_arg(0x1234));
+  assert_eq(NULL, new_arg((char*)0x1234));
 }
 
 /*****************************************************************************

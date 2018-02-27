@@ -72,10 +72,13 @@ info:
 	$(Q)$(CC) $< -pedantic -Wall -O2 -std=c11 -flto -o $@ -g -D'CUTEST_PATH="$(CUTEST_PATH)/"' -D'CUTEST_SRC_PATH="$(CUTEST_SRC_DIR)/"' -D'CUTEST_TST_PATH="$(CUTEST_TEST_DIR)/"' -D'CUTEST_INC_PATH="$(CUTEST_PATH)/"' -D'CUTEST_TMP_PATH="$(CUTEST_TMP_PATH)/"'
 
 .cutest/cutest: .cutest/cutest_make
-	$(Q)$<
+	$(Q)$< $@
+
+.cutest/cutest_work: .cutest/cutest_make
+	$(Q)$< $@
 
 check: .cutest/cutest .cutest/cutest_make .cutest/cutest_work
-	$(Q).cutest/cutest_make .cutest/cutest && .cutest/cutest .cutest/cutest_make .cutest/cutest_work
+	$(Q)$^
 
 clean::
 	$(Q).cutest/cutest_make clean && $(RM) *.xml

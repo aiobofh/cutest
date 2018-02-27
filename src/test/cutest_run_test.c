@@ -321,7 +321,7 @@ test(print_test_names_printer_shall_traverse_the_list_of_testcases_and_print)
   node[1].next = &node[2];
   node[2].next = NULL;
   print_test_names_printer(&list);
-#ifdef CUTEST_GCC
+#ifdef __GNUC__
   assert_eq(3, m.printf.call_count);
 #else
   assert_eq(5, m.printf.call_count);
@@ -336,7 +336,7 @@ test(main_shall_do_a_sanity_check_of_argument_count_print_an_error_wrong_cnt)
 {
   char* argv[] = {"program_name"};
   main(1, argv);
-#ifdef CUTEST_GCC
+#ifdef __GNUC__
   assert_eq(1, m.fwrite.call_count);
   assert_eq(stderr, m.fwrite.args.arg3);
 #else
@@ -365,15 +365,6 @@ test(main_shall_check_if_test_source_file_name_exists)
   main(3, argv);
   assert_eq(1, m.file_exists.call_count);
   assert_eq("test_file", m.file_exists.args.arg0);
-}
-
-test(main_shall_check_if_mock_header_file_name_exists)
-{
-  char* argv[] = {"program_name", "test_file", "mock_file"};
-  m.file_exists.retval = 1;
-  main(3, argv);
-  assert_eq(2, m.file_exists.call_count);
-  assert_eq("mock_file", m.file_exists.args.arg0);
 }
 
 static int file_exists_false_test_source_file(const char* filename)

@@ -48,8 +48,6 @@ static int cutest_error_cnt = 0;
 
 extern struct tm *localtime_r(const time_t *timep, struct tm *result);
 
-#ifdef CUTEST_LENIENT_ASSERTS
-
 int cutest_assert_eq_char(const char a, const char b, char* output)
 {
   if (a == b) {
@@ -134,8 +132,6 @@ int cutest_assert_eq_default(const unsigned long long a,
   sprintf(output, "%lld, %lld", a, b);
   return 1;
 }
-
-#endif
 
 void cutest_increment_skips(char* reason)
 {

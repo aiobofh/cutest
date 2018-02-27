@@ -1,12 +1,5 @@
-#include cutest.mk
-#
-#ifneq ("$(COV)","")
-#	include coverage.mk
-#endif
-
-Q=@
-
-all: cutest_run cutest_mock cutest_prox cutest_work
+Q ?=@
+.SUFFIXES:
 
 STD:=none
 HAS_C11:=$(shell $(CC) -std=c11 -o empty empty.c 2>&1 >/dev/null && echo "yes")
@@ -29,47 +22,49 @@ else
 	endif
 endif
 
-HAS_LTO:=$(shell $(CC) -o empty empty.c -flto 2>&1 >/dev/null && echo "yes")
-ifeq ("$(HAS_LTO)","yes")
-	LTO:=-flto
-else
-	LTO:=
-	HAS_LTO:=no
-endif
+CFLAGS+=-Wall -pedantic -O2 $(STD)
+LDFLAGS+=-flto
 
-LOCALCFLAGS=-pedantic -Wall -O0 $(STD) $(LTO)
+export CFLAGS
+export LDFLAGS
 
-include cutest.mk
-include coverage.mk
+all: cutest_prox cutest_mock cutest_run
+	$(Q)echo "Running unit-tests" && \
+	$(MAKE) -r --no-print-directory -C test
 
-info:
-	$(Q)echo "C-standard: $(STD)"
-	$(Q)echo "LTO       : $(LTO)"
-	$(Q)echo "CLFAGS    : $(LOCALCFLAGS)"
+helpers.o: helpers.c helpers.h
+	$(Q)$(CC) $(CFLAGS) -c $< -o $@
 
-%.o: %.c
-	$(Q)$(CC) -c $^ $(LOCALCFLAGS) $(EXTRA_CFLAGS) -o $@
+mockable.o: mockable.c mockable.h arg.h list.h
+	$(Q)$(CC) $(CFLAGS) -c $< -o $@
 
-cutest_run: cutest_run.o helpers.o testcase.o
-	$(Q)$(CC) $^ $(LOCALCFLAGS) $(EXTRA_CFLAGS) -o $@
+arg.o: arg.c arg.h list.h
+	$(Q)$(CC) $(CFLAGS) -c $< -o $@
 
-cutest_mock: cutest_mock.o helpers.o mockable.o arg.o
-	$(Q)$(CC) $^ $(LOCALCFLAGS) $(EXTRA_CFLAGS) -o $@
+testcase.o: testcase.c testcase.h list.h
+	$(Q)$(CC) $(CFLAGS) -c $< -o $@
+
+#cutest_impl.o: cutest_impl.c cutest.h cutest_lenient.h cutest_simple.h
+#	$(Q)$(CC) $(CFLAGS) -c $< -o $@
+
+cutest_prox.o: cutest_prox.c cutest_prox.h helpers.h
+	$(Q)$(CC) $(CFLAGS) -c $< -o $@
+
+cutest_mock.o: cutest_mock.c cutest_mock.h arg.h mockable.h list.h helpers.h
+	$(Q)$(CC) $(CFLAGS) -c $< -o $@
+
+cutest_run.o: cutest_run.c cutest_run.h testcase.h helpers.h
+	$(Q)$(CC) $(CFLAGS) -c $< -o $@
 
 cutest_prox: cutest_prox.o helpers.o
-	$(Q)$(CC) $^ $(LOCALCFLAGS) $(EXTRA_CFLAGS) -o $@
+	$(Q)$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@
 
-cutest_work: cutest_work.o helpers.o
-	$(Q)$(CC) $^ $(LOCALCFLAGS) $(EXTRA_CFLAGS) -o $@
+cutest_mock: cutest_mock.o helpers.o arg.o mockable.o helpers.o
+	$(Q)$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@
 
-cutest_conf: cutest_conf.o
-	$(Q)$(CC) $^ $(LOCALCFLAGS) $(EXTRA_CFLAGS) -o $@
+cutest_run: cutest_run.o helpers.o testcase.o
+	$(Q)$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@
 
-cutest_make: cutest_make.o
-	$(Q)$(CC) $^ $(LOCALCFLAGS) $(EXTRA_CFLAGS) -o $@ -g
-
-#check:
-#	$(Q)$(MAKE) -s -r --no-print-directory -f cutest.mk check
-
-clean::
-	$(Q)$(RM) *~ *.o cutest_run cutset_mock cutest_prox cutest_work empty
+clean:
+	$(Q)$(MAKE)  -r --no-print-directory -C test clean
+	$(Q)$(RM) -f helpers.o mockable.o arg.o testcase.o cutest_impl.o cutest_prox.o cutest_mock.o cutest_run.o cutest_prox cutest_mock cutest_run

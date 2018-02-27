@@ -106,15 +106,23 @@
 #define _POSIX_C_SOURCE 200112L
 */
 #define _DEFAULT_SOURCE
+
+#ifdef AMIGAOS
+#else
 #include <sys/stat.h>
+#include <sys/types.h>
+/*
+#include <sys/wait.h>
+*/
+#include <dirent.h>
+#include <unistd.h>
+/* typedef unsigned long int size_t; */
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
-#include <dirent.h>
-#include <wchar.h>
+/* #include <wchar.h> */
 #include <string.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/wait.h>
 
 #include "cutest_make.h"
 
@@ -149,17 +157,19 @@ static int get_number_of_cores()
 
 static file_node_t* new_file_node(const char* dirname, char* path)
 {
+  size_t dirnamelen = 0;
+  char* dst = NULL;
   file_node_t* node = malloc(sizeof(*node));
+
   if (NULL == node) {
     return NULL;
   }
 
-  size_t dirnamelen = 0;
   if (NULL != dirname) {
     dirnamelen = strlen(dirname);
   }
 
-  char* dst = malloc(dirnamelen + strlen(path) + 1);
+  dst = malloc(dirnamelen + strlen(path) + 1);
   if (NULL == dst) {
     free(node);
     return NULL;
@@ -202,26 +212,35 @@ static size_t make_list_of_files(file_list_t* list, char* path,
                                  const char* filt1, const char* filt2,
                                  int verbose, const char* reasonstr)
 {
+#ifdef AMIGAOS
+#else
   DIR* dir;
   struct dirent* ent;
   const size_t suffix_len = strlen(suffix);
   const size_t filt1_len = (NULL != filt1) ? strlen(filt1) : 0;
   const size_t filt2_len = (NULL != filt2) ? strlen(filt2) : 0;
+#endif
 
   if (1 < verbose) {
     printf("DEBUG: Searching for %s in '%s'\n", reasonstr, path);
   }
 
+#ifdef AMIGAOS
+#else
   dir = opendir((char*)path);
 
   if (NULL == dir) {
     fprintf(stderr, "ERROR: Could not open directory \"%s\"\n", path);
     return 0;
   }
+#endif
 
+#ifdef AMIGAOS
+#else
   while (NULL != (ent = readdir(dir))) {
     char* name = ent->d_name;
     const size_t ent_len = strlen(name);
+    file_node_t* node;
     if (ent_len < suffix_len) {
       continue;
     }
@@ -237,17 +256,14 @@ static size_t make_list_of_files(file_list_t* list, char* path,
       continue;
     }
 
-    /* HERE */
-
-
-    file_node_t* node = new_file_node(path, name);
+    node = new_file_node(path, name);
     if (NULL == node) {
       fprintf(stderr, "ERROR: Out of memory while listing files\n");
       return 0;
     }
     file_list_add_node(list, node);
   }
-
+#endif
   return 0;
 }
 
@@ -280,6 +296,9 @@ static char* gen_filename(const char* from,
                           const char* replace,
                           const char* with)
 {
+  char* oldpath = NULL;
+  size_t filenamepos = 0;
+  size_t oldpathlen = strlen(from);
   char* n = malloc(strlen(from) -
                    strlen(replace) +
                    strlen(with) +
@@ -287,9 +306,6 @@ static char* gen_filename(const char* from,
 
   strreplace(n, from, replace, with);
 
-  char* oldpath = NULL;
-  size_t oldpathlen = strlen(from);
-  size_t filenamepos = 0;
   while (oldpathlen > 0) {
     if (OS_PATH_SEPARATOR[0] == from[oldpathlen]) {
       oldpath = malloc(oldpathlen + 2);
@@ -385,6 +401,14 @@ static int file_exists(const char* filename)
   return 1;
 }
 
+#ifdef AMIGAOS
+#define should_rebuild(TARGET, DEPS, VERBOSE) 1
+static int _should_rebuild(artifact_t* target, size_t num,
+                           const artifact_t** dep, int verbose)
+{
+  return 1;
+}
+#else
 #define should_rebuild(TARGET, DEPS, VERBOSE)                           \
   _should_rebuild((artifact_t*)TARGET, count(DEPS), DEPS, VERBOSE)
 
@@ -405,10 +429,12 @@ static int _should_rebuild(artifact_t* target, size_t num,
     struct stat dep_stats;
 
     stat(dep[i]->str, &dep_stats);
-
-    if ((dep_stats.st_mtim.tv_sec > target_stats.st_mtim.tv_sec) ||
-        ((dep_stats.st_mtim.tv_sec == target_stats.st_mtim.tv_sec) &&
-         (dep_stats.st_mtim.tv_nsec > target_stats.st_mtim.tv_nsec))) {
+    /*
+    if ((dep_stats.st_mtime.tv_sec > target_stats.st_mtime.tv_sec) ||
+        ((dep_stats.st_mtime.tv_sec == target_stats.st_mtime.tv_sec) &&
+         (dep_stats.st_mtim.etv_nsec > target_stats.st_mtime.tv_nsec))) {
+    */
+    if (dep_stats.st_mtime > target_stats.st_mtime) {
       if (verbose >= 2) printf("DEBUG: %s changed, need to rebuild %s\n", dep[i]->str, target->str);
       return 1;
     }
@@ -418,6 +444,7 @@ static int _should_rebuild(artifact_t* target, size_t num,
 
   return 0;
 }
+#endif
 
 static int make_mockables_lst(mockables_lst_t* mockables_lst,
                               mockables_o_t* mockables_o, int verbose)
@@ -427,10 +454,11 @@ static int make_mockables_lst(mockables_lst_t* mockables_lst,
     "nm %s | sed 's/.* //g' | grep -v '__stack_' | sort -u > %s && "
     "grep 'gcc2_compiled.' %s > /dev/null && sed -i 's/^_//g' %s || true";
   char* command = NULL;
+  artifact_t* deps[1];
 
-  const artifact_t* deps[1] = {(artifact_t*)mockables_o};
+  deps[0] = (artifact_t*)mockables_o;
 
-  if (0 == should_rebuild(mockables_lst, deps, verbose)) {
+  if (0 == should_rebuild(mockables_lst, (const artifact_t**)deps, verbose)) {
     return 0;
   }
 
@@ -461,17 +489,19 @@ static int make_mockables_o(mockables_o_t* mockables_o, c_t* c, int verbose)
 {
   /* GCC */
   int retval = 0;
-  /*
+#ifdef AMIGAOS
   const char* fmt =
-    "gcc %s -fno-inline -g -O0 -o %s -c %s -D\"static=\" -D\"inline=\" -D\"main=MAIN\"";
-  */
+    "vc %s -g -O0 -o %s -c %s -D\"static=\" -D\"inline=\" -I\"" CUTEST_INC_PATH "\"";
+#else
   const char* fmt =
     "$CC %s -fno-inline -g -O0 -o %s -c %s -D\"static=\" -D\"inline=\" -I\"" CUTEST_INC_PATH "\"";
+#endif
   char* command = NULL;
+  artifact_t* deps[1];
 
-  const artifact_t* deps[1] = {(artifact_t*)c};
+  deps[0] = (artifact_t*)c;
 
-  if (0 == should_rebuild(mockables_o, deps, verbose)) {
+  if (0 == should_rebuild(mockables_o, (const artifact_t**)deps, verbose)) {
     return 0;
   }
 
@@ -499,15 +529,20 @@ static int make_mockables_s(mockables_s_t* mockables_s, c_t* c, int verbose)
 {
   /* GCC */
   int retval = 0;
-
+#ifdef AMIGAOS
+  const char* fmt =
+    "vc -S %s -g -O0 -o %s -c %s -D\"static=\" -D\"inline=\" -D\"main=MAIN\" -I\"" CUTEST_INC_PATH "\"";
+#else
   const char* fmt =
     "$CC -S -fverbose-asm %s -fno-inline -g -O0 -o %s -c %s -D\"static=\" -D\"inline=\" -D\"main=MAIN\" -I\"" CUTEST_INC_PATH "\"";
-
+#endif
   char* command = NULL;
 
-  const artifact_t* deps[1] = {(artifact_t*)c};
+  artifact_t* deps[1];
 
-  if (0 == should_rebuild(mockables_s, deps, verbose)) {
+  deps[0] = (artifact_t*)c;
+
+  if (0 == should_rebuild(mockables_s, (const artifact_t**)deps, verbose)) {
     return 0;
   }
 
@@ -541,11 +576,13 @@ static int make_proxified_s(proxified_s_t* proxified_s,
   const char* fmt = "%s %s %s > %s";
   char* command = NULL;
 
-  const artifact_t* deps[3] = {(artifact_t*)mockables_s,
-                               (artifact_t*)mockables_lst,
-                               (artifact_t*)cutest_prox};
+  artifact_t* deps[3];
 
-  if (0 == should_rebuild(proxified_s, deps, verbose)) {
+  deps[0] = (artifact_t*)mockables_s;
+  deps[1] = (artifact_t*)mockables_lst;
+  deps[2] = (artifact_t*)cutest_prox;
+
+  if (0 == should_rebuild(proxified_s, (const artifact_t**)deps, verbose)) {
     return 0;
   }
 
@@ -582,12 +619,14 @@ static int make_mocks_h(mocks_h_t* mocks_h,
   const char* fmt = "%s %s %s %s %s > %s";
   char* command;
 
-  const artifact_t* deps[4] = {(artifact_t*)c,
-                               (artifact_t*)mockables_lst,
-                               (artifact_t*)cutest_mock,
-                               (artifact_t*)cproto};
+  artifact_t* deps[4];
 
-  if (0 == should_rebuild(mocks_h, deps, verbose)) {
+  deps[0] = (artifact_t*)c;
+  deps[1] = (artifact_t*)mockables_lst;
+  deps[2] = (artifact_t*)cutest_mock;
+  deps[3] = (artifact_t*)cproto;
+
+  if (0 == should_rebuild(mocks_h, (const artifact_t**)deps, verbose)) {
     return 0;
   }
 
@@ -627,11 +666,13 @@ static int make_test_run_c(test_run_c_t* test_run_c,
   const char* fmt = "%s %s %s > %s";
   char* command;
 
-  const artifact_t* deps[3] = {(artifact_t*)test_c,
-                               (artifact_t*)mocks_h,
-                               (artifact_t*)cutest_run};
+  artifact_t* deps[3];
 
-  if (0 == should_rebuild(test_run_c, deps, verbose)) {
+  deps[0] = (artifact_t*)test_c;
+  deps[1] = (artifact_t*)mocks_h;
+  deps[2] = (artifact_t*)cutest_run;
+
+  if (0 == should_rebuild(test_run_c, (const artifact_t**)deps, verbose)) {
     return 0;
   }
 
@@ -665,17 +706,23 @@ static int make_test(test_t* test,
                      int verbose)
 {
   int retval = 0;
+#ifdef AMIGAOS
+  const char* fmt = "vc %s%s %s %s -o %s -DNDEBUG -D\"inline=\" -D\"CUTEST_GCC\" -D\"CUTEST_LENIENT_ASSERTS\" -I\"" CUTEST_INC_PATH "\"";
+#else
   const char* fmt = "$CC %s%s %s %s -o %s -DNDEBUG -D\"inline=\" -D\"CUTEST_GCC\" -D\"CUTEST_LENIENT_ASSERTS\" -I\"" CUTEST_INC_PATH "\"";
+#endif
   char* command;
-
   file_node_t* file;
   size_t dep_len = 0;
+  char* extra_deps;
+  artifact_t* deps[3];
+
   for (file = dep_list->first; NULL != file; file = file->next) {
     dep_len += strlen(file->file.file_name);
     dep_len += strlen(" ");
   }
 
-  char* extra_deps = malloc(dep_len + 1);
+  extra_deps = malloc(dep_len + 1);
   memset(extra_deps, 0, dep_len + 1);
 
   for (file = dep_list->first; NULL != file; file = file->next) {
@@ -683,11 +730,11 @@ static int make_test(test_t* test,
     strcat(extra_deps, " ");
   }
 
-  const artifact_t* deps[3] = {(artifact_t*)proxified_s,
-                               (artifact_t*)test_run_c,
-                               (artifact_t*)cutest_impl_o};
+  deps[0] = (artifact_t*)proxified_s;
+  deps[1] = (artifact_t*)test_run_c;
+  deps[2] = (artifact_t*)cutest_impl_o;
 
-  if (0 == should_rebuild(test, deps, verbose)) {
+  if (0 == should_rebuild(test, (const artifact_t**)deps, verbose)) {
     return 0;
   }
 
@@ -721,20 +768,17 @@ static int make_test(test_t* test,
 static int _make_o_from_c(artifact_t* o, artifact_t* c, int verbose)
 {
   int retval = 0;
-  char* fmt;
-  /* if (0 == o->fake_main) { */
-    fmt= "$CC -c %s -o %s -O2 -D\"CUTEST_GCC\" -D\"CUTEST_LENIENT_ASSERTS\" -I\"" CUTEST_INC_PATH "\"";
-    /*
-  }
-  else {
-    fmt= "gcc -c %s -o %s -O2 -D\"CUTEST_GCC\" -D\"CUTEST_LENIENT_ASSERTS\" -D\"main=MAIN\"";
-  }
-    */
+#ifdef AMIGAOS
+  const char* fmt = "vc -c %s -o %s -O2 -D\"CUTEST_GCC\" -D\"CUTEST_LENIENT_ASSERTS\" -I\"" CUTEST_INC_PATH "\"";
+#else
+  const char* fmt = "$CC -c %s -o %s -O2 -D\"CUTEST_GCC\" -D\"CUTEST_LENIENT_ASSERTS\" -I\"" CUTEST_INC_PATH "\"";
+#endif
   char* command = NULL;
+  artifact_t* deps[1];
 
-  const artifact_t* deps[1] = {(artifact_t*)c};
+  deps[0] = (artifact_t*)c;
 
-  if (0 == _should_rebuild(o, 1, deps, verbose)) {
+  if (0 == _should_rebuild(o, 1, (const artifact_t**)deps, verbose)) {
     return 0;
   }
 
@@ -809,6 +853,16 @@ static int _make_exe_from_o(artifact_t* exe, size_t num,
     obj_len += strlen(obj[i]->str);
   }
 
+#ifdef AMIGAOS
+  command_len = (strlen("vc ") +
+                 strlen(CUTEST_CC_LTO) +
+                 strlen(" ") +
+                 obj_len +
+                 num +
+                 strlen("-o ") +
+                 strlen(exe->str) +
+                 1);
+#else
   command_len = (strlen("$CC ") +
                  strlen(CUTEST_CC_LTO) +
                  strlen(" ") +
@@ -817,11 +871,15 @@ static int _make_exe_from_o(artifact_t* exe, size_t num,
                  strlen("-o ") +
                  strlen(exe->str) +
                  1);
-
+#endif
   command = malloc(command_len);
 
   memset(command, 0, command_len);
+#ifdef AMIGAOS
+  strcpy(command, "vc ");
+#else
   strcpy(command, "$CC ");
+#endif
   strcat(command, CUTEST_CC_LTO);
   strcat(command, " ");
   for (i = 0; i < num; i++) {
@@ -854,10 +912,12 @@ static int make_cutest_prox(cutest_prox_t* cutest_prox,
                             helpers_o_t* helpers_o,
                             int verbose)
 {
-  const artifact_t* objs[2] = {(artifact_t*)cutest_prox_o,
-                               (artifact_t*)helpers_o};
+  artifact_t* objs[2];
 
-  return make_exe_from_o(cutest_prox, objs, verbose);
+  objs[0] = (artifact_t*)cutest_prox_o;
+  objs[1] = (artifact_t*)helpers_o;
+
+  return make_exe_from_o(cutest_prox, (const artifact_t**)objs, verbose);
 }
 
 static int make_cutest_mock_o(cutest_mock_o_t* cutest_mock_o,
@@ -874,12 +934,14 @@ static int make_cutest_mock(cutest_mock_t* cutest_mock,
                             arg_o_t* arg_o,
                             int verbose)
 {
-  const artifact_t* objs[4] = {(artifact_t*)cutest_mock_o,
-                               (artifact_t*)helpers_o,
-                               (artifact_t*)mockable_o,
-                               (artifact_t*)arg_o};
+  artifact_t* objs[4];
 
-  return make_exe_from_o(cutest_mock, objs, verbose);
+  objs[0] = (artifact_t*)cutest_mock_o;
+  objs[1] = (artifact_t*)helpers_o;
+  objs[2] = (artifact_t*)mockable_o;
+  objs[3] = (artifact_t*)arg_o;
+
+  return make_exe_from_o(cutest_mock, (const artifact_t**)objs, verbose);
 }
 
 static int make_cutest_run_o(cutest_run_o_t* cutest_run_o,
@@ -895,11 +957,13 @@ static int make_cutest_run(cutest_run_t* cutest_run,
                            testcase_o_t* testcase_o,
                            int verbose)
 {
-  const artifact_t* objs[3] = {(artifact_t*)cutest_run_o,
-                               (artifact_t*)helpers_o,
-                               (artifact_t*)testcase_o};
+  artifact_t* objs[3];
 
-  return make_exe_from_o(cutest_run, objs, verbose);
+  objs[0] = (artifact_t*)cutest_run_o;
+  objs[1] = (artifact_t*)helpers_o;
+  objs[2] = (artifact_t*)testcase_o;
+
+  return make_exe_from_o(cutest_run, (const artifact_t**)objs, verbose);
 }
 
 static int make_cutest_work_o(cutest_work_o_t* cutest_work_o,
@@ -914,10 +978,12 @@ static int make_cutest_work(cutest_work_t* cutest_work,
                             helpers_o_t* helpers_o,
                             int verbose)
 {
-  const artifact_t* objs[2] = {(artifact_t*)cutest_work_o,
-                               (artifact_t*)helpers_o};
+  artifact_t* objs[2];
 
-  return make_exe_from_o(cutest_work, objs, verbose);
+  objs[0] = (artifact_t*)cutest_work_o;
+  objs[1] = (artifact_t*)helpers_o;
+
+  return make_exe_from_o(cutest_work, (const artifact_t**)objs, verbose);
 }
 
 static int make_cutest_o(cutest_o_t* cutest_o,
@@ -931,9 +997,11 @@ static int make_cutest(cutest_t* cutest,
                        cutest_o_t* cutest_o,
                        int verbose)
 {
-  const artifact_t* objs[1] = {(artifact_t*)cutest_o};
+  artifact_t* objs[1];
 
-  return make_exe_from_o(cutest, objs, verbose);
+  objs[0] = (artifact_t*)cutest_o;
+
+  return make_exe_from_o(cutest, (const artifact_t**)objs, verbose);
 }
 
 /*
@@ -970,8 +1038,9 @@ int split_deptooken(file_list_t* dep_list, char* buf)
   char *start = b;
   for (i = 0; i < len; i++) {
     if ((' ' == b[i]) || (len - 1 == i)) {
+      file_node_t* file = NULL;
       b[i] = '\0';
-      file_node_t* file = new_file_node(NULL, start);
+      file = new_file_node(NULL, start);
       file_list_add_node(dep_list, file);
       start = &b[i + 1];
     }
@@ -1008,7 +1077,10 @@ void _clean(artifact_t* artifact, int verbose)
   if (0 != verbose) {
     printf("Removing %s\n", artifact->str);
   }
+#ifdef AMIGAOS
+#else
   unlink(artifact->str);
+#endif
 }
 
 static int test_in_target_list(file_list_t* target_list, const char* file_name, int verbose) {
@@ -1021,22 +1093,58 @@ static int test_in_target_list(file_list_t* target_list, const char* file_name, 
   return 1;
 }
 
+#define ASSIGN_ARTIFACT(ARTIFACT, STR, FAKE_MAIN) \
+  ARTIFACT.str = STR;                             \
+  ARTIFACT.timestamp = 0;                         \
+  ARTIFACT.fake_main = FAKE_MAIN
+
 int build_dep(const char* source_file_name, file_list_t* target_list,
               cutest_h_t* cutest_h, cutest_impl_o_t* cutest_impl_o,
               cutest_prox_t* cutest_prox, cutest_mock_t* cutest_mock,
               cutest_run_t* cutest_run, cproto_t* cproto,
               int verbose, int clean)
 {
-  const int v = verbose; // Shorter
-  c_t c = {(char*)source_file_name, 0};
-  mockables_o_t mockables_o = {gen_filename(c.str, CUTEST_TMP_PATH, ".c", "_mockables.o"), 0, 1};
-  mockables_s_t mockables_s = {gen_filename(mockables_o.str, CUTEST_TMP_PATH, ".o", ".s"), 0, 1};
-  mockables_lst_t mockables_lst = {gen_filename(mockables_s.str, CUTEST_TMP_PATH, ".s", ".lst"), 0, 1};
-  proxified_s_t proxified_s = {gen_filename(mockables_s.str, CUTEST_TMP_PATH, "_mockables.s", "_proxified.s"), 0, 1};
-  mocks_h_t mocks_h = {gen_filename(c.str, CUTEST_TMP_PATH, ".c", "_mocks.h"), 0, 1};
-  test_c_t test_c = {gen_filename(c.str, CUTEST_TST_PATH, ".c", "_test.c"), 0, 1};
-  test_run_c_t test_run_c = {gen_filename(c.str, CUTEST_TMP_PATH, ".c", "_test_run.c"), 0, 0};
-  test_t test = {gen_filename(c.str, CUTEST_TST_PATH, ".c", "_test"), 0, 0};
+  const int v = verbose;
+  c_t c;
+
+  mockables_o_t mockables_o;
+  mockables_s_t mockables_s;
+  mockables_lst_t mockables_lst;
+  proxified_s_t proxified_s;
+  mocks_h_t mocks_h;
+  test_c_t test_c;
+  test_run_c_t test_run_c;
+  test_t test;
+
+  file_list_t dep_list;
+
+  ASSIGN_ARTIFACT(c,
+                  (char*)source_file_name,
+                  1);
+  ASSIGN_ARTIFACT(mockables_o,
+                  gen_filename(c.str, CUTEST_TMP_PATH, ".c", "_mockables.o"),
+                  1);
+  ASSIGN_ARTIFACT(mockables_s,
+                  gen_filename(mockables_o.str, CUTEST_TMP_PATH, ".o", ".s"),
+                  1);
+  ASSIGN_ARTIFACT(mockables_lst,
+                  gen_filename(mockables_s.str, CUTEST_TMP_PATH, ".s", ".lst"),
+                  1);
+  ASSIGN_ARTIFACT(proxified_s,
+                  gen_filename(mockables_s.str, CUTEST_TMP_PATH, "_mockables.s", "_proxified.s"),
+                  1);
+  ASSIGN_ARTIFACT(mocks_h,
+                  gen_filename(c.str, CUTEST_TMP_PATH, ".c", "_mocks.h"),
+                  1);
+  ASSIGN_ARTIFACT(test_c,
+                  gen_filename(c.str, CUTEST_TST_PATH, ".c", "_test.c"),
+                  1);
+  ASSIGN_ARTIFACT(test_run_c,
+                  gen_filename(c.str, CUTEST_TMP_PATH, ".c", "_test_run.c"),
+                  1);
+  ASSIGN_ARTIFACT(test,
+                  gen_filename(c.str, CUTEST_TST_PATH, ".c", "_test"),
+                  0);
 
   if (NULL != target_list->first) {
     if (1 < verbose) {
@@ -1070,7 +1178,6 @@ int build_dep(const char* source_file_name, file_list_t* target_list,
       return -5;
     }
 
-    file_list_t dep_list;
     memset(&dep_list, 0, sizeof(dep_list));
 
     read_required_linkable_objects_from_test_suite(&dep_list, &test_c);
@@ -1177,11 +1284,10 @@ int build_deps(int core_idx,
   const int all_target_len = file_list_len(list);
   const int req_target_len = file_list_len(target_list);
   size_t target_len = all_target_len;
+  size_t target_idx = core_idx;
   if (0 != req_target_len) {
     target_len = min(all_target_len, req_target_len);
   }
-
-  size_t target_idx = core_idx;
 
   while (target_idx < target_len) {
     file_node_t* node = file_list_node_by_idx(list, target_idx);
@@ -1291,43 +1397,115 @@ int build(file_list_t* source_list, file_list_t* target_list, int verbose, int c
 {
   int retval = 0;
 
-  helpers_c_t helpers_c = {HELPERS_C, 0, 0};
-  helpers_o_t helpers_o = {gen_filename(helpers_c.str, CUTEST_TMP_PATH, ".c", ".o"), 0, 0};
+  helpers_c_t helpers_c;
+  helpers_o_t helpers_o;
+  mockable_c_t mockable_c;
+  mockable_o_t mockable_o;
+  arg_c_t arg_c;
+  arg_o_t arg_o;
+  testcase_c_t testcase_c;
+  testcase_o_t testcase_o;
+  cutest_h_t cutest_h;
+  cutest_impl_c_t cutest_impl_c;
+  cutest_impl_o_t cutest_impl_o;
+  cutest_prox_c_t cutest_prox_c;
+  cutest_prox_o_t cutest_prox_o;
+  cutest_prox_t cutest_prox;
+  cutest_mock_c_t cutest_mock_c;
+  cutest_mock_o_t cutest_mock_o;
+  cutest_mock_t cutest_mock;
+  cutest_run_c_t cutest_run_c;
+  cutest_run_o_t cutest_run_o;
+  cutest_run_t cutest_run;
+  cutest_work_c_t cutest_work_c;
+  cutest_work_o_t cutest_work_o;
+  cutest_work_t cutest_work;
+  cutest_c_t cutest_c;
+  cutest_o_t cutest_o;
+  cutest_t cutest;
+  cproto_t cproto;
 
-  mockable_c_t mockable_c = {MOCKABLE_C, 0, 0};
-  mockable_o_t mockable_o = {gen_filename(mockable_c.str, CUTEST_TMP_PATH, ".c", ".o"), 0, 0};
-
-  arg_c_t arg_c = {ARG_C, 0, 0};
-  arg_o_t arg_o = {gen_filename(arg_c.str, CUTEST_TMP_PATH, ".c", ".o"), 0, 0};
-
-  testcase_c_t testcase_c = {TESTCASE_C, 0, 0};
-  testcase_o_t testcase_o = {gen_filename(testcase_c.str, CUTEST_TMP_PATH, ".c", ".o"), 0, 0};
-
-  cutest_h_t cutest_h = {CUTEST_H, 0, 0};
-  cutest_impl_c_t cutest_impl_c = {CUTEST_IMPL_C, 0, 0};
-  cutest_impl_o_t cutest_impl_o = {gen_filename(cutest_impl_c.str, CUTEST_TMP_PATH, ".c", ".o"), 0, 0};
-
-  cutest_prox_c_t cutest_prox_c = {CUTEST_PROX_C, 0, 0};
-  cutest_prox_o_t cutest_prox_o = {gen_filename(cutest_prox_c.str, CUTEST_TMP_PATH, ".c", ".o"), 0, 0};
-  cutest_prox_t cutest_prox = {gen_filename(cutest_prox_c.str, CUTEST_TMP_PATH, ".c", ""), 0, 0};
-
-  cutest_mock_c_t cutest_mock_c = {CUTEST_MOCK_C, 0, 0};
-  cutest_mock_o_t cutest_mock_o = {gen_filename(cutest_mock_c.str, CUTEST_TMP_PATH, ".c", ".o"), 0, 0};
-  cutest_mock_t cutest_mock = {gen_filename(cutest_mock_c.str, CUTEST_TMP_PATH, ".c", ""), 0, 0};
-
-  cutest_run_c_t cutest_run_c = {CUTEST_RUN_C, 0, 0};
-  cutest_run_o_t cutest_run_o = {gen_filename(cutest_run_c.str, CUTEST_TMP_PATH, ".c", ".o"), 0, 0};
-  cutest_run_t cutest_run = {gen_filename(cutest_run_c.str, CUTEST_TMP_PATH, ".c", ""), 0, 0};
-
-  cutest_work_c_t cutest_work_c = {CUTEST_WORK_C, 0, 0};
-  cutest_work_o_t cutest_work_o = {gen_filename(cutest_work_c.str, CUTEST_TMP_PATH, ".c", ".o"), 0, 0};
-  cutest_work_t cutest_work = {gen_filename(cutest_work_c.str, CUTEST_TMP_PATH, ".c", ""), 0, 0};
-
-  cutest_c_t cutest_c = {CUTEST_C, 0, 0};
-  cutest_o_t cutest_o = {gen_filename(cutest_c.str, CUTEST_TMP_PATH, ".c", ".o"), 0, 0};
-  cutest_t cutest = {gen_filename(cutest_c.str, CUTEST_TMP_PATH, ".c", ""), 0, 0};
-
-  cproto_t cproto = {CPROTO, 0, 0};
+  ASSIGN_ARTIFACT(helpers_c,
+                  HELPERS_C,
+                  0);
+  ASSIGN_ARTIFACT(helpers_o,
+                  gen_filename(helpers_c.str, CUTEST_TMP_PATH, ".c", ".o"),
+                  0);
+  ASSIGN_ARTIFACT(mockable_c,
+                  MOCKABLE_C,
+                  0);
+  ASSIGN_ARTIFACT(mockable_o,
+                  gen_filename(mockable_c.str, CUTEST_TMP_PATH, ".c", ".o"),
+                  0);
+  ASSIGN_ARTIFACT(arg_c,
+                  ARG_C,
+                  0);
+  ASSIGN_ARTIFACT(arg_o,
+                  gen_filename(arg_c.str, CUTEST_TMP_PATH, ".c", ".o"),
+                  0);
+  ASSIGN_ARTIFACT(testcase_c,
+                  TESTCASE_C,
+                  0);
+  ASSIGN_ARTIFACT(testcase_o,
+                  gen_filename(testcase_c.str, CUTEST_TMP_PATH, ".c", ".o"),
+                  0);
+  ASSIGN_ARTIFACT(cutest_h,
+                  CUTEST_H,
+                  0);
+  ASSIGN_ARTIFACT(cutest_impl_c,
+                  CUTEST_IMPL_C,
+                  0);
+  ASSIGN_ARTIFACT(cutest_impl_o,
+                  gen_filename(cutest_impl_c.str, CUTEST_TMP_PATH, ".c", ".o"),
+                  0);
+  ASSIGN_ARTIFACT(cutest_prox_c,
+                  CUTEST_PROX_C,
+                  0);
+  ASSIGN_ARTIFACT(cutest_prox_o,
+                  gen_filename(cutest_prox_c.str, CUTEST_TMP_PATH, ".c", ".o"),
+                  0);
+  ASSIGN_ARTIFACT(cutest_prox,
+                  gen_filename(cutest_prox_c.str, CUTEST_TMP_PATH, ".c", ""),
+                  0);
+  ASSIGN_ARTIFACT(cutest_mock_c,
+                  CUTEST_MOCK_C,
+                  0);
+  ASSIGN_ARTIFACT(cutest_mock_o,
+                  gen_filename(cutest_mock_c.str, CUTEST_TMP_PATH, ".c", ".o"),
+                  0);
+  ASSIGN_ARTIFACT(cutest_mock,
+                  gen_filename(cutest_mock_c.str, CUTEST_TMP_PATH, ".c", ""),
+                  0);
+  ASSIGN_ARTIFACT(cutest_run_c,
+                  CUTEST_RUN_C,
+                  0);
+  ASSIGN_ARTIFACT(cutest_run_o,
+                  gen_filename(cutest_run_c.str, CUTEST_TMP_PATH, ".c", ".o"),
+                  0);
+  ASSIGN_ARTIFACT(cutest_run,
+                  gen_filename(cutest_run_c.str, CUTEST_TMP_PATH, ".c", ""),
+                  0);
+  ASSIGN_ARTIFACT(cutest_work_c,
+                  CUTEST_WORK_C,
+                  0);
+  ASSIGN_ARTIFACT(cutest_work_o,
+                  gen_filename(cutest_work_c.str, CUTEST_TMP_PATH, ".c", ".o"),
+                  0);
+  ASSIGN_ARTIFACT(cutest_work,
+                  gen_filename(cutest_work_c.str, CUTEST_TMP_PATH, ".c", ""),
+                  0);
+  ASSIGN_ARTIFACT(cutest_c,
+                  CUTEST_C,
+                  0);
+  ASSIGN_ARTIFACT(cutest_o,
+                  gen_filename(cutest_c.str, CUTEST_TMP_PATH, ".c", ".o"),
+                  0);
+  ASSIGN_ARTIFACT(cutest,
+                  gen_filename(cutest_c.str, CUTEST_TMP_PATH, ".c", ""),
+                  0);
+  ASSIGN_ARTIFACT(cproto,
+                  CPROTO,
+                  0);
 
   if (1 < verbose) {
     printf("DEBUG: Making the CUTest framework and tools\n");

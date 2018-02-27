@@ -30,7 +30,7 @@ test(new_just_for_test_list_shall_return_null_if_out_of_memory)
 test(new_just_for_test_list_shall_output_an_error_message_if_out_of_memory)
 {
   new_just_for_test_list();
-#ifdef CUTEST_GCC
+#ifdef __GNUC__
   assert_eq(1, m.fwrite.call_count);
   assert_eq(stderr, m.fwrite.args.arg3);
 #else

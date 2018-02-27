@@ -28,7 +28,7 @@ test(file_sxists_shall_print_an_error_if_file_does_not_exist)
 
 test(file_exists_shall_return_1_if_file_exists)
 {
-  m.fopen.retval = 0x1234;
+  m.fopen.retval = (FILE*)0x1234;
   assert_eq(1, file_exists("some_file"));
 }
 

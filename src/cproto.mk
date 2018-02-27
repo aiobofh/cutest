@@ -109,11 +109,11 @@ $(CPROTO_PATH)/trace.c: $(CPROTO_PATH)/lex.l
 
 $(CPROTO_PATH)/yyerror.c: $(CPROTO_PATH)/lex.l
 
-$(CPROTO_PATH)/lex.yy.c: $(CPROTO_PATH)/lex.l
+$(CPROTO_PATH)/lex_yy.c: $(CPROTO_PATH)/lex.l
 	$(info Using $(FLEX) to build parts of cproto-4.7m in $(CPROTO_PATH) $(CUTEST_PATH))
 	$(Q)cd $(CPROTO_PATH) && $(FLEX) $<
 
-$(CPROTO_PATH)/grammar.tab.c: $(CPROTO_PATH)/grammar.y $(CPROTO_PATH)/lex.yy.c
+$(CPROTO_PATH)/grammar.tab.c: $(CPROTO_PATH)/grammar.y $(CPROTO_PATH)/lex_yy.c
 	$(info Using $(BISON) to build parts of cproto-4.7m)
 	$(Q)cd $(CPROTO_PATH) && $(BISON) $(notdir $<)
 
@@ -121,4 +121,4 @@ $(CPROTO_PATH)/cproto: $(CPROTO_PATH)/cproto.c $(CPROTO_PATH)/dump.c $(CPROTO_PA
 	$(Q)$(CC) -o $@ $^ -Icproto-4.7m/ $(CPROTO_FLAGS)
 
 clean_cproto:
-	$(Q)$(RM) $(CPROTO_PATH)/cproto $(CPROTO_PATH)/grammar.tab.c $(CPROTO_PATH)/lex.yy.c
+	$(Q)$(RM) $(CPROTO_PATH)/cproto $(CPROTO_PATH)/grammar.tab.c $(CPROTO_PATH)/lex_yy.c

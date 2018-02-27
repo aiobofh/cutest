@@ -19,7 +19,7 @@ test(allocate_testcase_node_shall_allocate_memory_for_a_new_node)
 test(allocate_testcase_node_shall_output_an_error_if_allocation_failed)
 {
   allocate_testcase_node();
-#ifdef CUTEST_GCC
+#ifdef __GNUC__
   assert_eq(1, m.fwrite.call_count);
   assert_eq(stderr, m.fwrite.args.arg3);
 #else
@@ -83,7 +83,7 @@ test(new_testcase_shall_allocate_correct_amount_of_memory_for_name)
 test(new_testcase_shall_output_an_error_if_allocation_failed)
 {
   new_testcase(0x1234);
-#ifdef CUTEST_GCC
+#ifdef __GNUC__
   assert_eq(1, m.fwrite.call_count);
   assert_eq(stderr, m.fwrite.args.arg3);
 #else

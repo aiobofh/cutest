@@ -1,0 +1,43 @@
+CC=vc
+.SILENT:
+all: cutest_prox cutest_mock cutest_run
+
+helpers.o: helpers.c helpers.h
+	$(CC) -O2 -c helpers.c -o helpers.o
+
+mockable.o: mockable.c mockable.h arg.h list.h
+	$(CC) -O2 -c mockable.c -o mockable.o
+
+arg.o: arg.c arg.h list.h
+	$(CC) -O2 -c arg.c -o arg.o
+
+testcase.o: testcase.c testcase.h list.h
+	$(CC) -O2 -c testcase.c -o testacse.o
+
+cutest_impl.o: cutest_impl.c cutest.h cutest_lenient.h cutest_simple.h
+	$(CC) -O2 -c cutest_impl.c -o cutest_impl.o
+
+cutest_prox.o: cutest_prox.c cutest_prox.h helpers.h
+	$(CC) -O2 -c cutest_prox.c -o cutest_prox.o
+
+cutest_mock.o: cutest_mock.c cutest_mock.h arg.h mockable.h list.h helpers.h
+	$(CC) -O2 -c cutest_mock.c -o cutest_mock.o
+
+cutest_run.o: cutest_run.c cutest_run.h testcase.h helpers.h
+	$(CC) -O2 -c cutest_run.c -o cutest_run.o
+
+cutest_prox: cutest_prox.o helpers.o
+	$(CC) -O4 cutest_prox.o helpers.o -o cutest_prox
+
+cutest_mock: cutest_mock.o helpers.o arg.o mockable.o
+	$(CC) -O4 cutest_mock.o helpers.o arg.o mockable.o -o cutest_mock
+
+cutest_run: cutest_run.o helpers.o testcase.o
+	$(CC) -O4 cutest_run.o helpers.o testcase.o -o cutest_run
+
+cproto: cproto-4.7m/cproto.c cproto-4.7m/dump.c cproto-4.7m/lintlibs.c cproto-4.7m/semantic.c cproto-4.7m/strkey.c cproto-4.7m/symbol.c cproto-4.7m/trace.c cproto-4.7m/yyerror.c cproto-4.7m/grammar.tab.c
+	copy lex_yy.c cproto-4.7m/lex_yy.c
+	gcc cproto-4.7m/cproto.c cproto-4.7m/dump.c cproto-4.7m/lintlibs.c cproto-4.7m/semantic.c cproto-4.7m/strkey.c cproto-4.7m/symbol.c cproto-4.7m/trace.c cproto-4.7m/yyerror.c cproto-4.7m/grammar.tab.c -o cproto -Icproto-4.7m -DCPP="cpp" -DCPP_DOES_ONLY_C_FILES=1 -DOPT_LINTLIBRARY=1 -DMAX_INC_DEPTH=999999
+
+clean:
+	delete helpers.o mockable.o arg.o testcase.o cutest_impl.o cutest_prox.o cutest_mock.o cutest_run.o cutest_prox cutest_mock cutest_run

@@ -94,37 +94,42 @@
 #define CPROTO CUTEST_PATH OS_PATH_SEPARATOR "cproto-4.7m" OS_PATH_SEPARATOR "cproto"
 #endif
 
-typedef struct file_s {
+struct file_s {
   char* file_name;
-} file_t;
+};
+typedef struct file_s file_t;
 
-typedef struct file_node_s {
+struct file_node_s {
   file_t file;
   struct file_node_s* next;
   int skip;
-} file_node_t;
+};
+typedef struct file_node_s file_node_t;
 
-typedef struct file_list_s {
+struct file_list_s {
   file_node_t* first;
   file_node_t* last;
-} file_list_t;
+};
+typedef struct file_list_s file_list_t;
 
 #define ARTIFACT_FIELDS                         \
   char* str;                                    \
-  unsigned long long int timestamp;             \
+  unsigned long int timestamp;                  \
   int fake_main
 
 /*
  * Base-class for some kind of artifact
  */
-typedef struct artifact_s {
+struct artifact_s {
   ARTIFACT_FIELDS;
-} artifact_t;
+};
+typedef struct artifact_s artifact_t;
 
 #define ARTIFACT(NAME)                          \
-  typedef struct NAME##_s {                     \
+  struct NAME##_s {                             \
     ARTIFACT_FIELDS;                            \
-  } NAME##_t
+  };                                            \
+  typedef struct NAME##_s NAME##_t
 
 /*
  * Provide 100% type safety when constructing the build-dependencies.

@@ -144,9 +144,9 @@ static int is_space_underscore(char c1, char c2)
   return (is_space(c1) && ('_' == c2));
 }
 
-static int mockable_is_surrounded_by_whitespaces_but_old_gcc(const char* buf,
-                                                             int pos,
-                                                             int end)
+static int mockable_is_surrounded_by_old_gcc_whitespaces(const char* buf,
+                                                         int pos,
+                                                         int end)
 {
   const int left = is_space_underscore(buf[pos - 2], buf[pos - 1]);
   const int right = is_space(buf[end + 1]);
@@ -173,7 +173,7 @@ static int replace_jump_destination(char* buf, char* mockable_name, int pos)
   char fnurp[1024];
   */
   const int new_school = mockable_is_surrounded_by_whitespaces(buf, pos, end);
-  const int old_school = mockable_is_surrounded_by_whitespaces_but_old_gcc(buf, pos, end);
+  const int old_school = mockable_is_surrounded_by_old_gcc_whitespaces(buf, pos, end);
 
   if (!new_school && !old_school) {
     return 0;

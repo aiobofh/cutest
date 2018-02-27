@@ -53,15 +53,23 @@ regression_tests:
 	echo ""
 
 arm:
-	@echo "examples on ARM running Debian Jessie:" && \
-	ssh -q cutest_arm 'rm -rf /tmp/cutest; mkdir /tmp/cutest' && \
-	scp -q -r src examples cutest_arm:/tmp/cutest/. &&\
-	ssh -q cutest_arm 'make -r --no-print-directory -C /tmp/cutest/examples check' && echo "OK"
+	@echo "Skipping ARM"
+#	@echo "examples on ARM running Debian Jessie:" && \
+#	ssh -q cutest_arm 'rm -rf /tmp/cutest; mkdir /tmp/cutest' && \
+#	scp -q -r src examples cutest_arm:/tmp/cutest/. &&\
+#	ssh -q cutest_arm 'make -r --no-print-directory -C /tmp/cutest/examples check' && echo "OK"
 ppc:
-	@echo "examples on PowerPC (G4) running Ubuntu Xenial:" && \
-	ssh -q cutest_ppc 'rm -rf /tmp/cutest; mkdir /tmp/cutest' && \
-	scp -q -r src examples cutest_ppc:/tmp/cutest/. &&\
-	ssh -q cutest_ppc 'make -r --no-print-directory -C /tmp/cutest/examples check' && echo "OK"
+	@echo "Skipping PPC"
+#	@echo "examples on PowerPC (G4) running Ubuntu Xenial:" && \
+#	ssh -q cutest_ppc 'rm -rf /tmp/cutest; mkdir /tmp/cutest' && \
+#	scp -q -r src examples cutest_ppc:/tmp/cutest/. &&\
+#	ssh -q cutest_ppc 'make -r --no-print-directory -C /tmp/cutest/examples check' && echo "OK"
+amiga_68k:
+	@echo "examples on Amiga4000 (MC68060) running AmigaOS 3.9:" && \
+	cd src && make clean && cd .. && \
+	rm -rf ~/mnt/amiga/src/cutest && \
+	mkdir -p ~/mnt/amiga/src/cutest && \
+	cp -ru src examples ~/mnt/amiga/src/cutest/
 
 remote: arm ppc
 

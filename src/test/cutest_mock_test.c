@@ -498,7 +498,7 @@ test(extract_type_to_string_shall_print_error_and_return_0_if_out_of_memory)
   m.find_type_len.retval = 5678;
   m.malloc.retval = NULL;
   assert_eq(0, extract_type_to_string(&dst, src));
-#ifdef CUTEST_GCC
+#ifdef __GNUC__
   assert_eq(1, m.fwrite.call_count);
 #else
   assert_eq(1, m.fprintf.call_count);
@@ -666,7 +666,7 @@ test(make_mock_arg_name_shall_use_the_correct_formatting_for_func_ptr)
   make_mock_arg_name(0, 1, "(int*, char*)", 0, 0);
   assert_eq(1, m.sprintf.call_count);
   assert_eq(0x1234, m.sprintf.args.arg0);
-  assert_eq("(*arg%llu)%s", m.sprintf.args.arg1);
+  assert_eq("(*arg%lu)%s", m.sprintf.args.arg1);
 }
 
 test(make_mock_arg_name_shall_use_the_correct_formatting_for_non_func_ptr)
@@ -676,7 +676,7 @@ test(make_mock_arg_name_shall_use_the_correct_formatting_for_non_func_ptr)
   make_mock_arg_name(0, 0, NULL, 0, 0);
   assert_eq(1, m.sprintf.call_count);
   assert_eq(0x1234, m.sprintf.args.arg0);
-  assert_eq("arg%llu", m.sprintf.args.arg1);
+  assert_eq("arg%lu", m.sprintf.args.arg1);
 }
 
 test(make_mock_arg_name_shall_use_the_correct_formatting_pointers)
@@ -686,7 +686,7 @@ test(make_mock_arg_name_shall_use_the_correct_formatting_pointers)
   make_mock_arg_name(0, 0, NULL, 1, 0);
   assert_eq(1, m.sprintf.call_count);
   assert_eq(0x1234, m.sprintf.args.arg0);
-  assert_eq("*arg%llu", m.sprintf.args.arg1);
+  assert_eq("*arg%lu", m.sprintf.args.arg1);
 }
 
 test(make_mock_arg_name_shall_use_the_correct_formatting_double_pointers)
@@ -696,7 +696,7 @@ test(make_mock_arg_name_shall_use_the_correct_formatting_double_pointers)
   make_mock_arg_name(0, 0, NULL, 2, 0);
   assert_eq(1, m.sprintf.call_count);
   assert_eq(0x1234, m.sprintf.args.arg0);
-  assert_eq("**arg%llu", m.sprintf.args.arg1);
+  assert_eq("**arg%lu", m.sprintf.args.arg1);
 }
 
 test(make_mock_arg_name_shall_use_the_correct_formatting_for_non_func_ptr_ar)
@@ -706,7 +706,7 @@ test(make_mock_arg_name_shall_use_the_correct_formatting_for_non_func_ptr_ar)
   make_mock_arg_name(0, 0, NULL, 0, 1);
   assert_eq(1, m.sprintf.call_count);
   assert_eq(0x1234, m.sprintf.args.arg0);
-  assert_eq("*arg%llu", m.sprintf.args.arg1);
+  assert_eq("*arg%lu", m.sprintf.args.arg1);
 }
 
 test(make_mock_arg_name_shall_use_the_correct_formatting_pointers_array)
@@ -716,7 +716,7 @@ test(make_mock_arg_name_shall_use_the_correct_formatting_pointers_array)
   make_mock_arg_name(0, 0, NULL, 1, 1);
   assert_eq(1, m.sprintf.call_count);
   assert_eq(0x1234, m.sprintf.args.arg0);
-  assert_eq("**arg%llu", m.sprintf.args.arg1);
+  assert_eq("**arg%lu", m.sprintf.args.arg1);
 }
 
 test(make_mock_arg_name_shall_output_an_error_message_if_too_many_asterisks)
@@ -724,7 +724,7 @@ test(make_mock_arg_name_shall_output_an_error_message_if_too_many_asterisks)
   m.strlen.func = strlen;
   m.malloc.retval = 0x1234;
   make_mock_arg_name(0, 0, NULL, 3, 1);
-#ifdef CUTEST_GCC
+#ifdef __GNUC__
   assert_eq(1, m.fwrite.call_count);
 #else
   assert_eq(1, m.fprintf.call_count);
@@ -1416,8 +1416,9 @@ module_test(construct_cproto_command_line_shall_produce_a_valid_command)
   char command[1024];
   char* argv[] = {"program name", "cproto", "design.c", "mockables.lst",
                   "/path/to/cutest", "-Iinc"};
-  construct_cproto_command_line(command, "cproto", 6, argv);
-  assert_eq("\"cproto\" -i -s -x -I\"/path/to/cutest\" -Iinc \"design.c\" 2>/dev/null",
+  char* tmpname;
+  construct_cproto_command_line(command, "cproto", 6, argv, &tmpname);
+  assert_eq("\"cproto\" -i -s -x -I\"/path/to/cutest\" -Iinc \"design.c\" 2>/dev/null >design.c.cproto",
             command);
 }
 
@@ -1437,7 +1438,7 @@ test(execute_cproto_shall_forward_args_to_command_line_constructor)
 test(execute_cproto_shall_execute_the_constructed_command)
 {
   execute_cproto(NULL, 0x4321, 5678, 0x1234);
-  assert_eq(1, m.popen.call_count);
+  assert_eq(1, m.system.call_count);
   /*
    * This can not be checked 100% safely, since the argument is on the stack
    * belonging to the execute_cproto() function. Valgrind will complain.
@@ -1461,7 +1462,8 @@ test(execute_cproto_shall_return_0_if_the_command_could_not_execute)
 test(execute_cproto_shall_call_fgets_to_read_the_stdout_from_cproto)
 {
   m.strncmp.func = strncmp;
-  m.popen.retval = 0x4321;
+  m.system.retval = 0;
+  m.fopen.retval = 0x4321;
   execute_cproto(NULL, 0x4321, 5678, 0x1234);
   assert_eq(1, m.fgets.call_count);
   assert_eq(0x4321, m.fgets.args.arg2);
@@ -1472,7 +1474,8 @@ test(execute_cproto_shall_call_fgets_until_the_end_of_the_file_was_reached)
   m.strncmp.func = strncmp;
   fgets_only_5_times_stub_cnt = 0;
   m.fgets.func = fgets_only_5_times_stub;
-  m.popen.retval = 0x4321;
+  m.system.retval = 0;
+  m.fopen.retval = 0x4321;
   execute_cproto(NULL, 0x4321, 5678, 0x1234);
   assert_eq(6, m.fgets.call_count);
   fgets_only_5_times_stub_cnt = 0;
@@ -1497,7 +1500,8 @@ test(execute_cproto_shall_call_parse_cproto_row_for_each_non_comment_row)
   m.strncmp.func = strncmp;
   fgets_no_comment_5_times_stub_cnt = 0;
   m.fgets.func = fgets_no_comment_5_times_stub;
-  m.popen.retval = 0x4321;
+  m.system.retval = 0;
+  m.fopen.retval = 0x4321;
   execute_cproto(NULL, 0x4321, 5678, 0x1234);
   assert_eq(5, m.parse_cproto_row.call_count);
   fgets_no_comment_5_times_stub_cnt = 0;
@@ -1522,7 +1526,7 @@ test(execute_cproto_shall_not_call_parse_cproto_row_if_comment_row)
   m.strncmp.func = strncmp;
   fgets_read_comment_stub_cnt = 0;
   m.fgets.func = fgets_read_comment_stub;
-  m.popen.retval = 0x4321;
+  m.system.retval = 0;
   execute_cproto(NULL, 0x4321, 5678, 0x1234);
   assert_eq(0, m.parse_cproto_row.call_count);
   fgets_read_comment_stub_cnt = 0;
@@ -1561,7 +1565,7 @@ test(print_mock_control_struct_with_return_type_shall_print_something)
   memset(&node, 0, sizeof(node));
 
   print_mock_control_struct_with_return_type(&node);
-#ifdef CUTEST_GCC
+#ifdef __GNUC__
   assert_eq(1, m.printf.call_count);
 #else
   assert_eq(2, m.printf.call_count);
@@ -1578,7 +1582,7 @@ test(print_mock_control_struct_with_void_type_shall_print_something)
   memset(&node, 0, sizeof(node));
 
   print_mock_control_struct_with_void_type(&node);
-#ifdef CUTEST_GCC
+#ifdef __GNUC__
   assert_eq(1, m.printf.call_count);
 #else
   assert_eq(2, m.printf.call_count);
@@ -1760,7 +1764,7 @@ test(print_mock_control_structs_shall_print_struct_header_and_footer)
   list.last = &node[2];
   node[2].next = NULL;
   print_mock_control_structs(&list);
-#ifdef CUTEST_GCC
+#ifdef __GNUC__
   assert_eq(2, m.puts.call_count); // printf optimized to puts
 #else
   assert_eq(2, m.printf.call_count);
@@ -1834,7 +1838,7 @@ test(copy_pre_processor_directives_from_dut_shall_copy_cpp_lines)
 
   copy_pre_processor_directives_from_dut(0x1234);
 
-#ifdef CUTEST_GCC
+#ifdef __GNUC__
   assert_eq(1, m.printf.call_count);
   assert_eq(2, m.puts.call_count);
 #else
@@ -1855,7 +1859,7 @@ test(print_declarations_shall_print_start_and_end_of_declaration)
   memset(&node, 0, sizeof(node));
 
   print_declaration(NULL, NULL, &node);
-#ifdef CUTEST_GCC
+#ifdef __GNUC__
   assert_eq(1, m.printf.call_count);
 #else
   assert_eq(2, m.printf.call_count);
@@ -1865,7 +1869,7 @@ test(print_declarations_shall_print_start_and_end_of_declaration)
 
   m.printf.call_count = 0;
   print_declaration(NULL, NULL, &node);
-#ifdef CUTEST_GCC
+#ifdef __GNUC__
   assert_eq(1, m.printf.call_count);
 #else
   assert_eq(2, m.printf.call_count);
@@ -1972,7 +1976,7 @@ test(print_arg_assignment_shall_not_produce_assignment_statement_if_variadic)
 
   print_arg_assignment(&node, "foobar");
 
-#ifdef CUTEST_GCC
+#ifdef __GNUC__
   assert_eq(1, m.puts.call_count);
 #else
   assert_eq(1, m.printf.call_count);
@@ -1987,7 +1991,7 @@ test(print_arg_assignment_shall_not_produce_assignment_statement_if_void_arg)
 
   print_arg_assignment(&node, "foobar");
 
-#ifdef CUTEST_GCC
+#ifdef __GNUC__
   assert_eq(1, m.puts.call_count);
 #else
   assert_eq(1, m.printf.call_count);
@@ -2104,7 +2108,7 @@ test(last_unvariadic_arg_shall_return_null_if_no_variadic_argument_is_found)
 test(print_printf_caller_shall_print_if_statement_and_caller)
 {
   print_printf_caller(0x1234);
-#ifdef CUTEST_GCC
+#ifdef __GNUC__
   assert_eq(2, m.puts.call_count);
 #else
   assert_eq(3, m.printf.call_count);
@@ -2123,7 +2127,7 @@ test(print_printf_caller_shall_return_1)
 test(print_sprintf_caller_shall_print_if_statement_and_caller)
 {
   print_sprintf_caller(0x1234);
-#ifdef CUTEST_GCC
+#ifdef __GNUC__
   assert_eq(2, m.puts.call_count);
 #else
   assert_eq(3, m.printf.call_count);
@@ -2142,7 +2146,7 @@ test(print_sprintf_caller_shall_return_1)
 test(print_snprintf_caller_shall_print_if_statement_and_caller)
 {
   print_snprintf_caller(0x1234);
-#ifdef CUTEST_GCC
+#ifdef __GNUC__
   assert_eq(2, m.puts.call_count);
 #else
   assert_eq(3, m.printf.call_count);
@@ -2161,7 +2165,7 @@ test(print_snprintf_caller_shall_return_1)
 test(print_fprintf_caller_shall_print_if_statement_and_caller)
 {
   print_fprintf_caller(0x1234);
-#ifdef CUTEST_GCC
+#ifdef __GNUC__
   assert_eq(2, m.puts.call_count);
 #else
   assert_eq(3, m.printf.call_count);
@@ -2301,7 +2305,7 @@ test(print_stub_caller_shall_output_warning_print_out_if_arg_is_variadic)
   list.last = list.first = &arg;
   node.args = &list;
   print_stub_caller(&node);
-#ifdef CUTEST_GCC
+#ifdef __GNUC__
   assert_eq(2, m.printf.call_count);
 #else
   assert_eq(3, m.printf.call_count);
@@ -2419,7 +2423,7 @@ test(print_mock_implementation_shall_not_print_retval_if_stub_caller_ret_0)
   node.args = 0x1234;
   node.symbol_name = 0x5678;
   print_mock_implementation(&node);
-#ifdef CUTEST_GCC
+#ifdef __GNUC__
   assert_eq(1, m.printf.call_count);
 #else
   assert_eq(2, m.printf.call_count);
@@ -2434,7 +2438,7 @@ test(print_mock_implementation_shall_print_retval_if_stub_caller_ret_not_0)
   node.args = 0x1234;
   node.symbol_name = 0x5678;
   print_mock_implementation(&node);
-#ifdef CUTEST_GCC
+#ifdef __GNUC__
   assert_eq(2, m.printf.call_count);
 #else
   assert_eq(3, m.printf.call_count);
@@ -2475,10 +2479,10 @@ test(print_mock_func_module_test_assignment_shall_print_something)
 }
 
 /*****************************************************************************
- * print_mock_func_module_test_assignment()
+ * print_all_mock_func_module_test_assignment()
  */
 
-test(print_mock_func_module_test_assignments_shall_print_and_traverse_list)
+test(print_all_mock_func_module_test_assignments_shall_print_and_traverse_list)
 {
   mockable_list_t list;
   mockable_node_t node[3];
@@ -2493,7 +2497,7 @@ test(print_mock_func_module_test_assignments_shall_print_and_traverse_list)
 
   node[0].legit = node[1].legit = node[2].legit = 1;
 
-  print_mock_func_module_test_assignments(&list);
+  print_all_mock_func_module_test_assignments(&list);
   assert_eq(3, m.print_mock_func_module_test_assignment.call_count);
 }
 
@@ -2504,7 +2508,7 @@ test(print_mock_func_module_test_assignments_shall_print_and_traverse_list)
 test(main_shall_output_an_error_message_if_arguments_are_less_than_4) {
   char* argv[] = {"program_name"};
   main(1, argv);
-#ifdef CUTEST_GCC
+#ifdef __GNUC__
   assert_eq(1, m.fwrite.call_count);
 #else
   assert_eq(1, m.fprintf.call_count);
@@ -2634,13 +2638,13 @@ test(main_shall_print_mock_implementations)
   assert_eq(0x1234, m.print_mock_implementations.args.arg0);
 }
 
-test(main_shall_print_mock_func_module_test_assignments)
+test(main_shall_print_all_mock_func_module_test_assignments)
 {
   char* argv[] = {"program_name", "cproto", "dut_src", "nm_filename", "cutest_path"};
   m.new_mockable_list.retval = 0x1234;
   m.execute_cproto.retval = 1;
   main(5, argv);
-  assert_eq(1, m.print_mock_func_module_test_assignments.call_count);
+  assert_eq(1, m.print_all_mock_func_module_test_assignments.call_count);
 }
 
 test(main_shall_delete_mockable_list)

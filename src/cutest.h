@@ -381,6 +381,14 @@
 #ifndef _CUTEST_H_
 #define _CUTEST_H_
 
+#ifndef CUTEST_LENIENT_ASSERTS
+#ifdef __STDC_VERSION__
+#if __STDC_VERSION__ >= 201112L
+#define CUTEST_LENIENT_ASSERTS
+#endif
+#endif
+#endif
+
 #ifdef CUTEST_LENIENT_ASSERTS
 #define VARIADIC 1
 #include "cutest_lenient.h"

@@ -137,12 +137,12 @@ static void print_header(const char* program_name,
 static void print_main_function_prologue(const char* test_source_file_name,
                                          const size_t test_cnt)
 {
-  const unsigned long long int test_cnt_llu = test_cnt;
+  const unsigned long int test_cnt_lu = test_cnt;
   printf("int main(int argc, char* argv[])\n"
          "{\n"
-         "  cutest_junit_report_t junit_report[%llu];\n"
+         "  cutest_junit_report_t junit_report[%lu];\n"
          "  int just_print = cutest_startup(argc, argv, \"%s\", junit_report, %zu);\n\n",
-         test_cnt_llu,
+         test_cnt_lu,
          test_source_file_name,
          test_cnt);
 }
@@ -150,22 +150,22 @@ static void print_main_function_prologue(const char* test_source_file_name,
 static void print_test_case_executor(const char* name, size_t idx,
                                      int reset_mocks)
 {
-  const unsigned long long int idx_llu = idx;
+  const unsigned long int idx_lu = idx;
   printf("  if (1 == cutest_test_name_argument_given(\"%s\")) {\n"
          "    memset(&cutest_mock, 0, sizeof(cutest_mock));\n"
-         "    cutest_execute_test(&junit_report[%llu], cutest_%s, \"%s\", %d, argv[0]);\n"
+         "    cutest_execute_test(&junit_report[%lu], cutest_%s, \"%s\", %d, argv[0]);\n"
          "  }\n",
-         name, idx_llu, name, name, reset_mocks);
+         name, idx_lu, name, name, reset_mocks);
 }
 
 static void print_main_function_epilogue(const char* test_source_file_name,
                                          const size_t test_cnt)
 {
-  const unsigned long long int test_cnt_llu = test_cnt;
-  printf("  return cutest_shutdown(\"%s\", junit_report, %llu);\n\n"
+  const unsigned long int test_cnt_lu = test_cnt;
+  printf("  return cutest_shutdown(\"%s\", junit_report, %lu);\n\n"
          "}\n",
          test_source_file_name,
-         test_cnt_llu);
+         test_cnt_lu);
 }
 
 static size_t parse_test_cases(testcase_list_t* list,
@@ -251,8 +251,13 @@ int main(int argc, char* argv[]) {
     return EXIT_FAILURE;
   }
 
+  /*
   if (!file_exists(test_source_file_name) ||
       !file_exists(mock_header_file_name)) {
+    return EXIT_FAILURE;
+  }
+  */
+  if (!file_exists(test_source_file_name)) {
     return EXIT_FAILURE;
   }
 

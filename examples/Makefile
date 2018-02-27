@@ -29,7 +29,7 @@ Q=@
 
 all: check
 
-include ../src/cutest2.mk
+include ../src/cutest3.mk
 ifneq (${COVERAGE},0)
 include ../src/coverage.mk
 endif

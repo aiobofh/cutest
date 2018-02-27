@@ -62,6 +62,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
+#include <unistd.h>
 #include "cutest_mock.h"
 #include "arg.h"
 #include "mockable.h"
@@ -241,7 +242,7 @@ static size_t get_return_type(return_type_t* return_type,
     return_type->name = NULL;
   }
 
-  return pos;
+  return (size_t)pos;
 }
 
 static size_t get_function_name(char* name, const char* buf)
@@ -367,11 +368,12 @@ static size_t find_type_len(const char* buf, size_t end) {
   return end;
 }
 
+#define MAX_ARG_LEN 128
+
 static arg_node_t* add_new_arg_node(arg_list_t* list, const char* src,
                                     size_t len)
 {
-  const size_t max_arg_len = 128;
-  char buf[max_arg_len];
+  char buf[MAX_ARG_LEN];
   arg_node_t* node = NULL;
 
   memset(buf, 0, sizeof(buf));
@@ -474,7 +476,7 @@ static char* make_mock_arg_name(size_t idx, int function_pointer,
   char* arg = NULL;
   size_t numbers = 1;
   size_t fpchars = 0;
-  const unsigned long long int idx_llu = idx;
+  const unsigned long int idx_lu = idx;
 
   if (9 < idx) {
     numbers = 2;
@@ -485,26 +487,26 @@ static char* make_mock_arg_name(size_t idx, int function_pointer,
   }
   arg = malloc(numbers + fpchars + asterisks + strlen("arg") + 1 + array);
   if (1 == function_pointer) {
-    sprintf(arg, "(*arg%llu)%s", idx_llu, function_pointer_args);
+    sprintf(arg, "(*arg%lu)%s", idx_lu, function_pointer_args);
   }
   else {
     if (0 == array) {
       if (0 == asterisks) {
-        sprintf(arg, "arg%llu", idx_llu);
+        sprintf(arg, "arg%lu", idx_lu);
       }
       else if (1 == asterisks) {
-        sprintf(arg, "*arg%llu", idx_llu);
+        sprintf(arg, "*arg%lu", idx_lu);
       }
       else {
-        sprintf(arg, "**arg%llu", idx_llu);
+        sprintf(arg, "**arg%lu", idx_lu);
       }
     }
     else { /* Array arguments can be considered a lever of pointer-nes :) */
       if (0 == asterisks) {
-        sprintf(arg, "*arg%llu", idx_llu);
+        sprintf(arg, "*arg%lu", idx_lu);
       }
       else if (1 == asterisks) {
-        sprintf(arg, "**arg%llu", idx_llu);
+        sprintf(arg, "**arg%lu", idx_lu);
       }
       else {
         fprintf(stderr, "ERROR: Too many asterisks for an array ref\n");
@@ -552,7 +554,7 @@ static char* make_assignment_name(size_t idx)
    * the control structure, hence the arg0..argN members can be assigned
    * without having asterisks or type-information.
    */
-  const unsigned long long int idx_llu = idx;
+  const unsigned long int idx_lu = idx;
   char* arg = NULL;
   size_t numbers = 1;
 
@@ -563,7 +565,7 @@ static char* make_assignment_name(size_t idx)
   if (NULL == arg) {
     return NULL;
   }
-  sprintf(arg, "arg%llu", idx_llu);
+  sprintf(arg, "arg%lu", idx_lu);
   return arg;
 }
 
@@ -900,13 +902,18 @@ static mockable_node_t* parse_cproto_row(mockable_list_t* list, char* buf)
 }
 
 static void construct_cproto_command_line(char* dst, const char* cproto,
-                                          int argc, char* argv[])
+                                          int argc, char* argv[], char** tmpfile)
 {
   char iflags[1024];
   const char* filename = argv[2];
+  *tmpfile = malloc(strlen(filename) + strlen(".cproto") + 1);
+  strcpy(*tmpfile, filename);
+  strcat(*tmpfile, ".cproto");
 
   get_include_flags(iflags, argc, argv);
-  sprintf(dst, "\"%s\" -i -s -x %s \"%s\" 2>/dev/null", cproto, iflags, filename);
+  sprintf(dst, "\"%s\" -i -s -x %s \"%s\" 2>/dev/null >%s", cproto, iflags, filename, *tmpfile);
+
+  /* Remember to free the tmpfile */
 }
 
 static int execute_cproto(mockable_list_t* list, const char* cproto,
@@ -917,18 +924,26 @@ static int execute_cproto(mockable_list_t* list, const char* cproto,
    */
   char buf[1024];
   char command[1024];
-  FILE* pd = NULL;
+  FILE* fd = NULL;
+  char* tmpfile;
 
-  construct_cproto_command_line(command, cproto, argc, argv);
+  construct_cproto_command_line(command, cproto, argc, argv, &tmpfile);
 
-  pd = popen(command, "r");
+  if (0 != system(command)) {
+    fprintf(stderr, "ERROR: cproto failed\n");
+    return 0;
+  }
 
-  if (NULL == pd) {
+  fd = fopen(tmpfile, "r");
+
+  free(tmpfile);
+
+  if (NULL == fd) {
     fprintf(stderr, "ERROR: Unable to execute command '%s'\n", command);
     return 0;
   }
 
-  while (fgets(buf, sizeof(buf), pd)) {
+  while (fgets(buf, sizeof(buf), fd)) {
     if (0 == strncmp(buf, "/*", 2)) {
       continue;
     }
@@ -937,7 +952,9 @@ static int execute_cproto(mockable_list_t* list, const char* cproto,
   }
 
 
-  pclose(pd);
+  fclose(fd);
+
+  unlink(tmpfile);
 
   return 1;
 }
@@ -1426,7 +1443,7 @@ static void print_mock_func_module_test_assignment(mockable_node_t* node)
          node->symbol_name, node->symbol_name);
 }
 
-static void print_mock_func_module_test_assignments(mockable_list_t* list)
+static void print_all_mock_func_module_test_assignments(mockable_list_t* list)
 {
   mockable_node_t* node = NULL;
 
@@ -1478,7 +1495,7 @@ int main(int argc, char* argv[])
   print_mock_control_structs(list);
   print_mock_implementations(list);
 
-  print_mock_func_module_test_assignments(list);
+  print_all_mock_func_module_test_assignments(list);
 
   delete_mockable_list(list);
 
