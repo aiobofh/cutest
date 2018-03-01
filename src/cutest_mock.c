@@ -936,10 +936,9 @@ static int execute_cproto(mockable_list_t* list, const char* cproto,
 
   fd = fopen(tmpfile, "r");
 
-  free(tmpfile);
-
   if (NULL == fd) {
     fprintf(stderr, "ERROR: Unable to execute command '%s'\n", command);
+    free(tmpfile);
     return 0;
   }
 
@@ -954,7 +953,8 @@ static int execute_cproto(mockable_list_t* list, const char* cproto,
 
   fclose(fd);
 
-  unlink(tmpfile);
+  remove(tmpfile);
+  free(tmpfile);
 
   return 1;
 }

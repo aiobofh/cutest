@@ -141,7 +141,8 @@ static void print_main_function_prologue(const char* test_source_file_name,
   printf("int main(int argc, char* argv[])\n"
          "{\n"
          "  cutest_junit_report_t junit_report[%lu];\n"
-         "  int just_print = cutest_startup(argc, argv, \"%s\", junit_report, %zu);\n\n",
+         "  int just_print = cutest_startup(argc, argv, \"%s\", junit_report, %zu);\n"
+         "\n",
          test_cnt_lu,
          test_source_file_name,
          test_cnt);

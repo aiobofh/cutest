@@ -39,8 +39,23 @@ else
 	endif
 endif
 
+ifeq ("$(Q)","@")
+	RUN_VERBOSITY=-n
+else
+	RUN_VERBOSITY=-v
+endif
+
+#HAS_COV:=$(shell $(CC) -o ../empty ../empty.c -fprofile-arcs 2>&1 >/dev/null && echo "yes")
+#ifeq ("$(HAS_COV)","yes")
+#	HAS_GCOVR=$(shell which gcovr 2>&1 >/dev/null && echo "yes")
+#endif
+#
+#ifeq ("$(HAS_GCOVR)","yes")
+#	COV_FLAGS=-fprofile-arcs -ftest-coverage -fprofile-dir=..
+#endif
+
 LDFLAGS:=-flto
-CFLAGS:=-g -Wall -pedantic $(STD)
+CFLAGS+=-g -Wall -pedantic $(STD) -O0
 CPROTO:=$(shell which cproto)
 #VISIBILITY_HIDDEN:=-fvisibility=hidden
 
@@ -52,6 +67,8 @@ all: check
 .PHONY: info
 info:
 	@echo "CFLAGS: $(CFLAGS)"
+	@echo "HAS_COV: $(HAS_COV)"
+	@echo "HAS_GCOVR: $(HAS_GCOVR)"
 
 .PRECIPUS: .cutest/timestamp
 .cutest/timestamp:
@@ -65,35 +82,35 @@ info:
 #
 .PRECIOUS: .cutest/arg_mockables.o
 .cutest/arg_mockables.o: ../arg.c .cutest/timestamp
-	$(Q)$(CC) -o $@ -c $< -I../ $(VISIBILITY_HIDDEN) -fno-inline -g -D"inline="
+	$(Q)$(CC) -o $@ -c $< -I../ $(VISIBILITY_HIDDEN) $(CFLAGS) -fno-inline -g -D"inline="
 
 .PRECIOUS: .cutest/helpers_mockables.o
 .cutest/helpers_mockables.o: ../helpers.c .cutest/timestamp
-	$(Q)$(CC) -o $@ -c $< -I../ $(VISIBILITY_HIDDEN) -fno-inline -g -D"inline="
+	$(Q)$(CC) -o $@ -c $< -I../ $(VISIBILITY_HIDDEN) $(CFLAGS) -fno-inline -g -D"inline="
 
 .PRECIOUS: .cutest/list_mockables.o
 .cutest/list_mockables.o: ../list.c .cutest/timestamp
-	$(Q)$(CC) -o $@ -c $< -I../ $(VISIBILITY_HIDDEN) -fno-inline -g -D"inline="
+	$(Q)$(CC) -o $@ -c $< -I../ $(VISIBILITY_HIDDEN) $(CFLAGS) -fno-inline -g -D"inline="
 
 .PRECIOUS: .cutest/mockable_mockables.o
 .cutest/mockable_mockables.o: ../mockable.c .cutest/timestamp
-	$(Q)$(CC) -o $@ -c $< -I../ $(VISIBILITY_HIDDEN) -fno-inline -g -D"inline="
+	$(Q)$(CC) -o $@ -c $< -I../ $(VISIBILITY_HIDDEN) $(CFLAGS) -fno-inline -g -D"inline="
 
 .PRECIOUS: .cutest/testcase_mockables.o
 .cutest/testcase_mockables.o: ../testcase.c .cutest/timestamp
-	$(Q)$(CC) -o $@ -c $< -I../ $(VISIBILITY_HIDDEN) -fno-inline -g -D"inline="
+	$(Q)$(CC) -o $@ -c $< -I../ $(VISIBILITY_HIDDEN) $(CFLAGS) -fno-inline -g -D"inline="
 
 .PRECIOUS: .cutest/cutest_mock_mockables.o
 .cutest/cutest_mock_mockables.o: ../cutest_mock.c .cutest/timestamp
-	$(Q)$(CC) -o $@ -c $< -I../ $(VISIBILITY_HIDDEN) -fno-inline -g -D"inline="
+	$(Q)$(CC) -o $@ -c $< -I../ $(VISIBILITY_HIDDEN) $(CFLAGS) -fno-inline -g -D"inline="
 
 .PRECIOUS: .cutest/cutest_prox_mockables.o
 .cutest/cutest_prox_mockables.o: ../cutest_prox.c .cutest/timestamp
-	$(Q)$(CC) -o $@ -c $< -I../ $(VISIBILITY_HIDDEN) -fno-inline -g -D"inline="
+	$(Q)$(CC) -o $@ -c $< -I../ $(VISIBILITY_HIDDEN) $(CFLAGS) -fno-inline -g -D"inline="
 
 .PRECIOUS: .cutest/cutest_run_mockables.o
 .cutest/cutest_run_mockables.o: ../cutest_run.c .cutest/timestamp
-	$(Q)$(CC) -o $@ -c $< -I../ $(VISIBILITY_HIDDEN) -fno-inline -g -D"inline="
+	$(Q)$(CC) -o $@ -c $< -I../ $(VISIBILITY_HIDDEN) $(CFLAGS) -fno-inline -g -D"inline="
 
 #
 # Mockbale function symbol lists
@@ -135,42 +152,42 @@ info:
 #
 .PRECIOUS: .cutest/arg_mockables.s
 .cutest/arg_mockables.s: ../arg.c .cutest/timestamp
-	$(Q)$(CC) -c $< -o $@ -S -fverbose-asm $(VISIBILITY_HIDDEN) -fno-inline -g -O0 $(CFLAGS) -D"static=" -D"inline=" -D"main=MAIN"
+	$(Q)$(CC) -c $< -o $@ -S -fverbose-asm $(VISIBILITY_HIDDEN) -fno-inline -g -O0 $(CFLAGS) $(COV_FLAGS) -D"static=" -D"inline=" -D"main=MAIN"
 
 .PRECIOUS: .cutest/helpers_mockables.s
 .cutest/helpers_mockables.s: ../helpers.c .cutest/timestamp
-	$(Q)$(CC) -c $< -o $@ -S -fverbose-asm $(VISIBILITY_HIDDEN) -fno-inline -g -O0 $(CFLAGS) -D"static=" -D"inline=" -D"main=MAIN"
+	$(Q)$(CC) -c $< -o $@ -S -fverbose-asm $(VISIBILITY_HIDDEN) -fno-inline -g -O0 $(CFLAGS) $(COV_FLAGS) -D"static=" -D"inline=" -D"main=MAIN"
 
 .PRECIOUS: .cutest/list_mockables.s
 .cutest/list_mockables.s: ../list.c .cutest/timestamp
-	$(Q)$(CC) -c $< -o $@ -S -fverbose-asm $(VISIBILITY_HIDDEN) -fno-inline -g -O0 $(CFLAGS) -D"static=" -D"inline=" -D"main=MAIN"
+	$(Q)$(CC) -c $< -o $@ -S -fverbose-asm $(VISIBILITY_HIDDEN) -fno-inline -g -O0 $(CFLAGS) $(COV_FLAGS) -D"static=" -D"inline=" -D"main=MAIN"
 
 .PRECIOUS: .cutest/mockable_mockables.s
 .cutest/mockable_mockables.s: ../mockable.c .cutest/timestamp
-	$(Q)$(CC) -c $< -o $@ -S -fverbose-asm $(VISIBILITY_HIDDEN) -fno-inline -g -O0 $(CFLAGS) -D"static=" -D"inline=" -D"main=MAIN"
+	$(Q)$(CC) -c $< -o $@ -S -fverbose-asm $(VISIBILITY_HIDDEN) -fno-inline -g -O0 $(CFLAGS) $(COV_FLAGS) -D"static=" -D"inline=" -D"main=MAIN"
 
 .PRECIOUS: .cutest/testcase_mockables.s
 .cutest/testcase_mockables.s: ../testcase.c .cutest/timestamp
-	$(Q)$(CC) -c $< -o $@ -S -fverbose-asm $(VISIBILITY_HIDDEN) -fno-inline -g -O0 $(CFLAGS) -D"static=" -D"inline=" -D"main=MAIN"
+	$(Q)$(CC) -c $< -o $@ -S -fverbose-asm $(VISIBILITY_HIDDEN) -fno-inline -g -O0 $(CFLAGS) $(COV_FLAGS) -D"static=" -D"inline=" -D"main=MAIN"
 
 .PRECIOUS: .cutest/cutest_mock_mockables.s
 .cutest/cutest_mock_mockables.s: ../cutest_mock.c .cutest/timestamp
-	$(Q)$(CC) -c $< -o $@ -S -fverbose-asm $(VISIBILITY_HIDDEN) -fno-inline -g -O0 $(CFLAGS) -D"static=" -D"inline=" -D"main=MAIN"
+	$(Q)$(CC) -c $< -o $@ -S -fverbose-asm $(VISIBILITY_HIDDEN) -fno-inline -g -O0 $(CFLAGS) $(COV_FLAGS) -D"static=" -D"inline=" -D"main=MAIN"
 
 .PRECIOUS: .cutest/cutest_prox_mockables.s
 .cutest/cutest_prox_mockables.s: ../cutest_prox.c .cutest/timestamp
-	$(Q)$(CC) -c $< -o $@ -S -fverbose-asm $(VISIBILITY_HIDDEN) -fno-inline -g -O0 $(CFLAGS) -D"static=" -D"inline=" -D"main=MAIN"
+	$(Q)$(CC) -c $< -o $@ -S -fverbose-asm $(VISIBILITY_HIDDEN) -fno-inline -g -O0 $(CFLAGS) $(COV_FLAGS) -D"static=" -D"inline=" -D"main=MAIN"
 
 .PRECIOUS: .cutest/cutest_run_mockables.s
 .cutest/cutest_run_mockables.s: ../cutest_run.c .cutest/timestamp
-	$(Q)$(CC) -c $< -o $@ -S -fverbose-asm $(VISIBILITY_HIDDEN) -fno-inline -g -O0 $(CFLAGS) -D"static=" -D"inline=" -D"main=MAIN"
+	$(Q)$(CC) -c $< -o $@ -S -fverbose-asm $(VISIBILITY_HIDDEN) -fno-inline -g -O0 $(CFLAGS) $(COV_FLAGS) -D"static=" -D"inline=" -D"main=MAIN"
 
 #
 # Mockable function lists
 #
 .PRECIOUS: .cutest/arg_proxified.s
-.cutest/arg_proxified.s: .cutest/arg_mockables.s .cutest/arg_mockables.lst
-	$(Q)../cutest_prox .cutest/arg_mockables.s .cutest/arg_mockables.lst > $@
+.cutest/arg_proxified.s: arg_mockables.s .cutest/arg_mockables.lst
+	$(Q)../cutest_prox arg_mockables.s .cutest/arg_mockables.lst > $@
 
 .PRECIOUS: .cutest/helpers_proxified.s
 .cutest/helpers_proxified.s: .cutest/helpers_mockables.s .cutest/helpers_mockables.lst
@@ -275,70 +292,105 @@ info:
 #
 .PRECIOUS: .cutest/arg_test
 .cutest/arg_test: .cutest/arg_proxified.s .cutest/arg_test_run.c .cutest/cutest_impl.o
-	$(Q)$(CC) $^ -o $@ $(LDFLAGS) $(CFLAGS) -DNDEBUG -D"inline=" -I.. -I.
+	$(Q)$(CC) $^ -o $@ $(LDFLAGS) $(COV_FLAGS) $(CFLAGS) -DNDEBUG -D"inline=" -I.. -I.
 
 .PRECIOUS: .cutest/helpers_test
 .cutest/helpers_test: .cutest/helpers_proxified.s .cutest/helpers_test_run.c .cutest/cutest_impl.o
-	$(Q)$(CC) $^ -o $@ $(LDFLAGS) $(CFLAGS) -DNDEBUG -D"inline=" -I.. -I.
+	$(Q)$(CC) $^ -o $@ $(LDFLAGS) $(COV_FLAGS) $(CFLAGS) -DNDEBUG -D"inline=" -I.. -I.
 
 .PRECIOUS: .cutest/list_test
 .cutest/list_test: .cutest/list_proxified.s .cutest/list_test_run.c .cutest/cutest_impl.o
-	$(Q)$(CC) $^ -o $@ $(LDFLAGS) $(CFLAGS) -DNDEBUG -D"inline=" -I.. -I.
+	$(Q)$(CC) $^ -o $@ $(LDFLAGS) $(COV_FLAGS) $(CFLAGS) -DNDEBUG -D"inline=" -I.. -I.
 
 .PRECIOUS: .cutest/mockable_test
 .cutest/mockable_test: .cutest/mockable_proxified.s .cutest/mockable_test_run.c .cutest/cutest_impl.o ../arg.o
-	$(Q)$(CC) $^ -o $@ $(LDFLAGS) $(CFLAGS) -DNDEBUG -D"inline=" -I.. -I.
+	$(Q)$(CC) $^ -o $@ $(LDFLAGS) $(COV_FLAGS) $(CFLAGS) -DNDEBUG -D"inline=" -I.. -I.
 
 .PRECIOUS: .cutest/testcase_test
 .cutest/testcase_test: .cutest/testcase_proxified.s .cutest/testcase_test_run.c .cutest/cutest_impl.o
-	$(Q)$(CC) $^ -o $@ $(LDFLAGS) $(CFLAGS) -DNDEBUG -D"inline=" -I.. -I.
+	$(Q)$(CC) $^ -o $@ $(LDFLAGS) $(COV_FLAGS) $(CFLAGS) -DNDEBUG -D"inline=" -I.. -I.
 
 .PRECIOUS: .cutest/cutest_mock_test
 .cutest/cutest_mock_test: .cutest/cutest_mock_proxified.s .cutest/cutest_mock_test_run.c .cutest/cutest_impl.o ../arg.o ../helpers.o ../mockable.o
-	$(Q)$(CC) $^ -o $@ $(LDFLAGS) $(CFLAGS) -DNDEBUG -D"inline=" -I.. -I.
+	$(Q)$(CC) $^ -o $@ $(LDFLAGS) $(COV_FLAGS) $(CFLAGS) -DNDEBUG -D"inline=" -I.. -I.
 
 .PRECIOUS: .cutest/cutest_prox_test
 .cutest/cutest_prox_test: .cutest/cutest_prox_proxified.s .cutest/cutest_prox_test_run.c .cutest/cutest_impl.o ../helpers.o
-	$(Q)$(CC) $^ -o $@ $(LDFLAGS) $(CFLAGS) -DNDEBUG -D"inline=" -I.. -I.
+	$(Q)$(CC) $^ -o $@ $(LDFLAGS) $(COV_FLAGS) $(CFLAGS) -DNDEBUG -D"inline=" -I.. -I.
 
 .PRECIOUS: .cutest/cutest_run_test
 .cutest/cutest_run_test: .cutest/cutest_run_proxified.s .cutest/cutest_run_test_run.c .cutest/cutest_impl.o ../helpers.o ../testcase.o
-	$(Q)$(CC) $^ -o $@ $(LDFLAGS) $(CFLAGS) -DNDEBUG -D"inline=" -I.. -I.
+	$(Q)$(CC) $^ -o $@ $(LDFLAGS) $(COV_FLAGS) $(CFLAGS) -DNDEBUG -D"inline=" -I.. -I.
 
 #
 # XML reports
 #
+.PHONY: .cutest/arg_test.res
 .cutest/arg_test.res: .cutest/arg_test
-	@./$< -j -n > $@
+	$(Q)$< -j $(RUN_VERBOSITY) -r $@
 
+.PHONY: .cutest/helpers_test.res
 .cutest/helpers_test.res: .cutest/helpers_test
-	@./$< -j -n > $@
+	$(Q)$< -j $(RUN_VERBOSITY) -r $@
 
+.PHONY: .cutest/list_test.res
 .cutest/list_test.res: .cutest/list_test
-	@./$< -j -n > $@
+	$(Q)$< -j $(RUN_VERBOSITY) -r $@
 
+.PHONY: .cutest/mockable_test.res
 .cutest/mockable_test.res: .cutest/mockable_test
-	@./$< -j -n > $@
+	$(Q)$< -j $(RUN_VERBOSITY) -r $@
 
+.PHONY: .cutest/testcase_test.res
 .cutest/testcase_test.res: .cutest/testcase_test
-	@./$< -j -n > $@
+	$(Q)$< -j $(RUN_VERBOSITY) -r $@
 
+.PHONY: .cutest/cutest_mock_test.res
 .cutest/cutest_mock_test.res: .cutest/cutest_mock_test
-	@./$< -j -n > $@
+	$(Q)$< -j $(RUN_VERBOSITY) -r $@
 
+.PHONY: .cutest/cutest_prox_test.res
 .cutest/cutest_prox_test.res: .cutest/cutest_prox_test
-	@./$< -j -n > $@
+	$(Q)$< -j $(RUN_VERBOSITY) -r $@
 
+.PHONY: .cutest/cutest_run_test.res
 .cutest/cutest_run_test.res: .cutest/cutest_run_test
-	@./$< -j -n > $@
+	$(Q)$< -j $(RUN_VERBOSITY) -r $@
 
+
+ifeq ("$(HAS_GCOVR)","yes")
+
+coverage.xml: check
+	$(Q)gcovr -r . -e 'cutest.c' -e '/usr.*' -e '.*_test.c' -e 'cutest.h' -e '.*_mocks.h' -e 'error.h' -e '.*_test_run.c' -x > $@
+
+.PHONY: .cutest/lines.cov
+.NOTPARALLEL: .cutest/lines.cov
+.cutest/lines.cov:
+	$(Q)gcovr -r . -e 'cutest.c' -e '/usr.*' -e '.*_test.c' -e '.*cutest.h' -e '.*_mocks.h' -e 'error.h' -e '.*_test_run.c' $(CUTEST_COVERAGE_EXCLUDE) | egrep -v '^File' | egrep -v '^-' | egrep -v '^Directory' | grep -v 'GCC Code' | grep -v '100%' | grep -v "\-\-\%" > $@; true
+
+.PHONY: .cutest/branches.cov
+.NOTPARALLEL: .cutest/branches.cov
+.cutest/branches.cov:
+	$(Q)gcovr -r . -e 'cutest.c' -e '/usr.*' -e '.*_test.c' -e '.*cutest.h'  -e '.*_mocks.h' -e 'error.h' -e '.*_test_run.c' $(CUTEST_COVERAGE_EXCLUDE) -b | egrep -v '^File' | egrep -v '^-' | egrep -v '^Directory' | grep -v 'GCC Code' | grep -v '100%' | grep -v "\-\-\%" > $@; true
+
+.PHONY: output_coverage
+output_coverage: .cutest/lines.cov .cutest/branches.cov
+	$(Q)test -s .cutest/lines.cov && echo "Lines not covered:" >&2 && cat .cutest/lines.cov >&2 && echo >&2; \
+	test -s .cutest/branches.cov && echo "Branches not covered:" >&2; cat .cutest/branches.cov >&2
+
+check: .cutest/arg_test.res .cutest/helpers_test.res .cutest/list_test.res .cutest/mockable_test.res .cutest/testcase_test.res .cutest/cutest_mock_test.res .cutest/cutest_prox_test.res .cutest/cutest_run_test.res
+	@echo && $(MAKE) -s -r --no-print-directory output_coverage
+else
+
+check: .cutest/arg_test.res .cutest/helpers_test.res .cutest/list_test.res .cutest/mockable_test.res .cutest/testcase_test.res .cutest/cutest_mock_test.res .cutest/cutest_prox_test.res .cutest/cutest_run_test.res
+	@echo
+
+endif
 
 #
 # Wrapper target
 #
-.PHONY: check
-check: .cutest/arg_test.res .cutest/helpers_test.res .cutest/list_test.res .cutest/mockable_test.res .cutest/testcase_test.res .cutest/cutest_mock_test.res .cutest/cutest_prox_test.res .cutest/cutest_run_test.res
-	@cat $^ && echo
 
-clean:
-	$(Q)$(RM) -rf .cutest *.junit_report.xml *~
+.PHONY: clean
+clean::
+	$(Q)$(RM) -rf .cutest *.junit_report.xml *~ coverage.xml *.gcno *.gcda

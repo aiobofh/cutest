@@ -7,8 +7,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
+#include <sys/stat.h>
 
 #include "cutest.h"
+
+#define CUTEST_MAX_ARG_LEN 80
 
 jmp_buf buf;
 
@@ -24,6 +27,8 @@ typedef struct cutest_opts_s {
   int no_linefeed;
   int segfault_recovery;
   int print_tests;
+  int result_file;
+  char* result_file_name;
 } cutest_opts_t;
 static cutest_opts_t cutest_opts;
 
@@ -47,6 +52,11 @@ static int cutest_assert_fail_cnt = 0;
 static int cutest_error_cnt = 0;
 
 extern struct tm *localtime_r(const time_t *timep, struct tm *result);
+
+static FILE* cutest_resfd = NULL;
+static int cutest_resstat = 0;
+
+#define lprintf(...) printf(__VA_ARGS__); if (0 != cutest_opts.result_file) { fprintf(cutest_resfd, __VA_ARGS__); }
 
 int cutest_assert_eq_char(const char a, const char b, char* output)
 {
@@ -174,14 +184,15 @@ int cutest_test_name_argument_given(const char* test_name)
 
 static void run_usage(const char* program_name)
 {
-  printf("USAGE: %s [-h] [-v|-l|-j|-n|-s|-p] <test-case-names-list>\n\n"
-         "  -h, --help              Show this help text\n"
-         "  -v, --verbose           Run the tests in verbose mode\n"
-         "  -l, --log-errors        Log errors (stderr) to %s.log\n"
-         "  -j, --junit             Produce a JUnit output to %s.junit.xml\n"
-         "  -n, --no-line-feed      Don't add linefeed to the last output row.\n"
-         "  -s, --segfault-recovery Kepp running tests after an Error (crash).\n"
-         "  -p, --print-tests       Just print the test names in the suite.\n",
+  printf("USAGE: %s [-h] [-v|-l|-j|-n|-s|-p|-r <file>] <test-case-names-list>\n\n"
+         "  -h, --help               Show this help text\n"
+         "  -v, --verbose            Run the tests in verbose mode\n"
+         "  -l, --log-errors         Log errors (stderr) to %s.log\n"
+         "  -j, --junit              Produce a JUnit output to %s.junit.xml\n"
+         "  -n, --no-line-feed       Don't add linefeed to the last output row.\n"
+         "  -s, --segfault-recovery  Kepp running tests after an Error (crash).\n"
+         "  -p, --print-tests        Just print the test names in the suite.\n"
+         "  -r, --result-file <file> Save results in a file, for future reuse.\n",
          program_name,
          program_name,
          program_name);
@@ -226,9 +237,115 @@ static void handle_args(cutest_opts_t* opts, const char* suite_name,
       opts->print_tests = 1;
       continue;
     }
+    if ((0 == strcmp(argv[i], "-r")) ||
+        (0 == strcmp(argv[1], "--result-file"))) {
+      opts->result_file = 1;
+      if (i + 1 >= argc) {
+        fprintf(stderr, "ERROR: -r, -result-file requires a file name as argument.\n");
+        run_usage(suite_name);
+        exit(EXIT_FAILURE);
+      }
+      opts->result_file_name = malloc(strlen(argv[i + 1]) + 1);
+      if (NULL == opts->result_file_name) {
+        opts->result_file = 0;
+        fprintf(stderr,
+                "ERROR: Out of memory when allocating result file name.\n");
+        exit(EXIT_FAILURE);
+      }
+      strcpy(opts->result_file_name, argv[i + 1]);
+      i++;
+      continue;
+    }
 
     strcpy(cutest_tests_to_run.test_name[cutest_tests_to_run.cnt++], argv[i]);
   }
+}
+
+static int output_results_head(int argc, char* argv[], const char* results_file_name)
+{
+  int i;
+  FILE* fd = fopen(results_file_name, "w");
+  if (NULL == fd) {
+    fprintf(stderr, "ERROR: Could not open %s for writing.\n", results_file_name);
+    return 0;
+  }
+  fprintf(fd, "%d\n", argc);
+  for (i = 0; i < argc; i++) {
+    fprintf(fd, "%s\n", argv[i]);
+  }
+  fclose(fd);
+  return 1;
+}
+
+static int compare_results_args(int argc, char* argv[], FILE *fd)
+{
+  int _argc;
+  int i;
+
+  fscanf(fd, "%d\n", &_argc);
+  if (_argc != argc) {
+    fclose(fd);
+    return 1;
+  }
+
+  for (i = 0; i < argc; i++) {
+    char arg[CUTEST_MAX_ARG_LEN];
+    fscanf(fd, "%s\n", arg);
+    if (0 != strcmp(arg, argv[i])) {
+      fclose(fd);
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static int print_results(FILE *fd, int no_linefeed)
+{
+  int resstat = -1;
+  char buf[10240];
+  while (NULL != fgets(buf, 10240, fd)) {
+    if (buf[strlen(buf) - 1] == '\n') {
+      buf[strlen(buf) - 1] = '\0';
+    }
+    if (feof(fd)) {
+      resstat = atoi(buf);
+      break;
+    }
+    printf("%s", buf);
+    if (0 == no_linefeed) {
+      printf("\n");
+    }
+    fflush(stdout);
+  }
+  return resstat;
+}
+
+static int pre_check_results(int argc, char* argv[], const char* results_file_name, int no_linefeed)
+{
+  FILE* fd = fopen(results_file_name, "r");
+  if (NULL == fd) {
+    return output_results_head(argc, argv, results_file_name);
+  }
+
+  struct stat test_suite_stats;
+  struct stat results_file_stats;
+  stat(argv[0], &test_suite_stats);
+  stat(results_file_name, &results_file_stats);
+
+  if (test_suite_stats.st_mtime > results_file_stats.st_mtime) {
+    fclose(fd);
+    remove(results_file_name);
+    return 1;
+  }
+
+  if (0 != compare_results_args(argc, argv, fd)) {
+    return output_results_head(argc, argv, results_file_name);
+  }
+
+  cutest_resstat = print_results(fd, no_linefeed);
+
+  fclose(fd);
+  return 2;
 }
 
 int cutest_startup(int argc, char* argv[], const char* suite_name,
@@ -238,6 +355,21 @@ int cutest_startup(int argc, char* argv[], const char* suite_name,
   memset(&cutest_opts, 0, sizeof(cutest_opts));
 
   handle_args(&cutest_opts, suite_name, argc, argv);
+
+  if (cutest_opts.result_file == 1) {
+    cutest_opts.result_file = pre_check_results(argc, argv,
+                                                cutest_opts.result_file_name,
+                                                cutest_opts.no_linefeed);
+    if (cutest_opts.result_file == 2) {
+      free(cutest_opts.result_file_name);
+      exit(cutest_resstat);
+    }
+    cutest_resfd = fopen(cutest_opts.result_file_name, "a");
+    if (NULL == cutest_resfd) {
+      fprintf(stderr, "ERROR: Could not open %s for writing, skipping result file.\n", cutest_opts.result_file_name);
+      cutest_opts.result_file = 0;
+    }
+  }
 
   memset(&cutest_stats, 0, sizeof(cutest_stats));
   strcpy(cutest_stats.suite_name, suite_name);
@@ -290,34 +422,34 @@ void verbose_verdict(cutest_stats_t* stats, const char* name,
                      int error_cnt, int fail_cnt)
 {
   if (NULL != stats->skip_reason) {
-    printf("[SKIP]: %s\n", name);
+    lprintf("[SKIP]: %s\n", name);
   }
   else if (error_cnt != 0) {
-    printf("[ERROR]: %s\n", name);
-    printf("%s", stats->current_error_output);
+    lprintf("[ERROR]: %s\n", name);
+    lprintf("%s", stats->current_error_output);
   }
   else if (fail_cnt == 0) {
-    printf("[PASS]: %s\n", name);
+    lprintf("[PASS]: %s\n", name);
   }
   else {
-    printf("[FAIL]: %s\n", name);
-    printf("%s", stats->current_error_output);
+    lprintf("[FAIL]: %s\n", name);
+    lprintf("%s", stats->current_error_output);
   }
 }
 
 void simple_verdict(cutest_stats_t* stats, int error_cnt, int fail_cnt)
 {
   if (NULL != stats->skip_reason) {
-    printf("S");
+    lprintf("S");
   }
   else if (error_cnt != 0) {
-    printf("E");
+    lprintf("E");
   }
   else if (fail_cnt == 0) {
-    printf(".");
+    lprintf(".");
   }
   else {
-    printf("F");
+    lprintf("F");
   }
   fflush(stdout);
 }
@@ -526,11 +658,11 @@ int cutest_shutdown(const char* filename,
     if ((0 == cutest_opts.no_linefeed) ||
         (0 != strlen(cutest_stats.error_output))) {
       if (0 == cutest_opts.log_errors) {
-        printf("\n");
+        lprintf("\n");
       }
     }
     if (0 == cutest_opts.log_errors) {
-      printf("%s", cutest_stats.error_output);
+      lprintf("%s", cutest_stats.error_output);
     }
     else if (0 != strlen(cutest_stats.error_output)) {
       write_log_file(filename, cutest_stats.error_output);
@@ -538,9 +670,9 @@ int cutest_shutdown(const char* filename,
   }
   else {
     /* Print a simple summary. */
-    printf("%d passed, %d failed.\n",
-           cutest_stats.test_cnt - cutest_stats.fail_cnt,
-           cutest_stats.fail_cnt);
+    lprintf("%d passed, %d failed.\n",
+            cutest_stats.test_cnt - cutest_stats.fail_cnt,
+            cutest_stats.fail_cnt);
   }
 
 
@@ -558,6 +690,16 @@ int cutest_shutdown(const char* filename,
     write_junit_report(junit_report_name, filename, &cutest_stats,
                        junit_report, test_cnt);
   }
-
+  cutest_resstat = cutest_exit_code;
+  if (0 != cutest_opts.result_file) {
+    if (0 != cutest_opts.no_linefeed) {
+      fprintf(cutest_resfd, "\n");
+    }
+    fprintf(cutest_resfd, "%d", cutest_resstat);
+    fclose(cutest_resfd);
+    if (EXIT_SUCCESS != cutest_resstat) {
+      remove(cutest_opts.result_file_name);
+    }
+  }
   return cutest_exit_code;
 }
