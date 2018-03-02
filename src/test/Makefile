@@ -45,14 +45,14 @@ else
 	RUN_VERBOSITY=-v
 endif
 
-#HAS_COV:=$(shell $(CC) -o ../empty ../empty.c -fprofile-arcs 2>&1 >/dev/null && echo "yes")
-#ifeq ("$(HAS_COV)","yes")
-#	HAS_GCOVR=$(shell which gcovr 2>&1 >/dev/null && echo "yes")
-#endif
-#
-#ifeq ("$(HAS_GCOVR)","yes")
-#	COV_FLAGS=-fprofile-arcs -ftest-coverage -fprofile-dir=..
-#endif
+HAS_COV:=$(shell $(CC) -o ../empty ../empty.c -fprofile-arcs 2>&1 >/dev/null && echo "yes")
+ifeq ("$(HAS_COV)","yes")
+	HAS_GCOVR=$(shell which gcovr 2>&1 >/dev/null && echo "yes")
+endif
+
+ifeq ("$(HAS_GCOVR)","yes")
+	COV_FLAGS=-fprofile-arcs -ftest-coverage --coverage
+endif
 
 LDFLAGS:=-flto
 CFLAGS+=-g -Wall -pedantic $(STD) -O0
@@ -75,7 +75,7 @@ info:
 	$(Q)mkdir .cutest && touch $@
 
 .cutest/cutest_impl.o: ../cutest_impl.c
-	$(Q)$(CC) -o $@ -c $< $(CFLAGS) -I../
+	$(Q)$(CC) -o $@ -c $< $(CFLAGS) $(COV_FLAGS) -I../
 
 #
 # Cutest friendly design-under-test-objects
@@ -303,7 +303,7 @@ info:
 	$(Q)$(CC) $^ -o $@ $(LDFLAGS) $(COV_FLAGS) $(CFLAGS) -DNDEBUG -D"inline=" -I.. -I.
 
 .PRECIOUS: .cutest/mockable_test
-.cutest/mockable_test: .cutest/mockable_proxified.s .cutest/mockable_test_run.c .cutest/cutest_impl.o ../arg.o
+.cutest/mockable_test: .cutest/mockable_proxified.s .cutest/mockable_test_run.c .cutest/cutest_impl.o .cutest/arg_mockables.o
 	$(Q)$(CC) $^ -o $@ $(LDFLAGS) $(COV_FLAGS) $(CFLAGS) -DNDEBUG -D"inline=" -I.. -I.
 
 .PRECIOUS: .cutest/testcase_test
@@ -311,15 +311,15 @@ info:
 	$(Q)$(CC) $^ -o $@ $(LDFLAGS) $(COV_FLAGS) $(CFLAGS) -DNDEBUG -D"inline=" -I.. -I.
 
 .PRECIOUS: .cutest/cutest_mock_test
-.cutest/cutest_mock_test: .cutest/cutest_mock_proxified.s .cutest/cutest_mock_test_run.c .cutest/cutest_impl.o ../arg.o ../helpers.o ../mockable.o
+.cutest/cutest_mock_test: .cutest/cutest_mock_proxified.s .cutest/cutest_mock_test_run.c .cutest/cutest_impl.o .cutest/arg_mockables.o .cutest/helpers_mockables.o .cutest/mockable_mockables.o
 	$(Q)$(CC) $^ -o $@ $(LDFLAGS) $(COV_FLAGS) $(CFLAGS) -DNDEBUG -D"inline=" -I.. -I.
 
 .PRECIOUS: .cutest/cutest_prox_test
-.cutest/cutest_prox_test: .cutest/cutest_prox_proxified.s .cutest/cutest_prox_test_run.c .cutest/cutest_impl.o ../helpers.o
+.cutest/cutest_prox_test: .cutest/cutest_prox_proxified.s .cutest/cutest_prox_test_run.c .cutest/cutest_impl.o .cutest/helpers_mockables.o
 	$(Q)$(CC) $^ -o $@ $(LDFLAGS) $(COV_FLAGS) $(CFLAGS) -DNDEBUG -D"inline=" -I.. -I.
 
 .PRECIOUS: .cutest/cutest_run_test
-.cutest/cutest_run_test: .cutest/cutest_run_proxified.s .cutest/cutest_run_test_run.c .cutest/cutest_impl.o ../helpers.o ../testcase.o
+.cutest/cutest_run_test: .cutest/cutest_run_proxified.s .cutest/cutest_run_test_run.c .cutest/cutest_impl.o .cutest/helpers_mockables.o .cutest/testcase_mockables.o
 	$(Q)$(CC) $^ -o $@ $(LDFLAGS) $(COV_FLAGS) $(CFLAGS) -DNDEBUG -D"inline=" -I.. -I.
 
 #
