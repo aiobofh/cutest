@@ -79,6 +79,14 @@ static void rstrip(char* buf)
   buf[strlen(buf) - 1] = 0;
 }
 
+static int ignore_special_symbols(const char* buf)
+{
+  if (0 == strcmp(buf, "stderr")) {
+    return 1;
+  }
+  return 0;
+}
+
 static size_t read_mockables_list_file(mockable_node* node,
                                        const char* mockables_list_file_name)
 {
@@ -92,7 +100,7 @@ static size_t read_mockables_list_file(mockable_node* node,
 
   while (fgets(buf, sizeof(buf), fd)) {
     rstrip(buf);
-    if (0 == strcmp(buf, "stderr")) {
+    if (0 != ignore_special_symbols(buf)) {
       continue;
     }
     if (NULL == (node = add_new_mockable_node(node, buf))) {

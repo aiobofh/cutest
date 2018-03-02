@@ -117,6 +117,18 @@ test(add_new_mockable_node_shall_return_the_new_node)
   assert_eq(&new_node, add_new_mockable_node(&node, "testing"));
 }
 
+/*****************************************************************************
+ * ignore_special_symbols()
+ */
+module_test(ignore_special_symbols_shall_return_1_if_ignored)
+{
+  assert_eq(1, ignore_special_symbols("stderr"));
+}
+
+module_test(ignore_special_symbols_shall_return_0_if_not_ignored)
+{
+  assert_eq(0, ignore_special_symbols("something relevant"));
+}
 
 /*****************************************************************************
  * read_mockables_list_file()
@@ -150,39 +162,55 @@ test(read_mockables_list_file_shall_call_fgets_correctly)
   assert_eq(0x1234, m.fgets.args.arg2);
 }
 
-static int fgets_only_once_stub_cnt = 0;
 static char* fgets_only_once_stub(char* s, int size, FILE *stream)
 {
-  (void)s;
-  (void)size;
-  (void)stream;
-  if (fgets_only_once_stub_cnt > 0) {
+  (void)s; (void)size; (void)stream;
+  if (m.fgets.call_count > 1) {
     return NULL;
   }
-  fgets_only_once_stub_cnt++;
   return 0x5678;
+}
+
+test(read_mockables_list_file_shall_call_ignore_special_symbols_for_each_row)
+{
+  mockable_node node;
+
+  m.fopen.retval = 0x1234;
+  m.fgets.func = fgets_only_once_stub;
+  m.fgets.retval = 0x5678;
+
+  read_mockables_list_file(&node, "file_name");
+  assert_eq(1, m.ignore_special_symbols.call_count);
+}
+
+test(read_mockables_list_file_shall_not_add_node_if_symbol_is_ignored)
+{
+  mockable_node node;
+
+  m.fopen.retval = 0x1234;
+  m.fgets.func = fgets_only_once_stub;
+  m.fgets.retval = 0x5678;
+  m.ignore_special_symbols.retval = 1;
+
+  read_mockables_list_file(&node, "file_name");
+  assert_eq(0, m.add_new_mockable_node.call_count);
 }
 
 test(read_mockables_list_file_shall_return_0_if_out_of_memory)
 {
   mockable_node node;
-  fgets_only_once_stub_cnt = 0;
 
-  m.strcmp.retval = 1;
   m.fopen.retval = 0x1234;
   m.fgets.func = fgets_only_once_stub;
   m.fgets.retval = 0x5678;
 
   assert_eq(0, read_mockables_list_file(&node, "file_name"));
-
-  fgets_only_once_stub_cnt = 0;
 }
 
 test(read_mockables_list_file_shall_return_count_if_all_is_ok)
 {
   mockable_node node;
   mockable_node new_node;
-  fgets_only_once_stub_cnt = 0;
 
   m.fopen.retval = 0x1234;
   m.fgets.func = fgets_only_once_stub;
@@ -191,8 +219,6 @@ test(read_mockables_list_file_shall_return_count_if_all_is_ok)
   m.add_new_mockable_node.retval = &new_node;
 
   assert_eq(1, read_mockables_list_file(&node, "file_name"));
-
-  fgets_only_once_stub_cnt = 0;
 }
 
 /*****************************************************************************
@@ -251,6 +277,58 @@ test(is_space_shall_return_0_if_character_is_not_a_valid_whitespace)
 }
 
 /*****************************************************************************
+ * is_space()
+ */
+module_test(is_space_underscore_shall_return_1_if_characters_are_valid_ws_us)
+{
+  assert_eq(1, is_space_underscore('\0', '_'));
+  assert_eq(1, is_space_underscore(' ', '_'));
+  assert_eq(1, is_space_underscore('\n', '_'));
+  assert_eq(1, is_space_underscore('\r', '_'));
+  assert_eq(1, is_space_underscore('\t', '_'));
+}
+
+module_test(is_space_underscore_shall_return_0_if_characters_are_not_valid_ws_us)
+{
+  assert_eq(0, is_space_underscore('\0', 'a'));
+  assert_eq(0, is_space_underscore('a', '_'));
+}
+
+/*****************************************************************************
+ * mockable_is_surrounded_by_old_gcc_whitespaces()
+ */
+test(mockable_is_surrounded_by_old_gcc_whitespaces_shall_return_1_if_left_and_right)
+{
+  m.is_space.func = is_space;
+  m.is_space_underscore.func = is_space_underscore;
+  assert_eq(1, mockable_is_surrounded_by_old_gcc_whitespaces(" _a ", 2, 2));
+  assert_eq(1, mockable_is_surrounded_by_old_gcc_whitespaces(" _a ", 2, 2));
+}
+
+test(mockable_is_surrounded_by_old_gcc_whitespaces_shall_return_0_if_not)
+{
+  m.is_space.func = is_space;
+  m.is_space_underscore.func = is_space_underscore;
+  assert_eq(0, mockable_is_surrounded_by_old_gcc_whitespaces(" _ab", 2, 2));
+  assert_eq(0, mockable_is_surrounded_by_old_gcc_whitespaces("ba ", 2, 2));
+}
+
+module_test(mockable_is_surrounded_by_old_gcc_whitespaces_shall_return_true_if_so)
+{
+  m.printf.func = printf;
+  const int pos = strlen("  mnemonic _");
+  const int end = pos + strlen("mockable") - 1;
+  assert_eq(1, mockable_is_surrounded_by_old_gcc_whitespaces("  mnemonic _mockable ",
+                                                             pos, end));
+  assert_eq(1, mockable_is_surrounded_by_old_gcc_whitespaces("  mnemonic _mockable",
+                                                             pos, end));
+  assert_eq(1, mockable_is_surrounded_by_old_gcc_whitespaces("  mnemonic\t_mockable ",
+                                                             pos, end));
+  assert_eq(1, mockable_is_surrounded_by_old_gcc_whitespaces("  mnemonic\t_mockable\n",
+                                                             pos, end));
+}
+
+/*****************************************************************************
  * mockable_is_surrounded_by_whitespaces()
  */
 test(mockable_is_surrounded_by_whitespaces_shall_return_1_if_left_and_right)
@@ -295,15 +373,34 @@ test(replace_jump_destination_shall_call_mockable_is_surrounded_correctly)
   assert_eq((9 + m.strlen.retval - 1), m.mockable_is_surrounded_by_whitespaces.args.arg2);
 }
 
-test(replace_jump_destination_shall_return_0_if_not_a_valid_branch)
+test(replace_jump_destination_shall_call_mockable_is_surrounded_old_correctly)
 {
+  m.strlen.retval = 3; /* End-position of the mockable on a row */
+  replace_jump_destination(0x1234, 0x5678, 9);
+  assert_eq(1, m.mockable_is_surrounded_by_old_gcc_whitespaces.call_count);
+  assert_eq(0x1234, m.mockable_is_surrounded_by_old_gcc_whitespaces.args.arg0);
+  assert_eq(9, m.mockable_is_surrounded_by_old_gcc_whitespaces.args.arg1);
+  assert_eq((9 + m.strlen.retval - 1), m.mockable_is_surrounded_by_old_gcc_whitespaces.args.arg2);
+}
+
+test(replace_jump_destination_shall_return_0_if_not_a_valid_new_nor_old_style_branch)
+{
+  m.mockable_is_surrounded_by_whitespaces.retval = 0;
+  m.mockable_is_surrounded_by_old_gcc_whitespaces.retval = 0;
   assert_eq(0, replace_jump_destination(0x1234, 0x5678, 9));
 }
 
-test(replace_jump_destination_shall_return_1_if_valid_branch)
+test(replace_jump_destination_shall_return_1_if_valid_new_style_branch)
 {
   char buf[10];
   m.mockable_is_surrounded_by_whitespaces.retval = 1;
+  assert_eq(1, replace_jump_destination(buf, "foo", 6));
+}
+
+test(replace_jump_destination_shall_return_1_if_valid_old_style_branch)
+{
+  char buf[10];
+  m.mockable_is_surrounded_by_old_gcc_whitespaces.retval = 1;
   assert_eq(1, replace_jump_destination(buf, "foo", 6));
 }
 
